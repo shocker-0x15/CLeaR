@@ -350,8 +350,8 @@ void buildScene() {
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t sppOnce = 1;
-    const uint32_t iterations = 16;
+    const uint32_t sppOnce = 16;
+    const uint32_t iterations = 2;
     
     buildScene();
     
@@ -363,7 +363,10 @@ int main(int argc, const char * argv[]) {
         
         std::vector<cl::Device> devices;
         platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
-        cl::Device device = devices[0];
+        cl::Device device = devices[1];
+        std::string deviceName;
+        device.getInfo(CL_DEVICE_NAME, &deviceName);
+        printf("%s\n", deviceName.c_str());
         
         cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0};
         cl::Context context{device, ctx_props};
@@ -377,6 +380,9 @@ int main(int argc, const char * argv[]) {
         
         cl::Program programRendering{context, srcRendering};
         programRendering.build();
+        std::string buildLog;
+        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
+        printf("%s\n", buildLog.c_str());
         
         cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, vertices.size() * sizeof(cl_float3), (void*)vertices.data(), nullptr};
         cl::Buffer buf_normals;
@@ -429,20 +435,20 @@ int main(int argc, const char * argv[]) {
         const int numTilesX = 8, numTilesY = 8;
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
-        cl::NDRange localSize{16, 16};
+        cl::NDRange localSize{32, 32};
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);
             for (int j = 0; j < numTiles; ++j) {
                 cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
                 cl::Event ev;
                 queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
-                //                ev.setCallback(CL_COMPLETE, completeTile);
+//                ev.setCallback(CL_COMPLETE, completeTile);
             }
             queue.finish();
             printf("\n");
         }
         
-        //        queue.enqueueReadBuffer(buf_pixels, CL_TRUE, 0, g_height * g_width * sizeof(cl_float3), g_pixels.data(), &eventList, &readEvent);
+//        queue.enqueueReadBuffer(buf_pixels, CL_TRUE, 0, g_height * g_width * sizeof(cl_float3), g_pixels.data(), &eventList, &readEvent);
         printf("rendering done!\n");
         
         

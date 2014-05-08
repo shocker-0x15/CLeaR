@@ -11,7 +11,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
                         global uint* randStates, uint width, uint height, uint spp,
                         global float3* pixels) {
     Scene scene = {vertices, normals, binormals, uvs, (global Face*)faces, lights, numLights,
-                    materialsData, lightsData, texturesData, (global BVHNode*)BVHNodes};
+                   materialsData, lightsData, texturesData, (global BVHNode*)BVHNodes};
     
     const uint gid0 = get_global_id(0);
     const uint gid1 = get_global_id(1);

@@ -12,17 +12,7 @@
 #include <cstdio>
 #include <cmath>
 #include <vector>
-#include "cl12.hpp"
-
-cl_float3 minCLfloat3(const cl_float3 &a, const cl_float3 &b) {
-    cl_float3 f3 = {std::min(a.s0, b.s0), std::min(a.s1, b.s1), std::min(a.s2, b.s2)};
-    return f3;
-}
-
-cl_float3 maxCLfloat3(const cl_float3 &a, const cl_float3 &b) {
-    cl_float3 f3 = {std::max(a.s0, b.s0), std::max(a.s1, b.s1), std::max(a.s2, b.s2)};
-    return f3;
-}
+#include "clUtility.hpp"
 
 struct BBox {
     cl_float3 min;

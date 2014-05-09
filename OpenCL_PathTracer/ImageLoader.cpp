@@ -7,9 +7,9 @@
 //
 
 #include "ImageLoader.hpp"
-#include <string>
 #include <libpng16/png.h>
 #include <cstdlib>
+#include <string>
 
 bool loadJPEG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height) {
     return false;
@@ -131,7 +131,7 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     
     size_t curSize = storage->size();
     size_t rowSize = *width * 4 * sizeof(uint8_t);
-    storage->resize(storage->size() +  *height * rowSize);
+    storage->resize(storage->size() + *height * rowSize);
     uint8_t* dataHead = &(*storage)[curSize];
     for (int i = 0; i < *height; ++i) {
         png_read_row(pngStruct, dataHead, nullptr);

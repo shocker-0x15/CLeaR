@@ -13,19 +13,11 @@
 #include <fstream>
 #define __CL_ENABLE_EXCEPTIONS
 #include "cl12.hpp"
-#include "clFunctions.h"
+#include "clUtility.hpp"
+#include "CreateFunctions.hpp"
+#include "ModelLoader.hpp"
 #include "BVH.hpp"
-#include "ImageLoader.hpp"
-
-cl_float2 makeCLfloat2(float x, float y) {
-    cl_float2 f2 = {x, y};
-    return f2;
-}
-
-cl_float3 makeCLfloat3(float x, float y, float z) {
-    cl_float3 f3 = {x, y, z};
-    return f3;
-}
+#include "Face.hpp"
 
 CL_CALLBACK void completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
@@ -72,58 +64,6 @@ void saveBMP(const char* filename, const void* pixels, uint32_t width, uint32_t 
     fclose(fp);
 }
 
-struct Face {
-    uint32_t p0, p1, p2;
-    uint32_t ns0, ns1, ns2;
-    uint32_t uv0, uv1, uv2;
-    uint16_t matPtr, lightPtr; uint8_t dum[8];
-    
-    Face() :
-    p0(UINT32_MAX), p1(UINT32_MAX), p2(UINT32_MAX),
-    ns0(UINT32_MAX), ns1(UINT32_MAX), ns2(UINT32_MAX),
-    uv0(UINT32_MAX), uv1(UINT32_MAX), uv2(UINT32_MAX),
-    matPtr(UINT16_MAX), lightPtr(UINT16_MAX) { };
-    
-    static Face make_p(uint32_t p0, uint32_t p1, uint32_t p2, uint16_t matPtr, uint16_t lightPtr = UINT16_MAX) {
-        Face face;
-        face.p0 = p0; face.p1 = p1; face.p2 = p2;
-        face.matPtr = matPtr; face.lightPtr = lightPtr;
-        return face;
-    }
-    
-    static Face make_pt(uint32_t p0, uint32_t p1, uint32_t p2,
-                        uint32_t uv0, uint32_t uv1, uint32_t uv2,
-                        uint16_t matPtr, uint16_t lightPtr = UINT16_MAX) {
-        Face face;
-        face.p0 = p0; face.p1 = p1; face.p2 = p2;
-        face.uv0 = uv0; face.uv1 = uv1; face.uv2 = uv2;
-        face.matPtr = matPtr; face.lightPtr = lightPtr;
-        return face;
-    }
-    
-    static Face make_pn(uint32_t p0, uint32_t p1, uint32_t p2,
-                        uint32_t ns0, uint32_t ns1, uint32_t ns2,
-                        uint16_t matPtr, uint16_t lightPtr = UINT16_MAX) {
-        Face face;
-        face.p0 = p0; face.p1 = p1; face.p2 = p2;
-        face.ns0 = ns0; face.ns1 = ns1; face.ns2 = ns2;
-        face.matPtr = matPtr; face.lightPtr = lightPtr;
-        return face;
-    }
-    
-    static Face make_pnt(uint32_t p0, uint32_t p1, uint32_t p2,
-                         uint32_t ns0, uint32_t ns1, uint32_t ns2,
-                         uint32_t uv0, uint32_t uv1, uint32_t uv2,
-                         uint16_t matPtr, uint16_t lightPtr = UINT16_MAX) {
-        Face face;
-        face.p0 = p0; face.p1 = p1; face.p2 = p2;
-        face.ns0 = ns0; face.ns1 = ns1; face.ns2 = ns2;
-        face.uv0 = uv0; face.uv1 = uv1; face.uv2 = uv2;
-        face.matPtr = matPtr; face.lightPtr = lightPtr;
-        return face;
-    }
-};
-
 XORShiftRandom32 rng{215363872};
 const int g_width = 1024;
 const int g_height = 1024;
@@ -144,69 +84,6 @@ void addFace(const Face &face) {
     faces.push_back(face);
     if (face.lightPtr != UINT16_MAX)
         lights.push_back((uint32_t)faces.size() - 1);
-}
-
-uint64_t align(std::vector<uint8_t>* vec, uint32_t alignment) {
-    uint32_t numFill = alignment - vec->size() % alignment;
-    if (numFill != alignment)
-        vec->insert(vec->end(), numFill, 0);
-    return vec->size();
-}
-
-uint64_t addDataAligned(std::vector<uint8_t>* dest, void* data, uint32_t bytes, uint32_t alignment) {
-    uint32_t numFill = alignment - dest->size() % alignment;
-    if (numFill != alignment)
-        dest->insert(dest->end(), numFill, 0);
-    dest->insert(dest->end(), bytes, 0);
-    memcpy(&dest->back() + 1 - bytes, data, bytes);
-    return dest->size() - bytes;
-}
-
-template <typename T>
-uint64_t addDataAligned(std::vector<uint8_t>* dest, const T &data, uint32_t alignment = sizeof(T)) {
-    uint32_t numFill = alignment - dest->size() % alignment;
-    if (numFill != alignment)
-        dest->insert(dest->end(), numFill, 0);
-    dest->insert(dest->end(), sizeof(T), 0);
-    memcpy(&dest->back() + 1 - sizeof(T), &data, sizeof(T));
-    return dest->size() - sizeof(T);
-}
-
-uint64_t createFloat3ConstantTexture(std::vector<uint8_t>* storage, float s0, float s1, float s2) {
-    cl_float3 f3Val;
-    uint64_t texHead = addDataAligned<cl_uchar>(storage, 0);
-    f3Val.s0 = s0; f3Val.s1 = s1; f3Val.s2 = s2;
-    addDataAligned<cl_float3>(storage, f3Val);
-    return texHead;
-}
-
-uint64_t createFloatConstantTexture(std::vector<uint8_t>* storage, float val) {
-    uint64_t texHead = addDataAligned<cl_uchar>(storage, 10);
-    addDataAligned<cl_float>(storage, val);
-    return texHead;
-}
-
-uint64_t createImageTexture(std::vector<uint8_t>* storage, const char* filename) {
-    uint32_t w, h;
-    uint64_t texHead = addDataAligned<cl_uchar>(storage, 1);
-    addDataAligned<cl_uint>(storage, 0);
-    addDataAligned<cl_uint>(storage, 0);
-    align(storage, sizeof(cl_uchar3));
-    loadImage(filename, storage, &w, &h);
-    *(cl_uint*)(storage->data() + texHead + sizeof(cl_uint) * 1) = w;
-    *(cl_uint*)(storage->data() + texHead + sizeof(cl_uint) * 2) = h;
-    return texHead;
-}
-
-uint64_t createCheckerBoardTexture(std::vector<uint8_t>* storage, float c0r, float c0g, float c0b, float c1r, float c1g, float c1b) {
-    uint64_t texHead = addDataAligned<cl_uchar>(storage, 2);
-    addDataAligned<cl_uchar>(storage, 0);
-    cl_float3 f3Val;
-    f3Val.s0 = c0r; f3Val.s1 = c0g; f3Val.s2 = c0b;
-    addDataAligned<cl_float3>(storage, f3Val);
-    f3Val.s0 = c1r; f3Val.s1 = c1g; f3Val.s2 = c1b;
-    addDataAligned<cl_float3>(storage, f3Val);
-    return texHead;
 }
 
 void buildScene() {

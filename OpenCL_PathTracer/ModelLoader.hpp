@@ -10,10 +10,8 @@
 #define __OpenCL_PathTracer__ModelLoader__
 
 #include <vector>
-#include "cl12.hpp"
-#include "Face.hpp"
+#include "Scene.hpp"
 
-bool loadModel(const char* fileName,
-               std::vector<cl_float3>* vertices, std::vector<cl_float3>* normals, std::vector<cl_float2>* uvs, std::vector<Face>* faces);
+bool loadModel(const char* fileName, Scene* scene);
 
 #endif /* defined(__OpenCL_PathTracer__ModelLoader__) */

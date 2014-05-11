@@ -10,7 +10,8 @@ typedef float3 color;
 
 #define ALIGN(ad, w) ((ad) + ((w) - 1)) & ~((w) - 1)
 
-typedef struct {
+//48bytes
+typedef struct __attribute__((aligned(16))) {
     point3 org;
     vector3 dir;
     uint depth;
@@ -45,6 +46,7 @@ typedef struct __attribute__((aligned(16))) {
     uint faceID;
 } Intersection;
 
+//64bytes
 typedef struct __attribute__((aligned(16))) {
     point3 p;
     vector3 ng;
@@ -56,7 +58,7 @@ typedef struct __attribute__((aligned(16))) {
 typedef struct {
     global point3* vertices;
     global vector3* normals;
-    global vector3* binormals;
+    global vector3* tangents;
     global float2* uvs;
     global Face* faces;
     global uint* lights;
@@ -84,13 +86,13 @@ inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes) {
         *(dst++) = *(src++);
 }
 
-inline uchar* AlignPtrAdd(uchar** ptr, uint bytes) {
+inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
     uchar* ptrAligned = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     *ptr = ptrAligned + bytes;
     return ptrAligned;
 }
 
-inline const global uchar* AlignPtrAddG(const global uchar** ptr, uint bytes) {
+inline const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes) {
     const global uchar* ptrAligned = (const global uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     *ptr = ptrAligned + bytes;
     return ptrAligned;

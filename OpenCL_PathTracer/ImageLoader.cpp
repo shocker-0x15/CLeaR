@@ -25,19 +25,23 @@ void libPNGreadRowCallback(png_structp pngStruct, png_uint_32 row, int pass) {
 
 bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height) {
     FILE* fp = fopen(fileName, "rb");
-    if (fp == nullptr)
+    if (fp == nullptr) {
+        printf("Failed to open the png file.\n");
         return false;
+    }
     
     uint8_t headSignature[8];
     fread(headSignature, 1, sizeof(headSignature), fp);
     if (png_sig_cmp(headSignature, 0, sizeof(headSignature))) {
         fclose(fp);
+        printf("This is not a png file.\n");
         return false;
     }
     
     png_structp pngStruct = png_create_read_struct(PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
     if (!pngStruct) {
         fclose(fp);
+        printf("libpng: Failed to create a read struct.\n");
         return false;
     }
     
@@ -46,6 +50,7 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     if (!pngInfo) {
         png_destroy_read_struct(&pngStruct, nullptr, nullptr);
         fclose(fp);
+        printf("libpng: Failed to create an info struct.\n");
         return false;
     }
     
@@ -54,12 +59,14 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     if (!pngEndInfo) {
         png_destroy_read_struct(&pngStruct, &pngInfo, nullptr);
         fclose(fp);
+        printf("libpng: Failed to create an end info struct.\n");
         return false;
     }
     
     if (setjmp(png_jmpbuf(pngStruct))) {
         png_destroy_read_struct(&pngStruct, &pngInfo, &pngEndInfo);
         fclose(fp);
+        printf("libpng: Error.\n");
         return false;
     }
     

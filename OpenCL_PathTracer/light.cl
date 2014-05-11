@@ -14,27 +14,32 @@ typedef enum {
     EEDF_All_Types        = EEDF_Diffuse | EEDF_Varying | EEDF_Directional,
 } EEDFType;
 
+//12bytes
 typedef struct {
     float uLight;
     float uPos[2];
 } LightSample;
 
+//8bytes
 typedef struct {
 //    float uComponent;
     float uDir[2];
 } EDFSample;
 
+//8bytes
 typedef struct {
     uchar __attribute__((aligned(4))) id;
     EEDFType eLeType;
 } EEDFHead;
 
-typedef struct {
-    EEDFHead head;
+//32bytes
+typedef struct __attribute__((aligned(16))) {
+    EEDFHead __attribute__((aligned(16))) head;
     color M;
 } DiffuseEmission;
 
-typedef struct {
+//80bytes
+typedef struct __attribute__((aligned(16))) {
     uchar __attribute__((aligned(2))) numEEDFs;
     ushort __attribute__((aligned(2))) offsetsEEDFs[4];
     vector3 n, s, t, ng;

@@ -17,7 +17,9 @@
 #include "CreateFunctions.hpp"
 #include "ModelLoader.hpp"
 #include "BVH.hpp"
-#include "Face.hpp"
+#include "Scene.hpp"
+
+#include "sim_pathtracer.h"
 
 CL_CALLBACK void completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
@@ -67,40 +69,15 @@ void saveBMP(const char* filename, const void* pixels, uint32_t width, uint32_t 
 XORShiftRandom32 rng{215363872};
 const int g_width = 1024;
 const int g_height = 1024;
-std::vector<cl_float3> vertices{};
-std::vector<cl_float3> normals{};
-std::vector<cl_float3> binormals{};
-std::vector<cl_float2> uvs{};
-std::vector<Face> faces{};
-std::vector<uint32_t> lights{};
-std::vector<uint8_t> materialsData{};
-std::vector<uint8_t> lightsData{};
-std::vector<uint8_t> texturesData{};
+Scene scene;
 std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
-BVH bvh;
-
-void addFace(const Face &face) {
-    faces.push_back(face);
-    if (face.lightPtr != UINT16_MAX)
-        lights.push_back((uint32_t)faces.size() - 1);
-}
 
 void buildScene() {
-    std::vector<uint16_t> matIdx;
-    std::vector<uint16_t> lgtIdx;
+    uint64_t dataHead;
     
     g_randStates.resize(g_width * g_height * 4);
     g_pixels.resize(g_width * g_height);
-    vertices.reserve(64);
-    normals.reserve(64);
-    binormals.reserve(64);
-    uvs.reserve(64);
-    faces.reserve(64);
-    lights.reserve(64);
-    
-    materialsData.reserve(64);
-    lightsData.reserve(64);
     
     for (int i = 0; i < g_height; ++i) {
         for (int j = 0; j < g_width; ++j) {
@@ -115,120 +92,74 @@ void buildScene() {
     }
     
     //部屋
-    vertices.push_back(makeCLfloat3(-1.0f, -1.0f, -1.0f));
-    vertices.push_back(makeCLfloat3( 1.0f, -1.0f, -1.0f));
-    vertices.push_back(makeCLfloat3( 1.0f,  1.0f, -1.0f));
-    vertices.push_back(makeCLfloat3(-1.0f,  1.0f, -1.0f));
-    vertices.push_back(makeCLfloat3(-1.0f, -1.0f,  1.0f));
-    vertices.push_back(makeCLfloat3( 1.0f, -1.0f,  1.0f));
-    vertices.push_back(makeCLfloat3( 1.0f,  1.0f,  1.0f));
-    vertices.push_back(makeCLfloat3(-1.0f,  1.0f,  1.0f));
+    scene.beginObject();
+    scene.addVertex(-1.0f, -1.0f, -1.0f);
+    scene.addVertex( 1.0f, -1.0f, -1.0f);
+    scene.addVertex( 1.0f,  1.0f, -1.0f);
+    scene.addVertex(-1.0f,  1.0f, -1.0f);
+    scene.addVertex(-1.0f, -1.0f,  1.0f);
+    scene.addVertex( 1.0f, -1.0f,  1.0f);
+    scene.addVertex( 1.0f,  1.0f,  1.0f);
+    scene.addVertex(-1.0f,  1.0f,  1.0f);
+    scene.addUV(0.0f, 0.0f);
+    scene.addUV(5.0f, 0.0f);
+    scene.addUV(5.0f, 5.0f);
+    scene.addUV(0.0f, 5.0f);
+    scene.addUV(0.0f, 1.0f);
+    scene.addUV(1.0f, 1.0f);
+    scene.addUV(1.0f, 0.0f);
+    scene.addUV(0.0f, 0.0f);
     
-    uvs.push_back(makeCLfloat2(0.0f, 0.0f));
-    uvs.push_back(makeCLfloat2(5.0f, 0.0f));
-    uvs.push_back(makeCLfloat2(5.0f, 5.0f));
-    uvs.push_back(makeCLfloat2(0.0f, 5.0f));
+    createFloat3ConstantTexture(&scene, "R_leftWall", 0.75f, 0.25f, 0.25f);
+    createFloat3ConstantTexture(&scene, "R_rightWall", 0.25f, 0.25f, 0.75f);
+    createFloat3ConstantTexture(&scene, "R_otherWalls", 0.75f, 0.75f, 0.75f);
+    createFloatConstantTexture(&scene, "sigma_lambert", 0.0f);
+    createCheckerBoardTexture(&scene, "R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
+    createImageTexture(&scene, "R_backWall", "images/pika_flat.png");
     
-    uvs.push_back(makeCLfloat2(0.0f, 1.0f));
-    uvs.push_back(makeCLfloat2(1.0f, 1.0f));
-    uvs.push_back(makeCLfloat2(1.0f, 0.0f));
-    uvs.push_back(makeCLfloat2(0.0f, 0.0f));
+    createDiffuseMaterial(&scene, "mat_leftWall", scene.idxOfTex("R_leftWall"), scene.idxOfTex("sigma_lambert"));
+    createDiffuseMaterial(&scene, "mat_rightWall", scene.idxOfTex("R_rightWall"), scene.idxOfTex("sigma_lambert"));
+    createDiffuseMaterial(&scene, "mat_otherWalls", scene.idxOfTex("R_otherWalls"), scene.idxOfTex("sigma_lambert"));
+    createDiffuseMaterial(&scene, "mat_floor", scene.idxOfTex("R_floor"), scene.idxOfTex("sigma_lambert"));
+    createDiffuseMaterial(&scene, "mat_backWall", scene.idxOfTex("R_backWall"), scene.idxOfTex("sigma_lambert"));
     
-    {
-        uint64_t matHead;
-        
-        //mat0
-        matHead = addDataAligned<cl_uchar>(&materialsData, 1);//Diffuse
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloat3ConstantTexture(&texturesData, 0.75f, 0.25f, 0.25f));//Reflectance
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.0f));//Roughness
-        matIdx.push_back((uint16_t)matHead);
-        
-        //mat1
-        matHead = addDataAligned<cl_uchar>(&materialsData, 1);
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloat3ConstantTexture(&texturesData, 0.25f, 0.25f, 0.75f));
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.0f));
-        matIdx.push_back((uint16_t)matHead);
-        
-        //mat2
-        matHead = addDataAligned<cl_uchar>(&materialsData, 1);
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloat3ConstantTexture(&texturesData, 0.75f, 0.75f, 0.75f));
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.0f));
-        matIdx.push_back((uint16_t)matHead);
-        
-        //mat3
-        //        matHead = addDataAligned<cl_uchar>(&materialsData, 1);
-        //        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloat3ConstantTexture(&texturesData, 0.75f, 0.75f, 0.75f));
-        //        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.0f));
-        //        matIdx.push_back((uint16_t)matHead);
-        
-        //        matHead = addDataAligned<cl_uchar>(&materialsData, 2);//Specular
-        //        addDataAligned<cl_uchar>(&materialsData, 2);//procedural texture
-        //        addDataAligned<cl_uchar>(&materialsData, 0);//checker board
-        //        f3Val.s0 = 0.75f; f3Val.s1 = 0.75f; f3Val.s2 = 0.75f;
-        //        addDataAligned<cl_float3>(&materialsData, f3Val);
-        //        f3Val.s0 = 0.25f; f3Val.s1 = 0.25f; f3Val.s2 = 0.25f;
-        //        addDataAligned<cl_float3>(&materialsData, f3Val);
-        //        addDataAligned<cl_uchar>(&materialsData, 0);//NoOp
-        //        matIdx.push_back((uint16_t)matHead);
-        
-        matHead = addDataAligned<cl_uchar>(&materialsData, 4);//New Ward
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createCheckerBoardTexture(&texturesData, 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f));
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.25f));//Anisotropy X
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.25f));//Anisotropy Y
-        matIdx.push_back((uint16_t)matHead);
-        
-        //mat4
-        matHead = addDataAligned<cl_uchar>(&materialsData, 1);
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createImageTexture(&texturesData, "images/pika_flat.png"));
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.0f));
-        matIdx.push_back((uint16_t)matHead);
-    }
-    
-    addFace(Face::make_pt(1, 0, 3, 5, 4, 7, matIdx[4])); addFace(Face::make_pt(1, 3, 2, 5, 7, 6, matIdx[4]));
-    //    addFace(Face(4, 5, 6, matIdx[3])); addFace(Face(4, 6, 7, matIdx[3]));
-    addFace(Face::make_p(0, 4, 7, matIdx[0])); addFace(Face::make_p(0, 7, 3, matIdx[0]));
-    addFace(Face::make_p(5, 1, 2, matIdx[1])); addFace(Face::make_p(5, 2, 6, matIdx[1]));
-    //    addFace(Face::make_p(4, 5, 1, matIdx[2])); addFace(Face::make_p(4, 1, 0, matIdx[2]));
-    addFace(Face::make_pt(4, 5, 1, 0, 1, 2, matIdx[3])); addFace(Face::make_pt(4, 1, 0, 0, 2, 3, matIdx[3]));
-    addFace(Face::make_p(2, 3, 7, matIdx[2])); addFace(Face::make_p(2, 7, 6, matIdx[2]));
-    
+    scene.addFace(Face::make_pt(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall")));
+    scene.addFace(Face::make_pt(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall")));
+    scene.addFace(Face::make_p(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_p(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_p(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_p(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_pt(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
+    scene.addFace(Face::make_pt(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
+    scene.addFace(Face::make_p(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+    scene.addFace(Face::make_p(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+    scene.endObject();
     
     //光源
-    vertices.push_back(makeCLfloat3(-0.25f, 0.9999f, -0.25f));
-    vertices.push_back(makeCLfloat3(0.25f, 0.9999f, -0.25f));
-    vertices.push_back(makeCLfloat3(0.25f, 0.9999f, 0.25f));
-    vertices.push_back(makeCLfloat3(-0.25f, 0.9999f, 0.25f));
-    
+    scene.beginObject();
+    scene.addVertex(-0.25f, 0.9999f, -0.25f);
+    scene.addVertex(0.25f, 0.9999f, -0.25f);
+    scene.addVertex(0.25f, 0.9999f, 0.25f);
+    scene.addVertex(-0.25f, 0.9999f, 0.25f);
     {
-        uint64_t matHead;
+        createFloat3ConstantTexture(&scene, "R_light", 0.9f, 0.9f, 0.9f);
+        createFloat3ConstantTexture(&scene, "M_top", 30.0f, 30.0f, 30.0f);
         
-        //mat5
-        matHead = addDataAligned<cl_uchar>(&materialsData, 1);
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloat3ConstantTexture(&texturesData, 0.9f, 0.9f, 0.9f));
-        addDataAligned<cl_uint>(&materialsData, (cl_uint)createFloatConstantTexture(&texturesData, 0.0f));
-        matIdx.push_back((uint16_t)matHead);
-        
-        //light0
-        matHead = addDataAligned<cl_uchar>(&lightsData, 1);//1: Perfect Diffuse
-        addDataAligned<cl_uint>(&lightsData, (cl_uint)createFloat3ConstantTexture(&texturesData, 30.0f, 30.0f, 30.0f));
-        lgtIdx.push_back((uint16_t)matHead);
+        createDiffuseMaterial(&scene, "mat_light", scene.idxOfTex("R_light"), scene.idxOfTex("sigma_lambert"));
+        createDiffuseLightProperty(&scene, "light_top", scene.idxOfTex("M_top"));
     }
+    scene.addFace(Face::make_p(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    scene.addFace(Face::make_p(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    scene.endObject();
     
-    addFace(Face::make_p(8, 9, 10, matIdx[5], lgtIdx[0]));
-    addFace(Face::make_p(8, 10, 11, matIdx[5], lgtIdx[0]));
+    loadModel("models/sphere.obj", &scene);
     
-    for (int i = 0; i < faces.size(); ++i) {
-        BBox bb{vertices[faces[i].p0]};
-        bb.unionP(vertices[faces[i].p1]);
-        bb.unionP(vertices[faces[i].p2]);
-        bvh.addLeaf(bb);
-    }
-    bvh.build();
+    scene.build();
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t sppOnce = 16;
-    const uint32_t iterations = 2;
+    const uint32_t sppOnce = 1;
+    const uint32_t iterations = 1;
     
     buildScene();
     
@@ -261,39 +192,39 @@ int main(int argc, const char * argv[]) {
         programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
         printf("%s\n", buildLog.c_str());
         
-        cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, vertices.size() * sizeof(cl_float3), (void*)vertices.data(), nullptr};
+        cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
         cl::Buffer buf_normals;
-        if (normals.empty())
+        if (scene.numNormals() == 0)
             buf_normals = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
         else
-            buf_normals = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, normals.size() * sizeof(cl_float3), (void*)normals.data(), nullptr);
-        cl::Buffer buf_binormals;
-        if (binormals.empty())
-            buf_binormals = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
+            buf_normals = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numNormals() * sizeof(cl_float3), scene.rawNormals(), nullptr);
+        cl::Buffer buf_tangents;
+        if (scene.numTangents() == 0)
+            buf_tangents = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
         else
-            buf_binormals = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, binormals.size() * sizeof(cl_float3), (void*)binormals.data(), nullptr);
+            buf_tangents = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numTangents() * sizeof(cl_float3), scene.rawTangents(), nullptr);
         cl::Buffer buf_uvs;
-        if (uvs.empty())
+        if (scene.numUVs() == 0)
             buf_uvs = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float2), nullptr, nullptr);
         else
-            buf_uvs = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, uvs.size() * sizeof(cl_float2), (void*)uvs.data(), nullptr);
-        cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, faces.size() * sizeof(Face), (void*)faces.data(), nullptr};
-        cl::Buffer buf_lights{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, lights.size() * sizeof(uint32_t), (void*)lights.data(), nullptr};
-        cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, materialsData.size() * sizeof(uint8_t), (void*)materialsData.data(), nullptr};
-        cl::Buffer buf_lightsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, lightsData.size() * sizeof(uint8_t), (void*)lightsData.data(), nullptr};
-        cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, texturesData.size() * sizeof(uint8_t), (void*)texturesData.data(), nullptr};
-        cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, bvh.nodes.size() * sizeof(BVHNode), (void*)bvh.nodes.data(), nullptr};
+            buf_uvs = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numUVs() * sizeof(cl_float2), scene.rawUVs(), nullptr);
+        cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
+        cl::Buffer buf_lights{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numLights() * sizeof(uint32_t), scene.rawLights(), nullptr};
+        cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
+        cl::Buffer buf_lightsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfLightPropsData(), scene.rawLightPropsData(), nullptr};
+        cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
+        cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
         cl::Kernel kernelRendering{programRendering, "pathtracing"};
         kernelRendering.setArg(0, buf_vertices);
         kernelRendering.setArg(1, buf_normals);
-        kernelRendering.setArg(2, buf_binormals);
+        kernelRendering.setArg(2, buf_tangents);
         kernelRendering.setArg(3, buf_uvs);
         kernelRendering.setArg(4, buf_faces);
         kernelRendering.setArg(5, buf_lights);
-        kernelRendering.setArg(6, (uint32_t)lights.size());
+        kernelRendering.setArg(6, (uint32_t)scene.numLights());
         kernelRendering.setArg(7, buf_materialsData);
         kernelRendering.setArg(8, buf_lightsData);
         kernelRendering.setArg(9, buf_texturesData);
@@ -313,17 +244,39 @@ int main(int argc, const char * argv[]) {
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
+//        for (int i = 0; i < iterations; ++i) {
+//            printf("[ %d ]", i);
+//            for (int j = 0; j < numTiles; ++j) {
+//                cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
+//                cl::Event ev;
+//                queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
+////                ev.setCallback(CL_COMPLETE, completeTile);
+//            }
+//            queue.finish();
+//            printf("\n");
+//        }
+        sim::global_sizes[0] = (sim::uint)*tile;
+        sim::global_sizes[1] = (sim::uint)*(tile + 1);
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);
             for (int j = 0; j < numTiles; ++j) {
-                cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
-                cl::Event ev;
-                queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
-//                ev.setCallback(CL_COMPLETE, completeTile);
+                sim::global_offsets[0] = (sim::uint)*tile * (j % numTilesX);
+                sim::global_offsets[1] = (sim::uint)*(tile + 1) * (j / numTilesX);
+                for (int ty = 0; ty < *(tile + 1); ++ty) {
+                    for (int tx = 0; tx < *tile; ++tx) {
+                        sim::global_ids[0] = sim::global_offsets[0] + tx;
+                        sim::global_ids[1] = sim::global_offsets[1] + ty;
+                        sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
+                                         (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLights(), (sim::uint)scene.numLights(),
+                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawLightPropsData(), (sim::uchar*)scene.rawTexturesData(),
+                                         (sim::uchar*)scene.rawBVHNodes(), g_randStates.data(), g_width, g_height, sppOnce, (sim::float3*)g_pixels.data());
+                    }
+                }
+                printf("*");
             }
-            queue.finish();
             printf("\n");
         }
+        buf_pixels = {context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
 //        queue.enqueueReadBuffer(buf_pixels, CL_TRUE, 0, g_height * g_width * sizeof(cl_float3), g_pixels.data(), &eventList, &readEvent);
         printf("rendering done!\n");

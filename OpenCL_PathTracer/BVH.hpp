@@ -13,6 +13,7 @@
 #include <cmath>
 #include <vector>
 #include "clUtility.hpp"
+#include <cassert>
 
 struct BBox {
     cl_float3 min;
@@ -122,6 +123,7 @@ struct BVH {
         
         if (end - start < 2) {
             nodes[parent].children[0] = lIdx[start];
+            assert(nodes[parent].children[0] < leaves.size());
             return;
         }
         

@@ -20,39 +20,46 @@ typedef enum {
     BxDF_All              = BxDF_All_Reflection | BxDF_All_Transmission
 } BxDFType;
 
+//12bytes
 typedef struct {
     float uComponent;
     float uDir[2];
 } BSDFSample;
 
+//8bytes
 typedef struct {
     uchar __attribute__((aligned(4))) id;
     BxDFType fxType;
 } BxDFHead;
 
-typedef struct {
-    BxDFHead head;
+//48bytes
+typedef struct __attribute__((aligned(16))) {
+    BxDFHead __attribute__((aligned(16))) head;
     color R;
     float A, B;
 } Diffuse;
 
-typedef struct {
-    BxDFHead head;
+//32bytes
+typedef struct __attribute__((aligned(16))) {
+    BxDFHead __attribute__((aligned(16))) head;
     color R;
 } SpecularReflection;
 
-typedef struct {
-    BxDFHead head;
+//32bytes
+typedef struct __attribute__((aligned(16))) {
+    BxDFHead __attribute__((aligned(16))) head;
     color T;
 } SpecularTransmission;
 
-typedef struct {
-    BxDFHead head;
+//48bytes
+typedef struct __attribute__((aligned(16))) {
+    BxDFHead __attribute__((aligned(16))) head;
     color R;
     float ax, ay;
 } Ward;
 
-typedef struct {
+//80bytes
+typedef struct __attribute__((aligned(16))) {
     uchar __attribute__((aligned(2))) numBxDFs;
     ushort __attribute__((aligned(2))) offsetsBxDFs[4];
     vector3 n, s, t, ng;

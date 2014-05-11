@@ -42,6 +42,8 @@ bool rayTriangleIntersection(const Scene* scene,
         return false;
     
     *t = dot(edge02, q) * invDet;
+    if (*t < 0.0f)
+        return false;
     isect->p = *org + *dir * *t;
     isect->ng = normalize(cross(edge01, edge02));
     

@@ -36,7 +36,7 @@ bool loadObj(const char* fileName, Scene* scene) {
     
     std::string sLine(256, '0');
     
-    createFloat3ConstantTexture(scene, "objfile_default_reflectance", 1.0f, 1.0f, 1.0f);
+    createFloat3ConstantTexture(scene, "objfile_default_reflectance", 0.5f, 0.5f, 0.5f);
     createFloatConstantTexture(scene, "objfile_default_sigma", 0.0f);
     createDiffuseMaterial(scene, "objfile_default_material",
                           scene->idxOfTex("objfile_default_reflectance"),

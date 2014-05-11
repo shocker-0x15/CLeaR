@@ -45,7 +45,6 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
             const global Face* face = &scene.faces[isect.faceID];
             vector3 vout = -ray.dir;
             BSDFAlloc(&scene, materialsData, face->matPtr, &isect, BSDF);
-            BSDFHead* fsHead = (BSDFHead*)BSDF;
             
             if (face->lightPtr != USHRT_MAX && enableImplicit) {
                 LightPositionFromIntersection(&isect, &lpos);

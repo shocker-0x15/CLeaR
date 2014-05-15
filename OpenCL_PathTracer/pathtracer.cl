@@ -22,7 +22,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     global uint* rds = randStates + 4 * (gsize0 * tileY + tileX);
     global float3* pix = pixels + (width * gid1 + gid0);
     
-    for (int i = 0; i < spp; ++i) {
+    for (uint i = 0; i < spp; ++i) {
         float px = gid0 + getFloat0cTo1o(rds);
         float py = gid1 + getFloat0cTo1o(rds);
         
@@ -39,8 +39,8 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         bool enableImplicit = true;
         bool traceContinue = true;
         BxDFType sampledType;
-//        if (gid0 > 250 && gid0 <= 260 && gid1 > 250 && gid1 <= 260) {
-//        if (gid0 == 340 && gid1 == 512) {
+//        if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
+//        if (gid0 == 512 && gid1 == 600) {
         while (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
             const global Face* face = &scene.faces[isect.faceID];
             vector3 vout = -ray.dir;
@@ -86,7 +86,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
                 break;
             }
             color fraction = fs * absCosNsBSDF(BSDF, &vin) / dirPDF;
-            float continueProb = maxComp(&fraction);
+            float continueProb = fmin(luminance(&fraction), 1.0f);
             if (getFloat0cTo1o(rds) < continueProb) {
                 alpha *= fraction / continueProb;
                 ray.org = isect.p + vin * EPSILON;
@@ -116,6 +116,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
 //        printf("BxDFType %d\t BSDFSample %d\t BxDFHead %d\t BSDFHead %d\n", sizeof(BxDFType), sizeof(BSDFSample), sizeof(BxDFHead), sizeof(BSDFHead));
 //        printf("Diffuse %d\t SpecularReflection %d\t SpecularTransmission %d\n", sizeof(Diffuse), sizeof(SpecularReflection), sizeof(SpecularTransmission));
 //        printf("Ward %d\n", sizeof(Ward));
+//        printf("Fresnel Head %d\t Conductor %d\t Dielectric %d\n", sizeof(FresnelHead), sizeof(FresnelConductor), sizeof(FresnelDielectric));
 //        printf("EEDFType %d\t LightSample %d\t EDFSample %d\n", sizeof(EEDFType), sizeof(LightSample), sizeof(EDFSample));
 //        printf("EEDFHead %d\t EDFHead %d\n", sizeof(EEDFHead), sizeof(EDFHead));
 //        printf("DiffuseEmission %d\n", sizeof(DiffuseEmission));

@@ -49,14 +49,14 @@ typedef struct __attribute__((aligned(16))) {
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, float* areaPDF);
-inline float absCosNsEDF(const EDFHead* EDF, const vector3* v);
+inline float absCosNsEDF(const uchar* EDF, const vector3* v);
 //static inline float cosTheta(const vector3* v);
 //static inline float absCosTheta(const vector3* v);
 //static inline float sinTheta2(const vector3* v);
 //static inline float sinTheta(const vector3* v);
 //static inline float cosPhi(const vector3* v);
 //static inline float sinPhi(const vector3* v);
-void EDFAlloc(const Scene* scene, const global uchar* lightsData, uint offset, const LightPosition* lpos, EDFHead* EDF);
+void EDFAlloc(const Scene* scene, const global uchar* lightsData, uint offset, const LightPosition* lpos, uchar* EDF);
 static color eLe(const EEDFHead* EEDF, const vector3* vout);
 color Le(const uchar* EDF, const vector3* vout);
 
@@ -82,13 +82,22 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
     lpos->p = b0 * *p0 + b1 * *p1 + b2 * *p2;
     lpos->ng = normalize(ng);
     
+    if (face->ns0 != UINT_MAX && face->ns1 != UINT_MAX && face->ns2 != UINT_MAX) {
+        lpos->ns = normalize(b0 * *(scene->normals + face->ns0) +
+                             b1 * *(scene->normals + face->ns1) +
+                             b2 * *(scene->normals + face->ns2));
+    }
+    else {
+        lpos->ns = lpos->ng;
+    }
+    
     if (face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX) {
         lpos->uv = b0 * *(scene->uvs + face->uv0) + b1 * *(scene->uvs + face->uv1) + b2 * *(scene->uvs + face->uv2);
     }
 }
 
-inline float absCosNsEDF(const EDFHead* EDF, const vector3* v) {
-    return fabs(dot(EDF->n, *v));
+inline float absCosNsEDF(const uchar* EDF, const vector3* v) {
+    return fabs(dot(((const EDFHead*)EDF)->n, *v));
 }
 
 //static inline float cosTheta(const vector3* v) {
@@ -119,47 +128,51 @@ inline float absCosNsEDF(const EDFHead* EDF, const vector3* v) {
 //    return clamp(v->y / sinT, -1.0f, 1.0f);
 //}
 
-void EDFAlloc(const Scene* scene, const global uchar* lightsData, uint offset, const LightPosition* lpos, EDFHead* EDF) {
-    EDF->numEEDFs = 1;
-    EDF->offsetsEEDFs[0] = EDF->offsetsEEDFs[1] =
-    EDF->offsetsEEDFs[2] = EDF->offsetsEEDFs[3] = 0;
-    
+void EDFAlloc(const Scene* scene, const global uchar* lightsData, uint offset, const LightPosition* lpos, uchar* EDF) {
+    EDFHead* LeHead = (EDFHead*)EDF;
     const global uchar* lightsData_p = lightsData + offset;
     
+    LeHead->numEEDFs = *(lightsData_p++);
+    LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =
+    LeHead->offsetsEEDFs[2] = LeHead->offsetsEEDFs[3] = 0;
+    
     // n
-    EDF->n = lpos->ng;
+    LeHead->n = lpos->ns;
     
     vector3 s_temp, t_temp;
-    makeBasis(&lpos->ng, &s_temp, &t_temp);
+    makeBasis(&lpos->ns, &s_temp, &t_temp);
     // st
-    EDF->s = s_temp;
+    LeHead->s = s_temp;
     //    vector3 t = cross(n, s);
-    EDF->t = t_temp;
+    LeHead->t = t_temp;
     // ng
-    EDF->ng = lpos->ng;
+    LeHead->ng = lpos->ng;
     
-    EDF->offsetsEEDFs[0] = sizeof(EDFHead);
-    uchar* EDFp = (uchar*)EDF + sizeof(EDFHead);
-    uchar EEDFID = *(lightsData_p++);
+    uchar* EDFp = EDF + sizeof(EDFHead);
     EEDFType FType;
-    switch (EEDFID) {
-        case 0: {
-            *(EDFp++) = 0;
-            break;
-        }
-        case 1: {// Diffuse Light
-            *(EDFp++) = 1;
-            
-            FType = EEDF_Diffuse;
-            memcpy(AlignPtrAdd(&EDFp, sizeof(EEDFType)), &FType, sizeof(EEDFType));
-            
-            // Emittance
-            color M = evaluateColorTexture(scene->texturesData + *(global uint*)AlignPtrAddG(&lightsData_p, sizeof(uint)), lpos->uv);
-            memcpy(AlignPtrAdd(&EDFp, sizeof(color)), &M, sizeof(color));
-            break;
-        }
-        default: {
-            break;
+    for (int i = 0; i < LeHead->numEEDFs; ++i) {
+        AlignPtr(&EDFp, 16);
+        LeHead->offsetsEEDFs[i] = (ushort)((uintptr_t)EDFp - (uintptr_t)EDF);
+        uchar EEDFID = *(lightsData_p++);
+        switch (EEDFID) {
+            case 0: {
+                *(EDFp++) = 0;
+                break;
+            }
+            case 1: {// Diffuse Light
+                *(EDFp++) = 1;
+                
+                FType = EEDF_Diffuse;
+                memcpy(AlignPtrAdd(&EDFp, sizeof(EEDFType)), &FType, sizeof(EEDFType));
+                
+                // Emittance
+                color M = evaluateColorTexture(scene->texturesData + *(global uint*)AlignPtrAddG(&lightsData_p, sizeof(uint)), lpos->uv);
+                memcpy(AlignPtrAdd(&EDFp, sizeof(color)), &M, sizeof(color));
+                break;
+            }
+            default: {
+                break;
+            }
         }
     }
 }
@@ -193,7 +206,7 @@ color Le(const uchar* EDF, const vector3* vout) {
     color Le = (color)(0.0f, 0.0f, 0.0f);
     for (int i = 0; i < head->numEEDFs; ++i) {
         ushort idxEEDF = head->offsetsEEDFs[i];
-        Le += eLe(EDF + idxEEDF, &voutLocal);
+        Le += eLe((EEDFHead*)(EDF + idxEEDF), &voutLocal);
     }
     return Le;
 }

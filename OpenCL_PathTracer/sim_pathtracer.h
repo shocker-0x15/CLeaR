@@ -23,7 +23,7 @@ namespace sim {
         uint* rds = randStates + 4 * (gsize0 * tileY + tileX);
         float3* pix = pixels + (width * gid1 + gid0);
         
-        for (int i = 0; i < spp; ++i) {
+        for (uint i = 0; i < spp; ++i) {
             float px = gid0 + getFloat0cTo1o(rds);
             float py = gid1 + getFloat0cTo1o(rds);
             
@@ -45,11 +45,11 @@ namespace sim {
             while (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
                 const Face* face = &scene.faces[isect.faceID];
                 vector3 vout = -ray.dir;
-                BSDFAlloc(&scene, materialsData, face->matPtr, &isect, (BSDFHead*)BSDF);
+                BSDFAlloc(&scene, materialsData, face->matPtr, &isect, BSDF);
                 
                 if (face->lightPtr != USHRT_MAX && enableImplicit) {
                     LightPositionFromIntersection(&isect, &lpos);
-                    EDFAlloc(&scene, lightsData, face->lightPtr, &lpos, (EDFHead*)EDF);
+                    EDFAlloc(&scene, lightsData, face->lightPtr, &lpos, EDF);
                     
                     *pix += alpha * Le(EDF, &vout);
                 }
@@ -58,7 +58,7 @@ namespace sim {
                     LightSample l_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
                     float areaPDF;
                     sampleLightPos(&scene, &l_sample, &isect.p, &lpos, &areaPDF);
-                    EDFAlloc(&scene, lightsData, scene.faces[lpos.faceID].lightPtr, &lpos, (EDFHead*)EDF);
+                    EDFAlloc(&scene, lightsData, scene.faces[lpos.faceID].lightPtr, &lpos, EDF);
                     
                     vector3 lightDir = isect.p - lpos.p;
                     float dist2 = dot(lightDir, lightDir);
@@ -87,7 +87,7 @@ namespace sim {
                     break;
                 }
                 color fraction = fs * absCosNsBSDF((BSDFHead*)BSDF, &vin) / dirPDF;
-                float continueProb = maxComp(&fraction);
+                float continueProb = fminf(luminance(&fraction), 1.0f);
                 if (getFloat0cTo1o(rds) < continueProb) {
                     alpha *= fraction / continueProb;
                     ray.org = isect.p + vin * EPSILON;
@@ -117,6 +117,7 @@ namespace sim {
 //            printf("BxDFType %lu\t BSDFSample %lu\t BxDFHead %lu\t BSDFHead %lu\n", sizeof(BxDFType), sizeof(BSDFSample), sizeof(BxDFHead), sizeof(BSDFHead));
 //            printf("Diffuse %lu\t SpecularReflection %lu\t SpecularTransmission %lu\n", sizeof(Diffuse), sizeof(SpecularReflection), sizeof(SpecularTransmission));
 //            printf("Ward %lu\n", sizeof(Ward));
+//            printf("Fresnel Head %lu\t Conductor %lu\t Dielectric %lu\n", sizeof(FresnelHead), sizeof(FresnelConductor), sizeof(FresnelDielectric));
 //            printf("EEDFType %lu\t LightSample %lu\t EDFSample %lu\n", sizeof(EEDFType), sizeof(LightSample), sizeof(EDFSample));
 //            printf("EEDFHead %lu\t EDFHead %lu\n", sizeof(EEDFHead), sizeof(EDFHead));
 //            printf("DiffuseEmission %lu\n", sizeof(DiffuseEmission));

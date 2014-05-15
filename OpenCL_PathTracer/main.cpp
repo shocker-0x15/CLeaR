@@ -91,6 +91,9 @@ void buildScene() {
         }
     }
     
+    MaterialCreator &mc = MaterialCreator::sharedInstance();
+    mc.setScene(&scene);
+    
     //部屋
     scene.beginObject();
     scene.addVertex(-1.0f, -1.0f, -1.0f);
@@ -110,18 +113,18 @@ void buildScene() {
     scene.addUV(1.0f, 0.0f);
     scene.addUV(0.0f, 0.0f);
     
-    createFloat3ConstantTexture(&scene, "R_leftWall", 0.75f, 0.25f, 0.25f);
-    createFloat3ConstantTexture(&scene, "R_rightWall", 0.25f, 0.25f, 0.75f);
-    createFloat3ConstantTexture(&scene, "R_otherWalls", 0.75f, 0.75f, 0.75f);
-    createFloatConstantTexture(&scene, "sigma_lambert", 0.0f);
-    createCheckerBoardTexture(&scene, "R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
-    createImageTexture(&scene, "R_backWall", "images/pika_flat.png");
+    mc.createFloat3ConstantTexture("R_leftWall", 0.75f, 0.25f, 0.25f);
+    mc.createFloat3ConstantTexture("R_rightWall", 0.25f, 0.25f, 0.75f);
+    mc.createFloat3ConstantTexture("R_otherWalls", 0.75f, 0.75f, 0.75f);
+    mc.createFloatConstantTexture("sigma_lambert", 0.0f);
+    mc.createCheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
+    mc.createImageTexture("R_backWall", "images/pika_flat.png");
     
-    createDiffuseMaterial(&scene, "mat_leftWall", scene.idxOfTex("R_leftWall"), scene.idxOfTex("sigma_lambert"));
-    createDiffuseMaterial(&scene, "mat_rightWall", scene.idxOfTex("R_rightWall"), scene.idxOfTex("sigma_lambert"));
-    createDiffuseMaterial(&scene, "mat_otherWalls", scene.idxOfTex("R_otherWalls"), scene.idxOfTex("sigma_lambert"));
-    createDiffuseMaterial(&scene, "mat_floor", scene.idxOfTex("R_floor"), scene.idxOfTex("sigma_lambert"));
-    createDiffuseMaterial(&scene, "mat_backWall", scene.idxOfTex("R_backWall"), scene.idxOfTex("sigma_lambert"));
+    mc.createMatteMaterial("mat_leftWall", scene.idxOfTex("R_leftWall"), scene.idxOfTex("sigma_lambert"));
+    mc.createMatteMaterial("mat_rightWall", scene.idxOfTex("R_rightWall"), scene.idxOfTex("sigma_lambert"));
+    mc.createMatteMaterial("mat_otherWalls", scene.idxOfTex("R_otherWalls"), scene.idxOfTex("sigma_lambert"));
+    mc.createMatteMaterial("mat_floor", scene.idxOfTex("R_floor"), scene.idxOfTex("sigma_lambert"));
+    mc.createMatteMaterial("mat_backWall", scene.idxOfTex("R_otherWalls"), scene.idxOfTex("sigma_lambert"));
     
     scene.addFace(Face::make_pt(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall")));
     scene.addFace(Face::make_pt(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall")));
@@ -141,25 +144,25 @@ void buildScene() {
     scene.addVertex(0.25f, 0.9999f, -0.25f);
     scene.addVertex(0.25f, 0.9999f, 0.25f);
     scene.addVertex(-0.25f, 0.9999f, 0.25f);
-    {
-        createFloat3ConstantTexture(&scene, "R_light", 0.9f, 0.9f, 0.9f);
-        createFloat3ConstantTexture(&scene, "M_top", 30.0f, 30.0f, 30.0f);
-        
-        createDiffuseMaterial(&scene, "mat_light", scene.idxOfTex("R_light"), scene.idxOfTex("sigma_lambert"));
-        createDiffuseLightProperty(&scene, "light_top", scene.idxOfTex("M_top"));
-    }
+    
+    mc.createFloat3ConstantTexture("R_light", 0.9f, 0.9f, 0.9f);
+    mc.createFloat3ConstantTexture("M_top", 30.0f, 30.0f, 30.0f);
+    
+    mc.createMatteMaterial("mat_light", scene.idxOfTex("R_light"), scene.idxOfTex("sigma_lambert"));
+    mc.createDiffuseLightProperty("light_top", scene.idxOfTex("M_top"));
+    
     scene.addFace(Face::make_p(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.addFace(Face::make_p(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
-    loadModel("models/sphere.obj", &scene);
+    loadModel("models/Pikachu_corrected_high.obj", &scene);
     
     scene.build();
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t sppOnce = 4;
-    const uint32_t iterations = 8;
+    const uint32_t sppOnce = 1;
+    const uint32_t iterations = 256;
     
     buildScene();
     

@@ -47,16 +47,17 @@ namespace sim {
     typedef struct {
         point3 p;
         vector3 ng;
-        vector3 sg;
+        vector3 ns;
         float2 uv;
         float t;
         uint faceID;
     } Intersection;
     
+    //64bytes
     typedef struct {
         point3 p;
         vector3 ng;
-        vector3 sg;
+        vector3 ns;
         float2 uv;
         uint faceID; uchar dum[4];
     } LightPosition;
@@ -88,8 +89,12 @@ namespace sim {
     //------------------------
     
     inline void memcpyG2P(uchar* dst, const uchar* src, uint numBytes) {
-        for (int i = 0; i < numBytes; ++i)
+        for (uint i = 0; i < numBytes; ++i)
             *(dst++) = *(src++);
+    }
+    
+    inline void AlignPtr(uchar** ptr, uintptr_t bytes) {
+        *ptr = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     }
     
     inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
@@ -110,6 +115,10 @@ namespace sim {
     
     inline float maxComp(const float3* v) {
         return fmaxf(v->x, fmaxf(v->y, v->z));
+    }
+    
+    inline float luminance(const color* c) {
+        return 0.2126f * c->r + 0.7152f * c->g + 0.0722f * c->b;
     }
     
     inline void makeBasis(const vector3* n, vector3* s, vector3* t) {
@@ -137,7 +146,7 @@ namespace sim {
     inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos) {
         lpos->p = isect->p;
         lpos->ng = isect->ng;
-        lpos->sg = isect->sg;
+        lpos->ns = isect->ns;
         lpos->uv = isect->uv;
         lpos->faceID = isect->faceID;
     }

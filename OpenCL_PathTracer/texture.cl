@@ -58,8 +58,8 @@ color proceduralTexture(const global uchar* textureData, float2 uv) {
     uchar procedure = *(textureData++);
     if (procedure == 0) {
         color c[2];
-        memcpyG2P(&c[0], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
-        memcpyG2P(&c[1], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
+        memcpyG2P((uchar*)&c[0], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
+        memcpyG2P((uchar*)&c[1], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
         
         return c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
     }

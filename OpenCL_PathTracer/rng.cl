@@ -28,7 +28,7 @@ float getFloat0cTo1o(global uint* randState) {
 }
 
 inline uint randUInt(float u, uint maxv) {
-    return max((uint)(maxv * u), maxv - 1);
+    return min((uint)(maxv * u), maxv - 1);
 }
 
 //"A Low Distortion Map Between Disk and Square"

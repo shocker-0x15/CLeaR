@@ -40,7 +40,7 @@ typedef struct __attribute__((aligned(16))) {
 typedef struct __attribute__((aligned(16))) {
     point3 p;
     vector3 ng;
-    vector3 sg;
+    vector3 ns;
     float2 uv;
     float t;
     uint faceID;
@@ -50,7 +50,7 @@ typedef struct __attribute__((aligned(16))) {
 typedef struct __attribute__((aligned(16))) {
     point3 p;
     vector3 ng;
-    vector3 sg;
+    vector3 ns;
     float2 uv;
     uint faceID;
 } LightPosition;
@@ -82,8 +82,12 @@ inline void LightPositionFromIntersection(const Intersection* isect, LightPositi
 //------------------------
 
 inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes) {
-    for (int i = 0; i < numBytes; ++i)
+    for (uint i = 0; i < numBytes; ++i)
         *(dst++) = *(src++);
+}
+
+inline void AlignPtr(uchar** ptr, uintptr_t bytes) {
+    *ptr = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
 }
 
 inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
@@ -104,6 +108,10 @@ inline bool zeroVec(const float3* v) {
 
 inline float maxComp(const float3* v) {
     return fmax(v->x, fmax(v->y, v->z));
+}
+
+inline float luminance(const color* c) {
+    return 0.2126f * c->r + 0.7152f * c->g + 0.0722f * c->b;
 }
 
 inline void makeBasis(const vector3* n, vector3* s, vector3* t) {
@@ -131,7 +139,7 @@ inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n
 inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos) {
     lpos->p = isect->p;
     lpos->ng = isect->ng;
-    lpos->sg = isect->sg;
+    lpos->ns = isect->ns;
     lpos->uv = isect->uv;
     lpos->faceID = isect->faceID;
 }

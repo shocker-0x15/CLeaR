@@ -48,8 +48,17 @@ namespace sim {
         isect->p = *org + *dir * *t;
         isect->ng = normalize(cross(edge01, edge02));
         
+        float b0 = 1.0f - b1 - b2;
+        if (face->ns0 != UINT_MAX && face->ns1 != UINT_MAX && face->ns2 != UINT_MAX) {
+            isect->ns = normalize(b0 * *(scene->normals + face->ns0) +
+                                  b1 * *(scene->normals + face->ns1) +
+                                  b2 * *(scene->normals + face->ns2));
+        }
+        else {
+            isect->ns = isect->ng;
+        }
+        
         if (face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX) {
-            float b0 = 1.0f - b1 - b2;
             isect->uv = b0 * *(scene->uvs + face->uv0) + b1 * *(scene->uvs + face->uv1) + b2 * *(scene->uvs + face->uv2);
         }
         

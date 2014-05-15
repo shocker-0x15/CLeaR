@@ -246,19 +246,23 @@ namespace sim {
     struct float3 {
         union {
             float x;
+            float r;
             float s0;
         };
         union {
             float y;
+            float g;
             float s1;
         };
         union {
             float z;
+            float b;
             float s2;
         };
         float dum;
         
         float3() : x(0), y(0), z(0) { };
+        float3(float val) : x(val), y(val), z(val) { };
         float3(float xx, float yy, float zz) : x(xx), y(yy), z(zz) { };
         float3(const float3 &v) : x(v.x), y(v.y), z(v.z) { };
         
@@ -274,6 +278,13 @@ namespace sim {
             this->y += r.y;
             this->z += r.z;
             return *this;
+        }
+        float3 operator+(float s) const {
+            float3 ret{x, y, z};
+            ret.x += s;
+            ret.y += s;
+            ret.z += s;
+            return ret;
         }
         float3 operator-(const float3 &r) const {
             float3 ret{x, y, z};

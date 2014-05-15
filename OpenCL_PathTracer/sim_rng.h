@@ -29,7 +29,7 @@ namespace sim {
     }
     
     inline uint randUInt(float u, uint maxv) {
-        return std::max((uint)(maxv * u), maxv - 1);
+        return std::min((uint)(maxv * u), maxv - 1);
     }
     
     //"A Low Distortion Map Between Disk and Square"

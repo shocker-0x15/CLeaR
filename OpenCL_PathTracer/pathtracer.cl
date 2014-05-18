@@ -31,12 +31,13 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
                                         1.0f - 2.0f * py / height,
                                         -3.0f)), 0};
         
+        float dirPDF = 1.0f / (pow(dot(ray.dir, (vector3)(0, 0, -1)), 3) * (1.0f * 1.0f));
+        
         uchar BSDF[256] __attribute__((aligned(16)));
         uchar EDF[256] __attribute__((aligned(16)));
-        color alpha = (float3)(1.0f, 1.0f, 1.0f);
+        color alpha = (float3)(1.0f, 1.0f, 1.0f) / dirPDF * dot(ray.dir, (vector3)(0, 0, -1));
         Intersection isect;
         LightPosition lpos;
-        bool enableImplicit = true;
         bool traceContinue = true;
         BxDFType sampledType;
 //        if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
@@ -44,20 +45,26 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         while (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
             const global Face* face = &scene.faces[isect.faceID];
             vector3 vout = -ray.dir;
-            BSDFAlloc(&scene, materialsData, face->matPtr, &isect, BSDF);
+            BSDFAlloc(&scene, face->matPtr, &isect, BSDF);
             
-            if (face->lightPtr != USHRT_MAX && enableImplicit) {
+            if (face->lightPtr != USHRT_MAX) {
                 LightPositionFromIntersection(&isect, &lpos);
-                EDFAlloc(&scene, lightsData, face->lightPtr, &lpos, EDF);
-                
-                *pix += alpha * Le(EDF, &vout);
+                EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
+                float expDirPDF = getAreaPDF(&scene, isect.faceID, isect.uv) * dist2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
+                if (isfinite(expDirPDF)) {
+                    float MISWeight = (dirPDF * dirPDF) / (expDirPDF * expDirPDF + dirPDF * dirPDF);
+                    if (ray.depth == 0)
+                        MISWeight = 1.0f;
+                    
+                    *pix += MISWeight * (alpha * Le(EDF, &vout));
+                }
             }
             
             if (hasNonSpecular(BSDF)) {
                 LightSample l_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
                 float areaPDF;
                 sampleLightPos(&scene, &l_sample, &isect.p, &lpos, &areaPDF);
-                EDFAlloc(&scene, lightsData, scene.faces[lpos.faceID].lightPtr, &lpos, EDF);
+                EDFAlloc(&scene, scene.faces[lpos.faceID].lightPtr, &lpos, EDF);
                 
                 vector3 lightDir = isect.p - lpos.p;
                 float dist2 = dot(lightDir, lightDir);
@@ -68,7 +75,14 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
                 Intersection lIsect;
                 rayIntersection(&scene, &shadowRayOrg, &lightDir, &lIsect);
                 if (lIsect.faceID == isect.faceID) {
-                    *pix += alpha * Le(EDF, &lightDir) * fs(BSDF, &vout, &lightDirRev) * absCosNsBSDF(BSDF, &lightDir) * absCosNsEDF(EDF, &lightDirRev) / dist2;
+                    float impDirPDF = fs_pdf(BSDF, &vout, &lightDirRev);
+                    if (impDirPDF > 0.0f) {
+                        color fsCos = fs(BSDF, &vout, &lightDirRev) * absCosNsBSDF(BSDF, &lightDirRev);
+                        color fraction = fsCos / impDirPDF;
+                        float impAreaPDF = impDirPDF * absCosNsEDF(EDF, &lightDirRev) / dist2 * fmin(luminance(&fraction), 1.0f);
+                        float MISWeight = (areaPDF * areaPDF) / (areaPDF * areaPDF + impAreaPDF * impAreaPDF);
+                        *pix += (MISWeight * absCosNsEDF(EDF, &lightDirRev) / dist2 / areaPDF) * (alpha * Le(EDF, &lightDir) * fsCos);
+                    }
                 }
             }
             
@@ -79,22 +93,20 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
             
             BSDFSample fs_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
             vector3 vin;
-            float dirPDF;
             color fs = sample_fs(BSDF, &vout, &fs_sample, &vin, &dirPDF, &sampledType);
             if (zeroVec(&fs) || dirPDF == 0.0f) {
                 traceContinue = false;
                 break;
             }
-            color fraction = fs * absCosNsBSDF(BSDF, &vin) / dirPDF;
+            color fraction = fs * (absCosNsBSDF(BSDF, &vin) / dirPDF);
             float continueProb = fmin(luminance(&fraction), 1.0f);
             if (getFloat0cTo1o(rds) < continueProb) {
                 alpha *= fraction / continueProb;
+                dirPDF *= continueProb;
                 ray.org = isect.p + vin * EPSILON;
                 ray.dir = vin;
                 ++ray.depth;
                 traceContinue = true;
-                
-                enableImplicit = (bool)(sampledType & BxDF_Specular);
             }
             else {
                 traceContinue = false;

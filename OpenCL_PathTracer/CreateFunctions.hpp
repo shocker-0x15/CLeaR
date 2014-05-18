@@ -64,12 +64,15 @@ public:
     void createSpecularBRDF(size_t reflectanceIdx, size_t fresnelIdx);
     void createSpecularBTDF(size_t transmissionIdx, float etaExt, float etaInt);
     void createWardBRDF(size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
+    void createAshikhminSBRDF(size_t RsIdx, size_t nuIdx, size_t nvIdx);
+    void createAshikhminDBRDF(size_t RdIdx, size_t RsIdx);
     
     
     void createMatteMaterial(const char* name, size_t reflectanceIdx, size_t sigmaIdx);
     void createGlassMaterial(const char* name, size_t RIdx, size_t TIdx, float etaExt, float etaInt);
     void createMetalMaterial(const char* name, size_t RIdx, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b);
     void createWardMaterial(const char* name, size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
+    void createAshikhminMaterial(const char* name, size_t RsIdx, size_t RdIdx, size_t nuIdx, size_t nvIdx);
     void createMixMaterial(const char* name, size_t mat0Idx, size_t mat1Idx, size_t ratioIdx);
     
     

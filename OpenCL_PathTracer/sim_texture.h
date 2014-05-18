@@ -29,7 +29,7 @@ namespace sim {
                 break;
         }
         
-        return color(0.0f, 0.0f, 0.0f);
+        return colorZero;
     }
     
     float evaluateFloatTexture(const uchar* textureData, float2 uv) {
@@ -65,9 +65,8 @@ namespace sim {
             return c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
         }
         
-        return color(0.0f, 0.0f, 0.0f);
+        return colorZero;
     }
-    
 }
 
 #endif

@@ -5,14 +5,13 @@
 #include "sim_base.h"
 
 namespace sim {
-#ifndef global_cl
-#define global_cl
-    
 #define printfF3(f3) printf(#f3": %f, %f, %f\n", (f3).x, (f3).y, (f3).z)
     
     typedef float3 vector3;
     typedef float3 point3;
     typedef float3 color;
+#define colorZero color(0.0f, 0.0f, 0.0f)
+#define colorOne color(1.0f, 1.0f, 1.0f)
 #define EPSILON 0.00001f;
     
 #define ALIGN(ad, w) ((ad) + ((w) - 1)) & ~((w) - 1)
@@ -143,6 +142,10 @@ namespace sim {
                        s->z * v->x + t->z * v->y + n->z * v->z);
     }
     
+    inline float dist2(const point3* p0, const point3* p1) {
+        return (p1->x - p0->x) * (p1->x - p0->x) + (p1->y - p0->y) * (p1->y - p0->y) + (p1->z - p0->z) * (p1->z - p0->z);
+    }
+    
     inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos) {
         lpos->p = isect->p;
         lpos->ng = isect->ng;
@@ -150,8 +153,6 @@ namespace sim {
         lpos->uv = isect->uv;
         lpos->faceID = isect->faceID;
     }
-    
-#endif
 }
 
 #endif

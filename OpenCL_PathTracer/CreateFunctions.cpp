@@ -107,10 +107,27 @@ void MaterialCreator::createSpecularBTDF(size_t transmissionIdx, float etaExt, f
 void MaterialCreator::createWardBRDF(size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    addDataAligned<cl_uchar>(matData, 4);//Diffuse
+    addDataAligned<cl_uchar>(matData, 4);//Ward
     addDataAligned<cl_uint>(matData, (cl_uint)reflectanceIdx);//Reflectance
     addDataAligned<cl_uint>(matData, (cl_uint)anisoXIdx);//Roughness X
     addDataAligned<cl_uint>(matData, (cl_uint)anisoYIdx);//Roughness Y
+}
+
+void MaterialCreator::createAshikhminSBRDF(size_t RsIdx, size_t nuIdx, size_t nvIdx) {
+    ++numBxDFs;
+    std::vector<uint8_t>* matData = &scene->materialsData;
+    addDataAligned<cl_uchar>(matData, 5);//Ashikhmin Specular
+    addDataAligned<cl_uint>(matData, (cl_uint)RsIdx);//Perpendicular Reflectance of Specular
+    addDataAligned<cl_uint>(matData, (cl_uint)nuIdx);//exponent u
+    addDataAligned<cl_uint>(matData, (cl_uint)nvIdx);//exponent v
+}
+
+void MaterialCreator::createAshikhminDBRDF(size_t RdIdx, size_t RsIdx) {
+    ++numBxDFs;
+    std::vector<uint8_t>* matData = &scene->materialsData;
+    addDataAligned<cl_uchar>(matData, 6);//Ashikhmin Diffuse
+    addDataAligned<cl_uint>(matData, (cl_uint)RdIdx);//Reflectance of Diffuse
+    addDataAligned<cl_uint>(matData, (cl_uint)RsIdx);//Perpendicular Reflectance of Specular Coating
 }
 
 
@@ -142,6 +159,13 @@ void MaterialCreator::createMetalMaterial(const char* name, size_t RIdx, float e
 void MaterialCreator::createWardMaterial(const char* name, size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx) {
     beginMaterial(name);
     createWardBRDF(reflectanceIdx, anisoXIdx, anisoYIdx);
+    endMaterial();
+}
+
+void MaterialCreator::createAshikhminMaterial(const char *name, size_t RsIdx, size_t RdIdx, size_t nuIdx, size_t nvIdx) {
+    beginMaterial(name);
+    createAshikhminSBRDF(RsIdx, nuIdx, nvIdx);
+    createAshikhminDBRDF(RdIdx, RsIdx);
     endMaterial();
 }
 

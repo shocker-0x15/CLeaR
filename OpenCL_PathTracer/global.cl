@@ -6,6 +6,8 @@
 typedef float3 vector3;
 typedef float3 point3;
 typedef float3 color;
+#define colorZero (color)(0.0f, 0.0f, 0.0f)
+#define colorOne (color)(1.0f, 1.0f, 1.0f)
 #define EPSILON 0.00001f;
 
 #define ALIGN(ad, w) ((ad) + ((w) - 1)) & ~((w) - 1)
@@ -134,6 +136,10 @@ inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n
     return (vector3)(s->x * v->x + t->x * v->y + n->x * v->z,
                      s->y * v->x + t->y * v->y + n->y * v->z,
                      s->z * v->x + t->z * v->y + n->z * v->z);
+}
+
+inline float dist2(const point3* p0, const point3* p1) {
+    return (p1->x - p0->x) * (p1->x - p0->x) + (p1->y - p0->y) * (p1->y - p0->y) + (p1->z - p0->z) * (p1->z - p0->z);
 }
 
 inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos) {

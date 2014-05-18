@@ -28,7 +28,7 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv) {
             break;
     }
     
-    return (color)(0.0f, 0.0f, 0.0f);
+    return colorZero;
 }
 
 float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
@@ -64,7 +64,7 @@ color proceduralTexture(const global uchar* textureData, float2 uv) {
         return c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
     }
     
-    return (color)(0.0f, 0.0f, 0.0f);
+    return colorZero;
 }
 
 #endif

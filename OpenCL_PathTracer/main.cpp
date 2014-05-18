@@ -21,6 +21,8 @@
 
 #include "sim_pathtracer.h"
 
+#define SIMULATION 0
+
 CL_CALLBACK void completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
 }
@@ -74,8 +76,6 @@ std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
 void buildScene() {
-    uint64_t dataHead;
-    
     g_randStates.resize(g_width * g_height * 4);
     g_pixels.resize(g_width * g_height);
     
@@ -146,7 +146,7 @@ void buildScene() {
     scene.addVertex(-0.25f, 0.9999f, 0.25f);
     
     mc.createFloat3ConstantTexture("R_light", 0.9f, 0.9f, 0.9f);
-    mc.createFloat3ConstantTexture("M_top", 30.0f, 30.0f, 30.0f);
+    mc.createFloat3ConstantTexture("M_top", 120.0f, 120.0f, 120.0f);
     
     mc.createMatteMaterial("mat_light", scene.idxOfTex("R_light"), scene.idxOfTex("sigma_lambert"));
     mc.createDiffuseLightProperty("light_top", scene.idxOfTex("M_top"));
@@ -247,41 +247,43 @@ int main(int argc, const char * argv[]) {
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
+#if SIMULATION
+        sim::global_sizes[0] = (sim::uint)*tile;
+        sim::global_sizes[1] = (sim::uint)*(tile + 1);
+        for (int i = 0; i < iterations; ++i) {
+            printf("[ %d ]", i);
+            for (int j = 0; j < numTiles; ++j) {
+                sim::global_offsets[0] = (sim::uint)*tile * (j % numTilesX);
+                sim::global_offsets[1] = (sim::uint)*(tile + 1) * (j / numTilesX);
+                for (int ty = 0; ty < *(tile + 1); ++ty) {
+                    for (int tx = 0; tx < *tile; ++tx) {
+                        sim::global_ids[0] = sim::global_offsets[0] + tx;
+                        sim::global_ids[1] = sim::global_offsets[1] + ty;
+                        sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
+                                         (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLights(), (sim::uint)scene.numLights(),
+                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawLightPropsData(), (sim::uchar*)scene.rawTexturesData(),
+                                         (sim::uchar*)scene.rawBVHNodes(), g_randStates.data(), g_width, g_height, sppOnce, (sim::float3*)g_pixels.data());
+                    }
+                }
+                printf("*");
+            }
+            printf("\n");
+        }
+        buf_pixels = {context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
+#else
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);
             for (int j = 0; j < numTiles; ++j) {
                 cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
                 cl::Event ev;
                 queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
-//                ev.setCallback(CL_COMPLETE, completeTile);
+                //                ev.setCallback(CL_COMPLETE, completeTile);
             }
             queue.finish();
             printf("\n");
         }
-//        sim::global_sizes[0] = (sim::uint)*tile;
-//        sim::global_sizes[1] = (sim::uint)*(tile + 1);
-//        for (int i = 0; i < iterations; ++i) {
-//            printf("[ %d ]", i);
-//            for (int j = 0; j < numTiles; ++j) {
-//                sim::global_offsets[0] = (sim::uint)*tile * (j % numTilesX);
-//                sim::global_offsets[1] = (sim::uint)*(tile + 1) * (j / numTilesX);
-//                for (int ty = 0; ty < *(tile + 1); ++ty) {
-//                    for (int tx = 0; tx < *tile; ++tx) {
-//                        sim::global_ids[0] = sim::global_offsets[0] + tx;
-//                        sim::global_ids[1] = sim::global_offsets[1] + ty;
-//                        sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
-//                                         (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLights(), (sim::uint)scene.numLights(),
-//                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawLightPropsData(), (sim::uchar*)scene.rawTexturesData(),
-//                                         (sim::uchar*)scene.rawBVHNodes(), g_randStates.data(), g_width, g_height, sppOnce, (sim::float3*)g_pixels.data());
-//                    }
-//                }
-//                printf("*");
-//            }
-//            printf("\n");
-//        }
-//        buf_pixels = {context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
+#endif
         
-//        queue.enqueueReadBuffer(buf_pixels, CL_TRUE, 0, g_height * g_width * sizeof(cl_float3), g_pixels.data(), &eventList, &readEvent);
         printf("rendering done!\n");
         
         

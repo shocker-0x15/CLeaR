@@ -49,14 +49,19 @@ typedef struct __attribute__((aligned(16))) {
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, float* areaPDF);
+float getAreaPDF(const Scene* scene, uint faceID, float2 uv);
+
 inline float absCosNsEDF(const uchar* EDF, const vector3* v);
+
 //static inline float cosTheta(const vector3* v);
 //static inline float absCosTheta(const vector3* v);
 //static inline float sinTheta2(const vector3* v);
 //static inline float sinTheta(const vector3* v);
 //static inline float cosPhi(const vector3* v);
 //static inline float sinPhi(const vector3* v);
-void EDFAlloc(const Scene* scene, const global uchar* lightsData, uint offset, const LightPosition* lpos, uchar* EDF);
+
+void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF);
+
 static color eLe(const EEDFHead* EEDF, const vector3* vout);
 color Le(const uchar* EDF, const vector3* vout);
 
@@ -96,6 +101,18 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
     }
 }
 
+float getAreaPDF(const Scene* scene, uint faceID, float2 uv) {
+    const global Face* face = scene->faces + faceID;
+    const global point3* p0 = scene->vertices + face->p0;
+    const global point3* p1 = scene->vertices + face->p1;
+    const global point3* p2 = scene->vertices + face->p2;
+    
+    vector3 ng = cross(*p1 - *p0, *p2 - *p0);
+    
+    float area = 0.5f * length(ng);
+    return 1.0f / (area * scene->numLights);
+}
+
 inline float absCosNsEDF(const uchar* EDF, const vector3* v) {
     return fabs(dot(((const EDFHead*)EDF)->n, *v));
 }
@@ -128,9 +145,9 @@ inline float absCosNsEDF(const uchar* EDF, const vector3* v) {
 //    return clamp(v->y / sinT, -1.0f, 1.0f);
 //}
 
-void EDFAlloc(const Scene* scene, const global uchar* lightsData, uint offset, const LightPosition* lpos, uchar* EDF) {
+void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
     EDFHead* LeHead = (EDFHead*)EDF;
-    const global uchar* lightsData_p = lightsData + offset;
+    const global uchar* lightsData_p = scene->lightsData + offset;
     
     LeHead->numEEDFs = *(lightsData_p++);
     LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =
@@ -154,14 +171,12 @@ void EDFAlloc(const Scene* scene, const global uchar* lightsData, uint offset, c
         AlignPtr(&EDFp, 16);
         LeHead->offsetsEEDFs[i] = (ushort)((uintptr_t)EDFp - (uintptr_t)EDF);
         uchar EEDFID = *(lightsData_p++);
+        *(EDFp++) = EEDFID;
         switch (EEDFID) {
             case 0: {
-                *(EDFp++) = 0;
                 break;
             }
             case 1: {// Diffuse Light
-                *(EDFp++) = 1;
-                
                 FType = EEDF_Diffuse;
                 memcpy(AlignPtrAdd(&EDFp, sizeof(EEDFType)), &FType, sizeof(EEDFType));
                 
@@ -181,14 +196,14 @@ static color eLe(const EEDFHead* EEDF, const vector3* vout) {
     switch (EEDF->id) {
         case 1: {
             const DiffuseEmission* difEmit = (const DiffuseEmission*)EEDF;
-            return vout->z > 0.0f ? difEmit->M / M_PI_F : (color)(0.0f, 0.0f, 0.0f);
+            return vout->z > 0.0f ? difEmit->M / M_PI_F : colorZero;
         }
         case 0:
         default: {
             break;
         }
     }
-    return (color)(0.0f, 0.0f, 0.0f);
+    return colorZero;
 }
 
 color Le(const uchar* EDF, const vector3* vout) {
@@ -203,7 +218,7 @@ color Le(const uchar* EDF, const vector3* vout) {
     //        flags = BxDFType(flags & ~BxDF_Transmission);
     //    else // ignore BRDFs
     //        flags = BxDFType(flags & ~BxDF_Transmission);
-    color Le = (color)(0.0f, 0.0f, 0.0f);
+    color Le = colorZero;
     for (int i = 0; i < head->numEEDFs; ++i) {
         ushort idxEEDF = head->offsetsEEDFs[i];
         Le += eLe((EEDFHead*)(EDF + idxEEDF), &voutLocal);

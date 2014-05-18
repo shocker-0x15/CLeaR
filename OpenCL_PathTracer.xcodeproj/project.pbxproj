@@ -106,13 +106,13 @@
 		46222A2E191D0ECD00D71891 /* clUtility.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = clUtility.hpp; sourceTree = "<group>"; };
 		46222A2F191D122B00D71891 /* Face.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Face.hpp; sourceTree = "<group>"; };
 		46222A30191D1D5D00D71891 /* Scene.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Scene.hpp; sourceTree = "<group>"; };
-		4649F3A3191EBA5B00C24459 /* sim_global.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_global.h; sourceTree = "<group>"; };
+		4649F3A3191EBA5B00C24459 /* sim_global.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_global.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		4649F3A4191EBB7300C24459 /* sim_bvh.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_bvh.h; sourceTree = "<group>"; };
-		4649F3A5191EBD8600C24459 /* sim_light.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_light.h; sourceTree = "<group>"; };
+		4649F3A5191EBD8600C24459 /* sim_light.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_light.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		4649F3A6191EBFA200C24459 /* sim_base.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_base.h; sourceTree = "<group>"; };
-		4649F3A7191EC50100C24459 /* sim_reflection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_reflection.h; sourceTree = "<group>"; };
+		4649F3A7191EC50100C24459 /* sim_reflection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_reflection.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		4649F3A8191EC58900C24459 /* sim_rng.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_rng.h; sourceTree = "<group>"; };
-		4649F3A9191EC5DC00C24459 /* sim_texture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_texture.h; sourceTree = "<group>"; };
+		4649F3A9191EC5DC00C24459 /* sim_texture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_texture.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		4649F3AA191EC64600C24459 /* sim_pathtracer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_pathtracer.h; sourceTree = "<group>"; };
 		4688CD55191E6CE200257766 /* clUtility.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clUtility.cpp; sourceTree = "<group>"; };
 		4688CD58191EA3F400257766 /* CreateFunctions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CreateFunctions.cpp; sourceTree = "<group>"; };

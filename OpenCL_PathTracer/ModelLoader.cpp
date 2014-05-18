@@ -40,7 +40,7 @@ bool loadObj(const char* fileName, Scene* scene) {
     mc.setScene(scene);
     
 //    //Diffuse
-//    mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.5f, 0.5f, 0.5f);
+//    mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.85f, 0.85f, 0.15f);
 //    mc.createFloatConstantTexture("objfile_default_sigma", 0.0f);
 //    mc.createMatteMaterial("objfile_default_material",
 //                           scene->idxOfTex("objfile_default_reflectance"),
@@ -53,13 +53,21 @@ bool loadObj(const char* fileName, Scene* scene) {
 //                          scene->idxOfTex("objfile_default_reflectance"),
 //                          scene->idxOfTex("objfile_default_roughX"),
 //                          scene->idxOfTex("objfile_default_roughX"));
-//    //Water
+    //Ashikhmin
+    mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rs", 0.1f, 0.1f, 0.1f);
+    mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rd", 0.85f, 0.85f, 0.15f);
+    mc.createFloatConstantTexture("objfile_default_Ashikhmin_nu", 2000.0f);
+    mc.createFloatConstantTexture("objfile_default_Ashikhmin_nv", 2000.0f);
+    mc.createAshikhminMaterial("objfile_default_material",
+                               scene->idxOfTex("objfile_default_Ashikhmin_Rs"), scene->idxOfTex("objfile_default_Ashikhmin_Rd"),
+                               scene->idxOfTex("objfile_default_Ashikhmin_nu"), scene->idxOfTex("objfile_default_Ashikhmin_nv"));
+//    //    //Water
 //    mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.95f, 0.95f, 0.95f);
 //    mc.createFloat3ConstantTexture("objfile_default_transmittance", 0.95f, 0.95f, 0.95f);
 //    mc.createGlassMaterial("objfile_default_material",
 //                           scene->idxOfTex("objfile_default_reflectance"),
 //                           scene->idxOfTex("objfile_default_transmittance"), 1.0f, 1.333f);
-    mc.createFloat3ConstantTexture("objfile_default_reflectance", 1.0f, 1.0f, 1.0f);
+//    mc.createFloat3ConstantTexture("objfile_default_reflectance", 1.0f, 1.0f, 1.0f);
 //    //Gold
 //    mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
 //                           0.16111f, 0.37457f, 1.58671f, 3.9521e+0f, 2.6371e+0f, 1.9205e+0f);
@@ -78,9 +86,9 @@ bool loadObj(const char* fileName, Scene* scene) {
 //    //Titanium
 //    mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
 //                           2.40904f, 1.87618f, 1.65813f, 3.1459e+0f, 2.5920e+0f, 2.2321e+0f);
-    //Platinum
-    mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
-                           2.54319f, 2.1202f, 1.8117f, 4.4853e+0f, 3.6989e+0f, 3.0588e+0f);
+//    //Platinum
+//    mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//                           2.54319f, 2.1202f, 1.8117f, 4.4853e+0f, 3.6989e+0f, 3.0588e+0f);
     
     scene->beginObject();
     

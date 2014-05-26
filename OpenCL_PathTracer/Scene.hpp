@@ -32,6 +32,7 @@ public:
     std::vector<uint8_t> texturesData{};
     std::map<std::string, size_t> texturesRef;
     BVH bvh;
+    std::vector<uint8_t> camera{};
     bool immediateMode;
     size_t idxBaseVertices;
     size_t idxBaseNormals;
@@ -136,6 +137,9 @@ public:
     void* rawBVHNodes() {
         return bvh.nodes.data();
     }
+    void* rawCamera() {
+        return camera.data();
+    }
     
     size_t numVertices() {
         return vertices.size();
@@ -166,6 +170,9 @@ public:
     }
     size_t sizeOfBVHNodes() {
         return bvh.nodes.size() * sizeof(BVHNode);
+    }
+    size_t sizeOfCamera() {
+        return camera.size();
     }
     
     size_t idxOfMat(const std::string &name) {

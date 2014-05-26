@@ -40,9 +40,9 @@ typedef struct __attribute__((aligned(16))) {
 
 //80bytes
 typedef struct __attribute__((aligned(16))) {
+    vector3 n, s, t, ng;
     uchar __attribute__((aligned(2))) numEEDFs;
     ushort __attribute__((aligned(2))) offsetsEEDFs[4];
-    vector3 n, s, t, ng;
 } EDFHead;
 
 //------------------------

@@ -37,6 +37,10 @@
 		46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46222A29191D04ED00D71891 /* ModelLoader.cpp */; };
 		4688CD57191E6CE200257766 /* clUtility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD55191E6CE200257766 /* clUtility.cpp */; };
 		4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD58191EA3F400257766 /* CreateFunctions.cpp */; };
+		46E860641928DE9600944028 /* camera.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46E860631928DE9600944028 /* camera.cl */; };
+		46E860661928E89A00944028 /* matrix.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46E860651928E89A00944028 /* matrix.cl */; };
+		46E86067192A433300944028 /* matrix.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46E860651928E89A00944028 /* matrix.cl */; };
+		46E86068192A433300944028 /* camera.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46E860631928DE9600944028 /* camera.cl */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -56,6 +60,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				46E86067192A433300944028 /* matrix.cl in CopyFiles */,
+				46E86068192A433300944028 /* camera.cl in CopyFiles */,
 				46222A0D191AB6D400D71891 /* bvh.cl in CopyFiles */,
 				46222A0E191AB6D400D71891 /* global.cl in CopyFiles */,
 				46222A0F191AB6D400D71891 /* light.cl in CopyFiles */,
@@ -116,6 +122,8 @@
 		4649F3AA191EC64600C24459 /* sim_pathtracer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_pathtracer.h; sourceTree = "<group>"; };
 		4688CD55191E6CE200257766 /* clUtility.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clUtility.cpp; sourceTree = "<group>"; };
 		4688CD58191EA3F400257766 /* CreateFunctions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CreateFunctions.cpp; sourceTree = "<group>"; };
+		46E860631928DE9600944028 /* camera.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = camera.cl; sourceTree = "<group>"; };
+		46E860651928E89A00944028 /* matrix.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = matrix.cl; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -205,11 +213,13 @@
 			isa = PBXGroup;
 			children = (
 				462229FD191AB6B800D71891 /* global.cl */,
+				46E860651928E89A00944028 /* matrix.cl */,
 				46222A01191AB6B800D71891 /* rng.cl */,
 				46222A02191AB6B800D71891 /* texture.cl */,
 				462229FC191AB6B800D71891 /* bvh.cl */,
 				46222A00191AB6B800D71891 /* reflection.cl */,
 				462229FE191AB6B800D71891 /* light.cl */,
+				46E860631928DE9600944028 /* camera.cl */,
 				462229FF191AB6B800D71891 /* pathtracer.cl */,
 				46222A03191AB6B800D71891 /* tonemapping.cl */,
 			);
@@ -301,7 +311,9 @@
 				46222A0A191AB6B800D71891 /* texture.cl in Sources */,
 				46222A23191AB70100D71891 /* Point3f.cpp in Sources */,
 				46222A06191AB6B800D71891 /* light.cl in Sources */,
+				46E860661928E89A00944028 /* matrix.cl in Sources */,
 				46222A21191AB70100D71891 /* LinearAlgebra.cpp in Sources */,
+				46E860641928DE9600944028 /* camera.cl in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

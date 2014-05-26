@@ -61,7 +61,7 @@ bool loadObj(const char* fileName, Scene* scene) {
     mc.createAshikhminMaterial("objfile_default_material",
                                scene->idxOfTex("objfile_default_Ashikhmin_Rs"), scene->idxOfTex("objfile_default_Ashikhmin_Rd"),
                                scene->idxOfTex("objfile_default_Ashikhmin_nu"), scene->idxOfTex("objfile_default_Ashikhmin_nv"));
-//    //    //Water
+//    //Water
 //    mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.95f, 0.95f, 0.95f);
 //    mc.createFloat3ConstantTexture("objfile_default_transmittance", 0.95f, 0.95f, 0.95f);
 //    mc.createGlassMaterial("objfile_default_material",

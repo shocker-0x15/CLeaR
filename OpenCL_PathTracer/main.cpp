@@ -76,6 +76,38 @@ std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
 void buildScene() {
+    addDataAligned<cl_uint>(&scene.camera, g_width);
+    addDataAligned<cl_uint>(&scene.camera, g_height);
+    cl_float16 f16Val = {
+        1.0f, 0.0f, 0.0f, 0.0f,
+        0.0f, 1.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 1.0f, 0.0f,
+        0.0f, 0.0f, 3.999f, 1.0f
+    };
+    addDataAligned<cl_float16>(&scene.camera, f16Val);// local to world transform
+    addDataAligned<cl_uchar>(&scene.camera, 0);// perspective
+    float fovY = 0.6435011088f;
+    float aspect = 1;
+    float near = 1;
+    float far = 100;
+    addDataAligned<cl_float>(&scene.camera, aspect * powf(tanf(fovY / 2), 2));
+    addDataAligned<cl_float>(&scene.camera, 0.05f);// lens radius
+    addDataAligned<cl_float>(&scene.camera, 4.0f);// object plane distance
+    Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
+                                     Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
+                                     Vector4f(0, 0, -(far + near) / (far - near), -1),
+                                     Vector4f(0, 0, -2 * far * near / (far - near), 0)).Invert();
+    Matrix4f rasterToScreen = Matrix4f(Vector4f(2.0f / g_width, 0, 0, 0), // raster to screen
+                                       Vector4f(0, -2.0f / g_height, 0, 0),
+                                       Vector4f(0, 0, 2, 0),
+                                       Vector4f(-1, 1, -1, 1));
+    Matrix4f rasterToCamera = clipToCamera * rasterToScreen;
+    f16Val.s0 = rasterToCamera.m00; f16Val.s4 = rasterToCamera.m01; f16Val.s8 = rasterToCamera.m02; f16Val.sc = rasterToCamera.m03;
+    f16Val.s1 = rasterToCamera.m10; f16Val.s5 = rasterToCamera.m11; f16Val.s9 = rasterToCamera.m12; f16Val.sd = rasterToCamera.m13;
+    f16Val.s2 = rasterToCamera.m20; f16Val.s6 = rasterToCamera.m21; f16Val.sa = rasterToCamera.m22; f16Val.se = rasterToCamera.m23;
+    f16Val.s3 = rasterToCamera.m30; f16Val.s7 = rasterToCamera.m31; f16Val.sb = rasterToCamera.m32; f16Val.sf = rasterToCamera.m33;
+    addDataAligned<cl_float16>(&scene.camera, f16Val);
+    
     g_randStates.resize(g_width * g_height * 4);
     g_pixels.resize(g_width * g_height);
     
@@ -146,7 +178,7 @@ void buildScene() {
     scene.addVertex(-0.25f, 0.9999f, 0.25f);
     
     mc.createFloat3ConstantTexture("R_light", 0.9f, 0.9f, 0.9f);
-    mc.createFloat3ConstantTexture("M_top", 120.0f, 120.0f, 120.0f);
+    mc.createFloat3ConstantTexture("M_top", 1500.0f, 1500.0f, 1500.0f);
     
     mc.createMatteMaterial("mat_light", scene.idxOfTex("R_light"), scene.idxOfTex("sigma_lambert"));
     mc.createDiffuseLightProperty("light_top", scene.idxOfTex("M_top"));
@@ -161,7 +193,6 @@ void buildScene() {
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t sppOnce = 1;
     const uint32_t iterations = 256;
     
     buildScene();
@@ -217,6 +248,7 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_lightsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfLightPropsData(), scene.rawLightPropsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
         cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
+        cl::Buffer buf_Camera{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfCamera(), scene.rawCamera(), nullptr};
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
@@ -232,11 +264,9 @@ int main(int argc, const char * argv[]) {
         kernelRendering.setArg(8, buf_lightsData);
         kernelRendering.setArg(9, buf_texturesData);
         kernelRendering.setArg(10, buf_BVHnodes);
-        kernelRendering.setArg(11, buf_randStates);
-        kernelRendering.setArg(12, g_width);
-        kernelRendering.setArg(13, g_height);
-        kernelRendering.setArg(14, sppOnce);
-        kernelRendering.setArg(15, buf_pixels);
+        kernelRendering.setArg(11, buf_Camera);
+        kernelRendering.setArg(12, buf_randStates);
+        kernelRendering.setArg(13, buf_pixels);
         
         std::vector<cl::Event> eventList;
         cl::Event computeEvent;
@@ -305,7 +335,7 @@ int main(int argc, const char * argv[]) {
         kernelToneMapping.setArg(0, g_width);
         kernelToneMapping.setArg(1, g_height);
         kernelToneMapping.setArg(2, byteWidth);
-        kernelToneMapping.setArg(3, sppOnce * iterations);
+        kernelToneMapping.setArg(3, iterations);
         kernelToneMapping.setArg(4, buf_pixels);
         kernelToneMapping.setArg(5, buf_image);
         

@@ -93,9 +93,9 @@ typedef struct __attribute__((aligned(16))) {
 
 //80bytes
 typedef struct __attribute__((aligned(16))) {
+    vector3 n, s, t, ng;
     uchar __attribute__((aligned(2))) numBxDFs;
     ushort __attribute__((aligned(2))) offsetsBxDFs[4];
-    vector3 n, s, t, ng;
 } BSDFHead;
 
 //------------------------

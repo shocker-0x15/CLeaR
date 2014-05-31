@@ -147,7 +147,7 @@ void buildScene() {
     mc.createFloat3ConstantTexture("R_rightWall", 0.25f, 0.25f, 0.75f);
     mc.createFloat3ConstantTexture("R_otherWalls", 0.75f, 0.75f, 0.75f);
     mc.createFloatConstantTexture("sigma_lambert", 0.0f);
-    mc.createCheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
+    mc.createFloat3CheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
     mc.createImageTexture("R_backWall", "images/pika_flat.png");
     
     mc.createMatteMaterial("mat_leftWall", scene.idxOfTex("R_leftWall"), scene.idxOfTex("sigma_lambert"));
@@ -275,7 +275,7 @@ int main(int argc, const char * argv[]) {
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
-#define SIMULATION 1
+#define SIMULATION 0
 #if SIMULATION
         sim::global_sizes[0] = (sim::uint)*tile;
         sim::global_sizes[1] = (sim::uint)*(tile + 1);

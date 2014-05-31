@@ -3,17 +3,31 @@
 
 #include "global.cl"
 
+typedef enum {
+    TextureType_ColorConstant = 0,
+    TextureType_ColorImage,
+    TextureType_ColorProcedural,
+    TextureType_FloatConstant,
+    TextureType_FloatImage,
+    TextureType_FloatProcedural,
+} TextureType;
+
+typedef enum {
+    ProceduralType_CheckerBoard = 0,
+} ProceduralType;
+
 color evaluateColorTexture(const global uchar* textureData, float2 uv);
 float evaluateFloatTexture(const global uchar* textureData, float2 uv);
-color proceduralTexture(const global uchar* textureData, float2 uv);
+color proceduralColorTexture(const global uchar* textureData, float2 uv);
+float proceduralFloatTexture(const global uchar* textureData, float2 uv);
 
 color evaluateColorTexture(const global uchar* textureData, float2 uv) {
     uchar textureType = *(textureData++);
     switch (textureType) {
-        case 0: {
+        case TextureType_ColorConstant: {
             return *(global color*)AlignPtrAddG(&textureData, sizeof(color));
         }
-        case 1: {
+        case TextureType_ColorImage: {
             uint width = *(global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint height = *(global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
@@ -21,8 +35,8 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv) {
             uchar3 value = *((global uchar3*)textureData + y * width + x);
             return convert_float3(value) / 255.0f;
         }
-        case 2: {
-            return proceduralTexture(textureData, uv);
+        case TextureType_ColorProcedural: {
+            return proceduralColorTexture(textureData, uv);
         }
         default:
             break;
@@ -34,18 +48,18 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv) {
 float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
     uchar textureType = *(textureData++);
     switch (textureType) {
-        case 10: {
+        case TextureType_FloatConstant: {
             return *(global float*)AlignPtrAddG(&textureData, sizeof(float));
         }
-        case 11: {
+        case TextureType_FloatImage: {
             uint width = *(global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint height = *(global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
             uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
             return *((global float*)textureData + y * width + x);
         }
-        case 12: {
-            break;
+        case TextureType_FloatProcedural: {
+            return proceduralFloatTexture(textureData, uv);
         }
         default:
             break;
@@ -54,17 +68,34 @@ float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
     return 0.0f;
 }
 
-color proceduralTexture(const global uchar* textureData, float2 uv) {
+color proceduralColorTexture(const global uchar* textureData, float2 uv) {
     uchar procedure = *(textureData++);
-    if (procedure == 0) {
-        color c[2];
-        memcpyG2P((uchar*)&c[0], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
-        memcpyG2P((uchar*)&c[1], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
-        
-        return c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
+    switch (procedure) {
+        case ProceduralType_CheckerBoard: {
+            color c[2];
+            memcpyG2P((uchar*)&c[0], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
+            memcpyG2P((uchar*)&c[1], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
+            
+            return c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
+        }
+        default:
+            return colorZero;
     }
-    
-    return colorZero;
+}
+
+float proceduralFloatTexture(const global uchar* textureData, float2 uv) {
+    uchar procedure = *(textureData++);
+    switch (procedure) {
+        case ProceduralType_CheckerBoard: {
+            float v[2];
+            memcpyG2P((uchar*)&v[0], AlignPtrAddG(&textureData, sizeof(float)), sizeof(float));
+            memcpyG2P((uchar*)&v[1], AlignPtrAddG(&textureData, sizeof(float)), sizeof(float));
+            
+            return v[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
+        }
+        default:
+            return 0.0f;
+    }
 }
 
 #endif

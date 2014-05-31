@@ -6,6 +6,10 @@
 #include "texture.cl"
 
 typedef enum {
+    EEDFID_DiffuseEmission = 0,
+} EEDFID;
+
+typedef enum {
     EEDF_Diffuse      = 1 << 0,
     EEDF_Varying      = 1 << 1,
     EEDF_Directional  = 1 << 2,
@@ -173,10 +177,7 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
         uchar EEDFID = *(lightsData_p++);
         *(EDFp++) = EEDFID;
         switch (EEDFID) {
-            case 0: {
-                break;
-            }
-            case 1: {// Diffuse Light
+            case EEDFID_DiffuseEmission: {
                 FType = EEDF_Diffuse;
                 memcpy(AlignPtrAdd(&EDFp, sizeof(EEDFType)), &FType, sizeof(EEDFType));
                 
@@ -194,11 +195,10 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
 
 static color eLe(const EEDFHead* EEDF, const vector3* vout) {
     switch (EEDF->id) {
-        case 1: {
+        case EEDFID_DiffuseEmission: {
             const DiffuseEmission* difEmit = (const DiffuseEmission*)EEDF;
             return vout->z > 0.0f ? difEmit->M / M_PI_F : colorZero;
         }
-        case 0:
         default: {
             break;
         }

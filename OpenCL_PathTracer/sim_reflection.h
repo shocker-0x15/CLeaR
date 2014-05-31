@@ -7,6 +7,21 @@
 
 namespace sim {
     typedef enum {
+        BxDFID_Diffuse = 0,
+        BxDFID_SpecularReflection,
+        BxDFID_SpecularTransmission,
+        BxDFID_NewWard,
+        BxDFID_AshikhminS,
+        BxDFID_AshikhminD,
+    } BxDFID;
+    
+    typedef enum {
+        FresnelID_NoOp = 0,
+        FresnelID_Conductor,
+        FresnelID_Dielectric,
+    } FresnelID;
+    
+    typedef enum {
         BxDF_Reflection   = 1 << 0,
         BxDF_Transmission = 1 << 1,
         
@@ -77,7 +92,7 @@ namespace sim {
         BxDFHead head; uchar dum0[8];
         color R;
         float ax, ay; uchar dum1[8];
-    } Ward;
+    } NewWard;
     
     //48bytes
     typedef struct {
@@ -205,10 +220,7 @@ namespace sim {
             uchar BxDFID = *(matsData_p++);
             *(BSDFp++) = BxDFID;
             switch (BxDFID) {
-                case 0: {
-                    break;
-                }
-                case 1: {// Diffuse Reflection
+                case BxDFID_Diffuse: {
                     FType = BxDFType(BxDF_Reflection | BxDF_Diffuse);
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(BxDFType)), &FType, sizeof(BxDFType));
                     
@@ -226,7 +238,7 @@ namespace sim {
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(float)), &B, sizeof(float));
                     break;
                 }
-                case 2: {// Specular Reflection
+                case BxDFID_SpecularReflection: {
                     FType = BxDFType(BxDF_Reflection | BxDF_Specular);
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(BxDFType)), &FType, sizeof(BxDFType));
                     
@@ -238,7 +250,7 @@ namespace sim {
                     *(const uchar**)AlignPtrAdd(&BSDFp, sizeof(uint)) = scene->texturesData + *(uint*)AlignPtrAddG(&matsData_p, sizeof(uint));
                     break;
                 }
-                case 3: {// Specular Transmission
+                case BxDFID_SpecularTransmission: {
                     FType = BxDFType(BxDF_Transmission | BxDF_Specular);
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(BxDFType)), &FType, sizeof(BxDFType));
                     
@@ -254,7 +266,7 @@ namespace sim {
                     *(const uchar**)AlignPtrAdd(&BSDFp, sizeof(uint)) = scene->texturesData + *(uint*)AlignPtrAddG(&matsData_p, sizeof(uint));
                     break;
                 }
-                case 4: {// New Ward
+                case BxDFID_NewWard: {
                     FType = BxDFType(BxDF_Reflection | BxDF_Glossy);
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(BxDFType)), &FType, sizeof(BxDFType));
                     
@@ -269,7 +281,7 @@ namespace sim {
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(float)), &ay, sizeof(float));
                     break;
                 }
-                case 5: {// Ashikhmin Specular
+                case BxDFID_AshikhminS: {
                     FType = BxDFType(BxDF_Reflection | BxDF_Glossy);
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(BxDFType)), &FType, sizeof(BxDFType));
                     
@@ -284,7 +296,7 @@ namespace sim {
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(float)), &nv, sizeof(float));
                     break;
                 }
-                case 6: {// Ashikhmin Diffuse
+                case BxDFID_AshikhminD: {
                     FType = BxDFType(BxDF_Reflection | BxDF_Diffuse);
                     memcpy(AlignPtrAdd(&BSDFp, sizeof(BxDFType)), &FType, sizeof(BxDFType));
                     
@@ -307,9 +319,9 @@ namespace sim {
     static color evaluateFresnel(const uchar* fresnel, float cosi) {
         const FresnelHead* head = (const FresnelHead*)fresnel;
         switch (head->ftype) {
-            case 0:
+            case FresnelID_NoOp:
                 return colorOne;
-            case 1: {//Conductor
+            case FresnelID_Conductor: {
                 const FresnelConductor* frCond = (const FresnelConductor*)fresnel;
                 color eta = frCond->eta;
                 color k = frCond->k;
@@ -321,7 +333,7 @@ namespace sim {
                 color Rperp2 = (tmp_f - (2.0f * eta * cosi) + cosi*cosi) / (tmp_f + (2.0f * eta * cosi) + cosi * cosi);
                 return (Rparl2 + Rperp2) / 2.0f;
             }
-            case 2: {//Dielectric
+            case FresnelID_Dielectric: {
                 const FresnelDielectric* frDiel = (const FresnelDielectric*)fresnel;
                 cosi = clamp(cosi, -1.0f, 1.0f);
                 
@@ -358,7 +370,7 @@ namespace sim {
     static color sample_fx(const BxDFHead* BxDF, const vector3* vout, const BSDFSample* sample,
                            vector3* vin, float* dirPDF) {
         switch (BxDF->id) {
-            case 1: {// Diffuse
+            case BxDFID_Diffuse: {
                 *vin = cosineSampleHemisphere(sample->uDir[0], sample->uDir[1]);
                 if (vout->z < 0.0f)
                     vin->z *= -1;
@@ -366,7 +378,7 @@ namespace sim {
                 
                 return fx(BxDF, vout, vin);
             }
-            case 2: {// Specular Reflection
+            case BxDFID_SpecularReflection: {
                 const SpecularReflection* speR = (const SpecularReflection*)BxDF;
                 
                 *vin = vector3(-vout->x, -vout->y, vout->z);
@@ -374,7 +386,7 @@ namespace sim {
                 
                 return speR->R * evaluateFresnel(speR->fresnel, cosTheta(vout)) / absCosTheta(vin);
             }
-            case 3: {
+            case BxDFID_SpecularTransmission: {
                 const SpecularTransmission* speT = (const SpecularTransmission*)BxDF;
                 
                 bool entering = cosTheta(vout) > 0.0f;
@@ -401,8 +413,8 @@ namespace sim {
                 color f = evaluateFresnel(speT->fresnel, cosTheta(vout));
                 return (colorOne - f) * speT->T / absCosTheta(vin);
             }
-            case 4: {
-                const Ward* ward = (const Ward*)BxDF;
+            case BxDFID_NewWard: {
+                const NewWard* ward = (const NewWard*)BxDF;
                 
                 float quad = 2 * M_PI_F * sample->uDir[1];
                 float phi_h = atan2(ward->ay * sinf(quad), ward->ax * cosf(quad));
@@ -428,7 +440,7 @@ namespace sim {
                 *dirPDF = numerator / commonDenom;
                 return ward->R * (numerator / (commonDenom * dotHI * dotHN));
             }
-            case 5: {// Ashikhmin Specular
+            case BxDFID_AshikhminS: {
                 const AshikhminS* ashS = (const AshikhminS*)BxDF;
                 
                 float quad = 2 * M_PI_F * sample->uDir[1];
@@ -447,7 +459,7 @@ namespace sim {
                 *dirPDF = fx_pdf(BxDF, vout, vin);
                 return fx(BxDF, vout, vin);
             }
-            case 6: {// Ashikhmin Diffuse
+            case BxDFID_AshikhminD: {
                 *vin = cosineSampleHemisphere(sample->uDir[0], sample->uDir[1]);
                 if (vout->z < 0.0f)
                     vin->z *= -1;
@@ -455,7 +467,6 @@ namespace sim {
                 
                 return fx(BxDF, vout, vin);
             }
-            case 0:
             default: {
                 break;
             }
@@ -465,7 +476,7 @@ namespace sim {
     
     static color fx(const BxDFHead* BxDF, const vector3* vout, const vector3* vin) {
         switch (BxDF->id) {
-            case 1: {
+            case BxDFID_Diffuse: {
                 const Diffuse* diffuse = (const Diffuse*)BxDF;
                 
                 if (diffuse->A == 1.0f) {
@@ -495,14 +506,14 @@ namespace sim {
                     return diffuse->R / M_PI_F * (diffuse->A + diffuse->B * maxCos * sinAlpha * tanBeta);
                 }
             }
-            case 2: {
+            case BxDFID_SpecularReflection: {
                 return colorZero;
             }
-            case 3: {
+            case BxDFID_SpecularTransmission: {
                 return colorZero;
             }
-            case 4: {
-                const Ward* ward = (const Ward*)BxDF;
+            case BxDFID_NewWard: {
+                const NewWard* ward = (const NewWard*)BxDF;
                 
                 if (vin->z * vout->z <= 0)
                     return colorZero;
@@ -516,7 +527,7 @@ namespace sim {
                 return ward->R * expf(-(hx_ax * hx_ax + hy_ay * hy_ay) / (dotHN * dotHN)) /
                 (4 * M_PI_F * ward->ax * ward->ay * dotHI * dotHI * dotHN * dotHN * dotHN * dotHN);
             }
-            case 5: {
+            case BxDFID_AshikhminS: {
                 if (vin->z * vout->z <= 0.0f)
                     return colorZero;
                 
@@ -529,7 +540,7 @@ namespace sim {
                 return sqrtf((ashS->nu + 1) * (ashS->nv + 1)) / (8 * M_PI_F) *
                 powf(fabsf(halfv.z), exp) / (dotHV * fmaxf(absCosTheta(vout), absCosTheta(vin))) * fr;
             }
-            case 6: {
+            case BxDFID_AshikhminD: {
                 if (vin->z * vout->z <= 0.0f)
                     return colorZero;
                 
@@ -538,7 +549,6 @@ namespace sim {
                 return 28 * ashD->Rd / (23 * M_PI_F) * (colorOne - ashD->Rs) *
                 (1.0f - powf(1.0f - absCosTheta(vout) / 2, 5)) * (1.0f - powf(1.0f - absCosTheta(vin) / 2, 5));
             }
-            case 0:
             default: {
                 break;
             }
@@ -548,17 +558,17 @@ namespace sim {
     
     static float fx_pdf(const BxDFHead* BxDF, const vector3* vout, const vector3* vin) {
         switch (BxDF->id) {
-            case 1:
+            case BxDFID_Diffuse:
                 return absCosTheta(vin) / M_PI_F;
-            case 2:
+            case BxDFID_SpecularReflection:
                 return 0.0f;
-            case 3:
+            case BxDFID_SpecularTransmission:
                 return 0.0f;
-            case 4: {// Ward
+            case BxDFID_NewWard: {
                 if (vin->z * vout->z <= 0)
                     return 0.0f;
                 
-                const Ward* ward = (const Ward*)BxDF;
+                const NewWard* ward = (const NewWard*)BxDF;
                 
                 vector3 halfv = halfvec(vout, vin);
                 float hx_ax = halfv.x / ward->ax;
@@ -570,7 +580,7 @@ namespace sim {
                 
                 return numerator / commonDenom;
             }
-            case 5: {// Ashikhmin Specular
+            case BxDFID_AshikhminS: {
                 if (vout->z * vin->z <= 0)
                     return 0.0f;
                 
@@ -580,9 +590,8 @@ namespace sim {
                 float exp = (ashS->nu * halfv.x * halfv.x + ashS->nv * halfv.y * halfv.y) / (1 - halfv.z * halfv.z);
                 return sqrtf((ashS->nu + 1) * (ashS->nv + 1)) / (2 * M_PI_F) * powf(fabsf(halfv.z), exp) / (4 * dot(*vout, halfv));
             }
-            case 6:
+            case BxDFID_AshikhminD:
                 return absCosTheta(vin) / M_PI_F;
-            case 0:
             default: {
                 break;
             }

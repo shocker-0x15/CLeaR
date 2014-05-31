@@ -53,7 +53,8 @@ public:
     void createFloat3ConstantTexture(const char* name, float s0, float s1, float s2);
     void createFloatConstantTexture(const char* name, float val);
     void createImageTexture(const char* name, const char* filename);
-    void createCheckerBoardTexture(const char* name, float c0r, float c0g, float c0b, float c1r, float c1g, float c1b);
+    void createFloat3CheckerBoardTexture(const char* name, float c0r, float c0g, float c0b, float c1r, float c1g, float c1b);
+    void createFloatCheckerBoardTexture(const char* name, float c0, float c1);
     
     void createFresnelNoOp(const char* name);
     void createFresnelConductor(const char* name, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b);
@@ -63,7 +64,7 @@ public:
     void createDiffuseBRDF(size_t reflectanceIdx, size_t sigmaIdx);
     void createSpecularBRDF(size_t reflectanceIdx, size_t fresnelIdx);
     void createSpecularBTDF(size_t transmissionIdx, float etaExt, float etaInt);
-    void createWardBRDF(size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
+    void createNewWardBRDF(size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
     void createAshikhminSBRDF(size_t RsIdx, size_t nuIdx, size_t nvIdx);
     void createAshikhminDBRDF(size_t RdIdx, size_t RsIdx);
     
@@ -71,7 +72,7 @@ public:
     void createMatteMaterial(const char* name, size_t reflectanceIdx, size_t sigmaIdx);
     void createGlassMaterial(const char* name, size_t RIdx, size_t TIdx, float etaExt, float etaInt);
     void createMetalMaterial(const char* name, size_t RIdx, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b);
-    void createWardMaterial(const char* name, size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
+    void createNewWardMaterial(const char* name, size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
     void createAshikhminMaterial(const char* name, size_t RsIdx, size_t RdIdx, size_t nuIdx, size_t nvIdx);
     void createMixMaterial(const char* name, size_t mat0Idx, size_t mat1Idx, size_t ratioIdx);
     

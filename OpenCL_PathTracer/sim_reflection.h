@@ -94,9 +94,9 @@ namespace sim {
     
     //80bytes
     typedef struct {
+        vector3 n, s, t, ng;
         uchar numBxDFs; uchar dum0[1];
         ushort offsetsBxDFs[4]; uchar dum1[6];
-        vector3 n, s, t, ng;
     } BSDFHead;
     
     //------------------------

@@ -112,6 +112,8 @@
 		46222A2E191D0ECD00D71891 /* clUtility.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = clUtility.hpp; sourceTree = "<group>"; };
 		46222A2F191D122B00D71891 /* Face.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Face.hpp; sourceTree = "<group>"; };
 		46222A30191D1D5D00D71891 /* Scene.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Scene.hpp; sourceTree = "<group>"; };
+		4622DFE1193A183100CF2A3B /* sim_matrix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sim_matrix.h; sourceTree = "<group>"; };
+		4622DFE2193A350A00CF2A3B /* sim_camera.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sim_camera.h; sourceTree = "<group>"; };
 		4649F3A3191EBA5B00C24459 /* sim_global.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_global.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		4649F3A4191EBB7300C24459 /* sim_bvh.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_bvh.h; sourceTree = "<group>"; };
 		4649F3A5191EBD8600C24459 /* sim_light.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_light.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
@@ -230,12 +232,14 @@
 			isa = PBXGroup;
 			children = (
 				4649F3A6191EBFA200C24459 /* sim_base.h */,
+				4622DFE1193A183100CF2A3B /* sim_matrix.h */,
 				4649F3A3191EBA5B00C24459 /* sim_global.h */,
 				4649F3A8191EC58900C24459 /* sim_rng.h */,
 				4649F3A9191EC5DC00C24459 /* sim_texture.h */,
 				4649F3A4191EBB7300C24459 /* sim_bvh.h */,
 				4649F3A7191EC50100C24459 /* sim_reflection.h */,
 				4649F3A5191EBD8600C24459 /* sim_light.h */,
+				4622DFE2193A350A00CF2A3B /* sim_camera.h */,
 				4649F3AA191EC64600C24459 /* sim_pathtracer.h */,
 			);
 			name = Host;

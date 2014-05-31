@@ -6,10 +6,19 @@
 
 namespace sim {
 #define printfF3(f3) printf(#f3": %f, %f, %f\n", (f3).x, (f3).y, (f3).z)
+#define printfMat4(mat) printf(#mat": \n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f\n",\
+                               head->localToWorld.s0, head->localToWorld.s4, head->localToWorld.s8, head->localToWorld.sc,\
+                               head->localToWorld.s1, head->localToWorld.s5, head->localToWorld.s9, head->localToWorld.sd,\
+                               head->localToWorld.s2, head->localToWorld.s6, head->localToWorld.sa, head->localToWorld.se,\
+                               head->localToWorld.s3, head->localToWorld.s7, head->localToWorld.sb, head->localToWorld.sf)
     
+    typedef float2 point2;
     typedef float3 vector3;
     typedef float3 point3;
     typedef float3 color;
+    typedef float4 vector4;
+    typedef float4 point4;
+    typedef float16 mat4x4;
 #define colorZero color(0.0f, 0.0f, 0.0f)
 #define colorOne color(1.0f, 1.0f, 1.0f)
 #define EPSILON 0.00001f;
@@ -61,6 +70,19 @@ namespace sim {
         uint faceID; uchar dum[4];
     } LightPosition;
     
+    //48bytes
+    typedef struct {
+        point3 p;
+        vector3 n;
+        float2 uv; uchar dum[8];
+    } LensPosition;
+    
+    //128bytes
+    typedef struct {
+        uint width, height; uchar dum0[56];
+        mat4x4 localToWorld;
+    } CameraHead;
+    
     typedef struct {
         point3* vertices;
         vector3* normals;
@@ -73,6 +95,7 @@ namespace sim {
         uchar* lightsData;
         uchar* texturesData;
         BVHNode* BVHNodes;
+        CameraHead* camera;
     } Scene;
     
     //------------------------

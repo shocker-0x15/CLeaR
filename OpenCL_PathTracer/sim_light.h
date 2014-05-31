@@ -41,9 +41,9 @@ namespace sim {
     
     //80bytes
     typedef struct {
+        vector3 n, s, t, ng;
         uchar numEEDFs; uchar dum0[1];
         ushort offsetsEEDFs[4]; uchar dum1[6];
-        vector3 n, s, t, ng;
     } EDFHead;
     
     //------------------------

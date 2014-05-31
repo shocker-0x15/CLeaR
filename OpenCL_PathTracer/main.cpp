@@ -21,8 +21,6 @@
 
 #include "sim_pathtracer.h"
 
-#define SIMULATION 0
-
 CL_CALLBACK void completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
 }
@@ -92,7 +90,7 @@ void buildScene() {
     float far = 100;
     addDataAligned<cl_float>(&scene.camera, aspect * powf(tanf(fovY / 2), 2));
     addDataAligned<cl_float>(&scene.camera, 0.05f);// lens radius
-    addDataAligned<cl_float>(&scene.camera, 4.0f);// object plane distance
+    addDataAligned<cl_float>(&scene.camera, 3.8f);// object plane distance
     Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
                                      Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
                                      Vector4f(0, 0, -(far + near) / (far - near), -1),
@@ -187,13 +185,13 @@ void buildScene() {
     scene.addFace(Face::make_p(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
-    loadModel("models/Pikachu_corrected_high.obj", &scene);
+    loadModel("models/Pikachu_textured.obj", &scene);
     
     scene.build();
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t iterations = 256;
+    const uint32_t iterations = 8;
     
     buildScene();
     
@@ -277,6 +275,7 @@ int main(int argc, const char * argv[]) {
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
+#define SIMULATION 1
 #if SIMULATION
         sim::global_sizes[0] = (sim::uint)*tile;
         sim::global_sizes[1] = (sim::uint)*(tile + 1);
@@ -292,7 +291,7 @@ int main(int argc, const char * argv[]) {
                         sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
                                          (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLights(), (sim::uint)scene.numLights(),
                                          (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawLightPropsData(), (sim::uchar*)scene.rawTexturesData(),
-                                         (sim::uchar*)scene.rawBVHNodes(), g_randStates.data(), g_width, g_height, sppOnce, (sim::float3*)g_pixels.data());
+                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawCamera(), g_randStates.data(), (sim::float3*)g_pixels.data());
                     }
                 }
                 printf("*");

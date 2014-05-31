@@ -46,7 +46,7 @@ typedef struct __attribute__((aligned(4))) {
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    FresnelHead head;
+    FresnelHead __attribute__((aligned(16))) head;
     color eta, k;
 } FresnelConductor;
 

@@ -199,17 +199,38 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
     fsHead->offsetsBxDFs[0] = fsHead->offsetsBxDFs[1] =
     fsHead->offsetsBxDFs[2] = fsHead->offsetsBxDFs[3] = 0;
     
-    // n
-    fsHead->n = isect->ns;
+    fsHead->n = isect->sNormal;
+    if (isect->hasTangent)
+        fsHead->s = isect->sTangent;
+    else
+        makeTangent(&isect->sNormal, &fsHead->s);
     
-    vector3 s_temp, t_temp;
-    makeBasis(&isect->ns, &s_temp, &t_temp);
-    // st
-    fsHead->s = s_temp;
-//    vector3 t = cross(n, s);
-    fsHead->t = t_temp;
-    // ng
-    fsHead->ng = isect->ng;
+    bool hasBumpMap = *(matsData_p++);
+    uint bumpMapIdx = *(global uint*)AlignPtrAddG(&matsData_p, sizeof(uint));
+    if (hasBumpMap) {
+        vector3 nBump = 2.0f * evaluateColorTexture(scene->texturesData + bumpMapIdx, isect->uv) - 1.0f;
+        vector3 vDir = cross(isect->uDir, isect->sNormal);
+        fsHead->n = (vector3)(dot((vector3)(isect->uDir.x, vDir.x, isect->sNormal.x), nBump),
+                              dot((vector3)(isect->uDir.y, vDir.y, isect->sNormal.y), nBump),
+                              dot((vector3)(isect->uDir.z, vDir.z, isect->sNormal.z), nBump));
+        vector3 ax = cross(isect->sNormal, fsHead->n);
+        float sinTH = length(ax);
+        ax = normalize(ax);
+        float cosTH = cos(asin(sinTH));
+        float oneMcosTH = 1 - cosTH;
+        fsHead->s = (vector3)(dot((vector3)(ax.x * ax.x * oneMcosTH + cosTH,
+                                            ax.x * ax.y * oneMcosTH - ax.z * sinTH,
+                                            ax.z * ax.x * oneMcosTH + ax.y * sinTH), fsHead->s),
+                              dot((vector3)(ax.x * ax.y * oneMcosTH + ax.z * sinTH,
+                                            ax.y * ax.y * oneMcosTH + cosTH,
+                                            ax.y * ax.z * oneMcosTH - ax.x * sinTH), fsHead->s),
+                              dot((vector3)(ax.z * ax.x * oneMcosTH - ax.y * sinTH,
+                                            ax.y * ax.z * oneMcosTH + ax.x * sinTH,
+                                            ax.z * ax.z * oneMcosTH + cosTH), fsHead->s));
+    }
+    
+    fsHead->t = cross(fsHead->n, fsHead->s);
+    fsHead->ng = isect->gNormal;
     
     uchar* BSDFp = BSDF + sizeof(BSDFHead);
     BxDFType FType;

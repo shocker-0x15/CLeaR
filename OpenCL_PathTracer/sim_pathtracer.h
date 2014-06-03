@@ -121,12 +121,6 @@ namespace sim {
 //        }
     
 //        if (gid0 == 0 && gid1 == 0) {
-////            printf("uchar %lu\t ushort %lu\t uint %lu\t ulong %lu\n", sizeof(uchar), sizeof(ushort), sizeof(uint), sizeof(ulong));
-////            printf("uchar %lu\t uchar2 %lu\t uchar3 %lu\t uchar4 %lu\n", sizeof(uchar), sizeof(uchar2), sizeof(uchar3), sizeof(uchar4));
-////            printf("ushort %lu\t ushort2 %lu\t ushort3 %lu\t ushort4 %lu\n", sizeof(ushort), sizeof(ushort2), sizeof(ushort3), sizeof(ushort4));
-////            printf("float %lu\t float2 %lu\t float3 %lu\t float4 %lu\n", sizeof(float), sizeof(float2), sizeof(float3), sizeof(float4));
-////            printf("bool %lu\t half %lu\t uintptr_t %lu\n", sizeof(bool), sizeof(half), sizeof(uintptr_t));
-////            printf("\n");
 //            printf("Ray %lu\t Face %lu\n", sizeof(Ray), sizeof(Face));
 //            printf("BBox %lu\t BVHNode %lu\n", sizeof(BBox), sizeof(BVHNode));
 //            printf("Intersection %lu\t LightPosition %lu\t LensPosition %lu\t CameraHead %lu\n", sizeof(Intersection), sizeof(LightPosition), sizeof(LensPosition), sizeof(CameraHead));
@@ -134,7 +128,7 @@ namespace sim {
 //            printf("\n");
 //            printf("BxDFType %lu\t BSDFSample %lu\t BxDFHead %lu\t BSDFHead %lu\n", sizeof(BxDFType), sizeof(BSDFSample), sizeof(BxDFHead), sizeof(BSDFHead));
 //            printf("Diffuse %lu\t SpecularReflection %lu\t SpecularTransmission %lu\n", sizeof(Diffuse), sizeof(SpecularReflection), sizeof(SpecularTransmission));
-//            printf("Ward %lu\t AshikhminS %lu\t AshikhminD %lu\n", sizeof(Ward), sizeof(AshikhminS), sizeof(AshikhminD));
+//            printf("NewWard %lu\t AshikhminS %lu\t AshikhminD %lu\n", sizeof(NewWard), sizeof(AshikhminS), sizeof(AshikhminD));
 //            printf("Fresnel Head %lu\t Conductor %lu\t Dielectric %lu\n", sizeof(FresnelHead), sizeof(FresnelConductor), sizeof(FresnelDielectric));
 //            printf("\n");
 //            printf("EEDFType %lu\t LightSample %lu\t EDFSample %lu\n", sizeof(EEDFType), sizeof(LightSample), sizeof(EDFSample));

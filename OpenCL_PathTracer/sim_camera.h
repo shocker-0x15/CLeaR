@@ -85,7 +85,8 @@ namespace sim {
         IDFHead* WeHead = (IDFHead*)IDF;
         
         WeHead->n = lpos->n;
-        makeBasis(&WeHead->n, &WeHead->s, &WeHead->t);
+        makeTangent(&WeHead->n, &WeHead->s);
+        WeHead->t = cross(WeHead->n, WeHead->s);
         WeHead->ng = WeHead->n;
         
         PerspectiveIDF* perspective = (PerspectiveIDF*)(IDF + sizeof(IDFHead));

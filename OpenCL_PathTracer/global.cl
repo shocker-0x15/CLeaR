@@ -28,10 +28,11 @@ typedef struct __attribute__((aligned(16))) {
     uint depth;
 } Ray;
 
-//48bytes
+//64bytes
 typedef struct __attribute__((aligned(16))) {
     uint p0, p1, p2;
-    uint ns0, ns1, ns2;
+    uint vn0, vn1, vn2;
+    uint vt0, vt1, vt2;
     uint uv0, uv1, uv2;
     ushort matPtr, lightPtr;
 } Face;
@@ -47,23 +48,29 @@ typedef struct __attribute__((aligned(16))) {
     uint children[2];
 } BVHNode;
 
-//64bytes
+//112bytes
 typedef struct __attribute__((aligned(16))) {
     point3 p;
-    vector3 ng;
-    vector3 ns;
+    vector3 gNormal;
+    vector3 sNormal;
+    vector3 sTangent;
+    vector3 uDir;
     float2 uv;
     float t;
     uint faceID;
+    bool hasTangent;
 } Intersection;
 
-//64bytes
+//96bytes
 typedef struct __attribute__((aligned(16))) {
     point3 p;
-    vector3 ng;
-    vector3 ns;
+    vector3 gNormal;
+    vector3 sNormal;
+    vector3 sTangent;
+    vector3 uDir;
     float2 uv;
     uint faceID;
+    bool hasTangent;
 } LightPosition;
 
 //48bytes
@@ -99,7 +106,7 @@ typedef struct {
 inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes);
 inline bool zeroVec(const float3* v);
 inline float maxComp(const float3* v);
-inline void makeBasis(const vector3* n, vector3* s, vector3* t);
+inline void makeTangent(const vector3* n, vector3* tangent);
 inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
 inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
 inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos);
@@ -139,16 +146,15 @@ inline float luminance(const color* c) {
     return 0.2126f * c->r + 0.7152f * c->g + 0.0722f * c->b;
 }
 
-inline void makeBasis(const vector3* n, vector3* s, vector3* t) {
+inline void makeTangent(const vector3* n, vector3* tangent) {
     if (fabs(n->x) > fabs(n->y)) {
         float invLen = 1.0f / sqrt(n->x * n->x + n->z * n->z);
-        *s = (vector3)(-n->z * invLen, 0.0f, n->x * invLen);
+        *tangent = (vector3)(-n->z * invLen, 0.0f, n->x * invLen);
     }
     else {
         float invLen = 1.0f / sqrt(n->y * n->y + n->z * n->z);
-        *s = (vector3)(0.0f, n->z * invLen, -n->y * invLen);
+        *tangent = (vector3)(0.0f, n->z * invLen, -n->y * invLen);
     }
-    *t = cross(*n, *s);
 }
 
 inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v) {
@@ -167,10 +173,13 @@ inline float dist2(const point3* p0, const point3* p1) {
 
 inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos) {
     lpos->p = isect->p;
-    lpos->ng = isect->ng;
-    lpos->ns = isect->ns;
+    lpos->gNormal = isect->gNormal;
+    lpos->sNormal = isect->sNormal;
+    lpos->sTangent = isect->sTangent;
+    lpos->uDir = isect->uDir;
     lpos->uv = isect->uv;
     lpos->faceID = isect->faceID;
+    lpos->hasTangent = isect->hasTangent;
 }
 
 #endif

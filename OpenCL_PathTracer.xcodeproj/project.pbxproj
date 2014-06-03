@@ -232,8 +232,8 @@
 			isa = PBXGroup;
 			children = (
 				4649F3A6191EBFA200C24459 /* sim_base.h */,
-				4622DFE1193A183100CF2A3B /* sim_matrix.h */,
 				4649F3A3191EBA5B00C24459 /* sim_global.h */,
+				4622DFE1193A183100CF2A3B /* sim_matrix.h */,
 				4649F3A8191EC58900C24459 /* sim_rng.h */,
 				4649F3A9191EC5DC00C24459 /* sim_texture.h */,
 				4649F3A4191EBB7300C24459 /* sim_bvh.h */,

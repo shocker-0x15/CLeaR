@@ -65,10 +65,15 @@ public:
             trueFace.p0 += idxBaseVertices;
             trueFace.p1 += idxBaseVertices;
             trueFace.p2 += idxBaseVertices;
-            if (face.ns0 != UINT32_MAX) {
-                trueFace.ns0 += idxBaseNormals;
-                trueFace.ns1 += idxBaseNormals;
-                trueFace.ns2 += idxBaseNormals;
+            if (face.vn0 != UINT32_MAX) {
+                trueFace.vn0 += idxBaseNormals;
+                trueFace.vn1 += idxBaseNormals;
+                trueFace.vn2 += idxBaseNormals;
+            }
+            if (face.vt0 != UINT32_MAX) {
+                trueFace.vt0 += idxBaseTangents;
+                trueFace.vt1 += idxBaseTangents;
+                trueFace.vt2 += idxBaseTangents;
             }
             if (face.uv0 != UINT32_MAX) {
                 trueFace.uv0 += idxBaseUVs;

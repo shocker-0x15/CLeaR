@@ -45,20 +45,43 @@ bool rayTriangleIntersection(const Scene* scene,
     if (*t < 0.0f)
         return false;
     isect->p = *org + *dir * *t;
-    isect->ng = normalize(cross(edge01, edge02));
+    isect->gNormal = normalize(cross(edge01, edge02));
     
     float b0 = 1.0f - b1 - b2;
-    if (face->ns0 != UINT_MAX && face->ns1 != UINT_MAX && face->ns2 != UINT_MAX) {
-        isect->ns = normalize(b0 * *(scene->normals + face->ns0) +
-                              b1 * *(scene->normals + face->ns1) +
-                              b2 * *(scene->normals + face->ns2));
-    }
-    else {
-        isect->ns = isect->ng;
-    }
     
-    if (face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX) {
-        isect->uv = b0 * *(scene->uvs + face->uv0) + b1 * *(scene->uvs + face->uv1) + b2 * *(scene->uvs + face->uv2);
+    bool hasVNormal = face->vn0 != UINT_MAX && face->vn1 != UINT_MAX && face->vn2 != UINT_MAX;
+    if (hasVNormal)
+        isect->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
+                                   b1 * *(scene->normals + face->vn1) +
+                                   b2 * *(scene->normals + face->vn2));
+    else
+        isect->sNormal = isect->gNormal;
+    
+    isect->hasTangent = face->vt0 != UINT_MAX && face->vt1 != UINT_MAX && face->vt2 != UINT_MAX;
+    if (isect->hasTangent)
+        isect->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
+                                    b1 * *(scene->tangents + face->vt1) +
+                                    b2 * *(scene->tangents + face->vt2));
+    
+    bool hasUV = face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX;
+    if (hasUV) {
+        float2 uv0 = *(scene->uvs + face->uv0);
+        float2 uv1 = *(scene->uvs + face->uv1);
+        float2 uv2 = *(scene->uvs + face->uv2);
+        isect->uv = b0 * uv0 + b1 * uv1 + b2 * uv2;
+        
+        float2 dUV0m2 = uv0 - uv2;
+        float2 dUV1m2 = uv1 - uv2;
+        float3 dP0m2 = *p0 - *p2;
+        float3 dP1m2 = *p1 - *p2;
+        float invDetUV = 1.0f / (dUV0m2.x * dUV1m2.y - dUV0m2.y * dUV1m2.x);
+        float3 uDir = invDetUV * (float3)(dUV1m2.y * dP0m2.x - dUV0m2.y * dP1m2.x, 
+                                          dUV1m2.y * dP0m2.y - dUV0m2.y * dP1m2.y,
+                                          dUV1m2.y * dP0m2.z - dUV0m2.y * dP1m2.z);
+        if (hasVNormal)
+            isect->uDir = normalize(cross(cross(isect->sNormal, uDir), isect->sNormal));
+        else
+            isect->uDir = normalize(uDir);
     }
     
     return true;

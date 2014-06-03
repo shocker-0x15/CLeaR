@@ -54,6 +54,7 @@ public:
     void createFloatConstantTexture(const char* name, float val);
     void createImageTexture(const char* name, const char* filename);
     void createFloat3CheckerBoardTexture(const char* name, float c0r, float c0g, float c0b, float c1r, float c1g, float c1b);
+    void createFloat3CheckerBoardBumpTexture(const char* name, float width = 0.01f, bool reverse = false);
     void createFloatCheckerBoardTexture(const char* name, float c0, float c1);
     
     void createFresnelNoOp(const char* name);
@@ -69,17 +70,17 @@ public:
     void createAshikhminDBRDF(size_t RdIdx, size_t RsIdx);
     
     
-    void createMatteMaterial(const char* name, size_t reflectanceIdx, size_t sigmaIdx);
-    void createGlassMaterial(const char* name, size_t RIdx, size_t TIdx, float etaExt, float etaInt);
-    void createMetalMaterial(const char* name, size_t RIdx, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b);
-    void createNewWardMaterial(const char* name, size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
-    void createAshikhminMaterial(const char* name, size_t RsIdx, size_t RdIdx, size_t nuIdx, size_t nvIdx);
-    void createMixMaterial(const char* name, size_t mat0Idx, size_t mat1Idx, size_t ratioIdx);
+    void createMatteMaterial(const char* name, const char* bump, const char* reflectance, const char* sigma);
+    void createGlassMaterial(const char* name, const char* bump, const char* R, const char* T, float etaExt, float etaInt);
+    void createMetalMaterial(const char* name, const char* bump, const char* R, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b);
+    void createNewWardMaterial(const char* name, const char* bump, const char* reflectance, const char* anisoX, const char* anisoY);
+    void createAshikhminMaterial(const char* name, const char* bump, const char* Rs, const char* Rd, const char* nu, const char* nv);
+    void createMixMaterial(const char* name, const char* mat0, const char* mat1, const char* ratio);
     
     
     void createDiffuseEDF(size_t emittanceIdx);
     
-    void createDiffuseLightProperty(const char* name, size_t emittanceIdx);
+    void createDiffuseLightProperty(const char* name, const char* emittance);
 };
 
 #endif

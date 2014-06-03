@@ -148,24 +148,25 @@ void buildScene() {
     mc.createFloat3ConstantTexture("R_otherWalls", 0.75f, 0.75f, 0.75f);
     mc.createFloatConstantTexture("sigma_lambert", 0.0f);
     mc.createFloat3CheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
-    mc.createImageTexture("R_backWall", "images/pika_flat.png");
+    mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
+    mc.createImageTexture("R_backWall", "images/Kirby.png");
     
-    mc.createMatteMaterial("mat_leftWall", scene.idxOfTex("R_leftWall"), scene.idxOfTex("sigma_lambert"));
-    mc.createMatteMaterial("mat_rightWall", scene.idxOfTex("R_rightWall"), scene.idxOfTex("sigma_lambert"));
-    mc.createMatteMaterial("mat_otherWalls", scene.idxOfTex("R_otherWalls"), scene.idxOfTex("sigma_lambert"));
-    mc.createMatteMaterial("mat_floor", scene.idxOfTex("R_floor"), scene.idxOfTex("sigma_lambert"));
-    mc.createMatteMaterial("mat_backWall", scene.idxOfTex("R_otherWalls"), scene.idxOfTex("sigma_lambert"));
+    mc.createMatteMaterial("mat_leftWall", nullptr, "R_leftWall", "sigma_lambert");
+    mc.createMatteMaterial("mat_rightWall", nullptr, "R_rightWall", "sigma_lambert");
+    mc.createMatteMaterial("mat_otherWalls", nullptr, "R_otherWalls", "sigma_lambert");
+    mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
+    mc.createMatteMaterial("mat_backWall", nullptr, "R_backWall", "sigma_lambert");
     
-    scene.addFace(Face::make_pt(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall")));
-    scene.addFace(Face::make_pt(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall")));
-    scene.addFace(Face::make_p(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_p(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_p(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_p(5, 2, 6, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_pt(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_pt(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_p(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-    scene.addFace(Face::make_p(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall")));
+    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall")));
+    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
+    scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
+    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
     //光源
@@ -178,11 +179,11 @@ void buildScene() {
     mc.createFloat3ConstantTexture("R_light", 0.9f, 0.9f, 0.9f);
     mc.createFloat3ConstantTexture("M_top", 1500.0f, 1500.0f, 1500.0f);
     
-    mc.createMatteMaterial("mat_light", scene.idxOfTex("R_light"), scene.idxOfTex("sigma_lambert"));
-    mc.createDiffuseLightProperty("light_top", scene.idxOfTex("M_top"));
+    mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
+    mc.createDiffuseLightProperty("light_top", "M_top");
     
-    scene.addFace(Face::make_p(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
-    scene.addFace(Face::make_p(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
     loadModel("models/Pikachu_textured.obj", &scene);
@@ -191,7 +192,7 @@ void buildScene() {
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t iterations = 8;
+    const uint32_t iterations = 1;
     
     buildScene();
     
@@ -275,7 +276,7 @@ int main(int argc, const char * argv[]) {
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
-#define SIMULATION 0
+#define SIMULATION 1
 #if SIMULATION
         sim::global_sizes[0] = (sim::uint)*tile;
         sim::global_sizes[1] = (sim::uint)*(tile + 1);

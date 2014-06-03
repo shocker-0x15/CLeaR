@@ -133,7 +133,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
 //        printf("\n");
 //        printf("BxDFType %u\t BSDFSample %u\t BxDFHead %u\t BSDFHead %u\n", sizeof(BxDFType), sizeof(BSDFSample), sizeof(BxDFHead), sizeof(BSDFHead));
 //        printf("Diffuse %u\t SpecularReflection %u\t SpecularTransmission %u\n", sizeof(Diffuse), sizeof(SpecularReflection), sizeof(SpecularTransmission));
-//        printf("Ward %u\t AshikhminS %u\t AshikhminD %u\n", sizeof(Ward), sizeof(AshikhminS), sizeof(AshikhminD));
+//        printf("NewWard %u\t AshikhminS %u\t AshikhminD %u\n", sizeof(NewWard), sizeof(AshikhminS), sizeof(AshikhminD));
 //        printf("Fresnel Head %u\t Conductor %u\t Dielectric %u\n", sizeof(FresnelHead), sizeof(FresnelConductor), sizeof(FresnelDielectric));
 //        printf("\n");
 //        printf("EEDFType %u\t LightSample %u\t EDFSample %u\n", sizeof(EEDFType), sizeof(LightSample), sizeof(EDFSample));

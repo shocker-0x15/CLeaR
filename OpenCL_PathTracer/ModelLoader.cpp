@@ -176,9 +176,9 @@ namespace OBJ {
         mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rd", 0.85f, 0.85f, 0.15f);
         mc.createFloatConstantTexture("objfile_default_Ashikhmin_nu", 2000.0f);
         mc.createFloatConstantTexture("objfile_default_Ashikhmin_nv", 2000.0f);
-        mc.createAshikhminMaterial("objfile_default_material",
-                                   scene->idxOfTex("objfile_default_Ashikhmin_Rs"), scene->idxOfTex("objfile_default_Ashikhmin_Rd"),
-                                   scene->idxOfTex("objfile_default_Ashikhmin_nu"), scene->idxOfTex("objfile_default_Ashikhmin_nv"));
+        mc.createAshikhminMaterial("objfile_default_material", nullptr,
+                                   "objfile_default_Ashikhmin_Rs", "objfile_default_Ashikhmin_Rd",
+                                   "objfile_default_Ashikhmin_nu", "objfile_default_Ashikhmin_nv");
 //        //Water
 //        mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.95f, 0.95f, 0.95f);
 //        mc.createFloat3ConstantTexture("objfile_default_transmittance", 0.95f, 0.95f, 0.95f);
@@ -415,19 +415,19 @@ namespace OBJ {
                 mc.createFloatConstantTexture(sigmaTexName.c_str(), 0.0f);
                 
                 std::string matteMatName = g.name + "_" + mat.name;
-                mc.createMatteMaterial(matteMatName.c_str(), scene->idxOfTex(diffuseTexName.c_str()), scene->idxOfTex(sigmaTexName.c_str()));
+                mc.createMatteMaterial(matteMatName.c_str(), nullptr, diffuseTexName.c_str(), sigmaTexName.c_str());
                 
                 for (int k = 0; k < g.posIndices.size() / 3; ++k) {
                     if (g.format == Object::Group::Format::VTN) {
-                        scene->addFace(Face::make_pnt(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
-                                                      g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
-                                                      g.uvIndices[k * 3 + 0], g.uvIndices[k * 3 + 1], g.uvIndices[k * 3 + 2],
-                                                      scene->idxOfMat(matteMatName.c_str())));
+                        scene->addFace(Face::make_P_N_UV(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
+                                                         g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
+                                                         g.uvIndices[k * 3 + 0], g.uvIndices[k * 3 + 1], g.uvIndices[k * 3 + 2],
+                                                         scene->idxOfMat(matteMatName.c_str())));
                     }
                     else if (g.format == Object::Group::Format::VN) {
-                        scene->addFace(Face::make_pn(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
-                                                     g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
-                                                     scene->idxOfMat(matteMatName.c_str())));
+                        scene->addFace(Face::make_P_N(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
+                                                      g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
+                                                      scene->idxOfMat(matteMatName.c_str())));
                     }
                 }
             }

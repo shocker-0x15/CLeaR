@@ -13,8 +13,13 @@ typedef enum {
 } TextureType;
 
 typedef enum {
-    ProceduralType_CheckerBoard = 0,
-} ProceduralType;
+    ColorProceduralType_CheckerBoard = 0,
+    ColorProceduralType_CheckerBoardBump,
+} ColorProceduralType;
+
+typedef enum {
+    FloatProceduralType_CheckerBoard = 0,
+} FloatProceduralType;
 
 color evaluateColorTexture(const global uchar* textureData, float2 uv);
 float evaluateFloatTexture(const global uchar* textureData, float2 uv);
@@ -71,12 +76,35 @@ float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
 color proceduralColorTexture(const global uchar* textureData, float2 uv) {
     uchar procedure = *(textureData++);
     switch (procedure) {
-        case ProceduralType_CheckerBoard: {
+        case ColorProceduralType_CheckerBoard: {
             color c[2];
             memcpyG2P((uchar*)&c[0], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
             memcpyG2P((uchar*)&c[1], AlignPtrAddG(&textureData, sizeof(color)), sizeof(color));
             
             return c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
+        }
+        case ColorProceduralType_CheckerBoardBump: {
+            float halfWidth;
+            bool reverse;
+            memcpyG2P((uchar*)&halfWidth, AlignPtrAddG(&textureData, sizeof(float)), sizeof(float));
+            halfWidth *= 0.5f;
+            memcpyG2P((uchar*)&reverse, AlignPtrAddG(&textureData, sizeof(bool)), sizeof(bool));
+            
+            float uComp = 0.0f;
+            float absWrapU = fmod(fabs(uv.s0), 1.0f);
+            if (absWrapU < halfWidth * 0.5f || absWrapU > 1.0f - halfWidth * 0.5f)
+                uComp = reverse ? -1.0f : 1.0f;
+            else if (absWrapU > 0.5f - halfWidth * 0.5f && absWrapU < 0.5f + halfWidth * 0.5f)
+                uComp = reverse ? 1.0f : -1.0f;
+            
+            float vComp = 0.0f;
+            float absWrapV = fmod(fabs(uv.s1), 1.0f);
+            if (absWrapV < halfWidth * 0.5f || absWrapV > 1.0f - halfWidth * 0.5f)
+                vComp = reverse ? -1.0f : 1.0f;
+            else if (absWrapV > 0.5f - halfWidth * 0.5f && absWrapV < 0.5f + halfWidth * 0.5f)
+                vComp = reverse ? 1.0f : -1.0f;
+            
+            return 0.5f * normalize((vector3)(uComp, vComp, 1.0f)) + 0.5f;
         }
         default:
             return colorZero;
@@ -86,7 +114,7 @@ color proceduralColorTexture(const global uchar* textureData, float2 uv) {
 float proceduralFloatTexture(const global uchar* textureData, float2 uv) {
     uchar procedure = *(textureData++);
     switch (procedure) {
-        case ProceduralType_CheckerBoard: {
+        case FloatProceduralType_CheckerBoard: {
             float v[2];
             memcpyG2P((uchar*)&v[0], AlignPtrAddG(&textureData, sizeof(float)), sizeof(float));
             memcpyG2P((uchar*)&v[1], AlignPtrAddG(&textureData, sizeof(float)), sizeof(float));

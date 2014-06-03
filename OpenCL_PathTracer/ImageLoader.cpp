@@ -116,10 +116,11 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     //        png_set_background(pngStruct, &myBackground, PNG_BACKGROUND_GAMMA_SCREEN, 0, 1.0);
     double gamma, screenGamma;
     const char* gammaStr;
-    if ((gammaStr = getenv("SCREEN_GAMMA")) != nullptr)
-        screenGamma = (double)atof(gammaStr);
-    else
-        screenGamma = 2.2;
+//    if ((gammaStr = getenv("SCREEN_GAMMA")) != nullptr)
+//        screenGamma = (double)atof(gammaStr);
+//    else
+//        screenGamma = 2.2;
+    screenGamma = 1.0f;
     if (png_get_gAMA(pngStruct, pngInfo, &gamma))
         png_set_gamma(pngStruct, screenGamma, gamma);//ファイルにガンマ値がある場合。
     else

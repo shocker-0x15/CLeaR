@@ -89,19 +89,41 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
     *areaPDF = 1.0f / (area * scene->numLights);
     
     lpos->p = b0 * *p0 + b1 * *p1 + b2 * *p2;
-    lpos->ng = normalize(ng);
+    lpos->gNormal = normalize(ng);
     
-    if (face->ns0 != UINT_MAX && face->ns1 != UINT_MAX && face->ns2 != UINT_MAX) {
-        lpos->ns = normalize(b0 * *(scene->normals + face->ns0) +
-                             b1 * *(scene->normals + face->ns1) +
-                             b2 * *(scene->normals + face->ns2));
-    }
-    else {
-        lpos->ns = lpos->ng;
-    }
+    bool hasVNormal = face->vn0 != UINT_MAX && face->vn1 != UINT_MAX && face->vn2 != UINT_MAX;
+    if (hasVNormal)
+        lpos->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
+                                  b1 * *(scene->normals + face->vn1) +
+                                  b2 * *(scene->normals + face->vn2));
+    else
+        lpos->sNormal = lpos->gNormal;
     
-    if (face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX) {
-        lpos->uv = b0 * *(scene->uvs + face->uv0) + b1 * *(scene->uvs + face->uv1) + b2 * *(scene->uvs + face->uv2);
+    lpos->hasTangent = face->vt0 != UINT_MAX && face->vt1 != UINT_MAX && face->vt2 != UINT_MAX;
+    if (lpos->hasTangent)
+        lpos->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
+                                   b1 * *(scene->tangents + face->vt1) +
+                                   b2 * *(scene->tangents + face->vt2));
+    
+    bool hasUV = face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX;
+    if (hasUV) {
+        float2 uv0 = *(scene->uvs + face->uv0);
+        float2 uv1 = *(scene->uvs + face->uv1);
+        float2 uv2 = *(scene->uvs + face->uv2);
+        lpos->uv = b0 * uv0 + b1 * uv1 + b2 * uv2;
+        
+        float2 dUV0m2 = uv0 - uv2;
+        float2 dUV1m2 = uv1 - uv2;
+        float3 dP0m2 = *p0 - *p2;
+        float3 dP1m2 = *p1 - *p2;
+        float invDetUV = 1.0f / (dUV0m2.x * dUV1m2.y - dUV0m2.y * dUV1m2.x);
+        float3 uDir = invDetUV * (float3)(dUV1m2.y * dP0m2.x - dUV0m2.y * dP1m2.x,
+                                          dUV1m2.y * dP0m2.y - dUV0m2.y * dP1m2.y, 
+                                          dUV1m2.y * dP0m2.z - dUV0m2.y * dP1m2.z);
+        if (hasVNormal)
+            lpos->uDir = normalize(cross(cross(lpos->sNormal, uDir), lpos->sNormal));
+        else
+            lpos->uDir = uDir;
     }
 }
 
@@ -157,17 +179,14 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
     LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =
     LeHead->offsetsEEDFs[2] = LeHead->offsetsEEDFs[3] = 0;
     
-    // n
-    LeHead->n = lpos->ns;
+    LeHead->n = lpos->sNormal;
+    if (lpos->hasTangent)
+        LeHead->s = lpos->sTangent;
+    else
+        makeTangent(&lpos->sNormal, &LeHead->s);
+    LeHead->t = cross(LeHead->n, LeHead->s);
     
-    vector3 s_temp, t_temp;
-    makeBasis(&lpos->ns, &s_temp, &t_temp);
-    // st
-    LeHead->s = s_temp;
-    //    vector3 t = cross(n, s);
-    LeHead->t = t_temp;
-    // ng
-    LeHead->ng = lpos->ng;
+    LeHead->ng = lpos->gNormal;
     
     uchar* EDFp = EDF + sizeof(EDFHead);
     EEDFType FType;
@@ -214,10 +233,6 @@ color Le(const uchar* EDF, const vector3* vout) {
     const vector3* ng = &head->ng;
     vector3 voutLocal = worldToLocal(s, t, n, vout);
     
-    //    if (dot(*vin, *ng) * dot(*vout, *ng) > 0) // ignore BTDFs
-    //        flags = BxDFType(flags & ~BxDF_Transmission);
-    //    else // ignore BRDFs
-    //        flags = BxDFType(flags & ~BxDF_Transmission);
     color Le = colorZero;
     for (int i = 0; i < head->numEEDFs; ++i) {
         ushort idxEEDF = head->offsetsEEDFs[i];

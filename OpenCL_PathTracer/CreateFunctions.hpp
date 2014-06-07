@@ -53,6 +53,7 @@ public:
     void createFloat3ConstantTexture(const char* name, float s0, float s1, float s2);
     void createFloatConstantTexture(const char* name, float val);
     void createImageTexture(const char* name, const char* filename);
+    void createNormalMapTexture(const char* name, const char* filename);
     void createFloat3CheckerBoardTexture(const char* name, float c0r, float c0g, float c0b, float c1r, float c1g, float c1b);
     void createFloat3CheckerBoardBumpTexture(const char* name, float width = 0.01f, bool reverse = false);
     void createFloatCheckerBoardTexture(const char* name, float c0, float c1);

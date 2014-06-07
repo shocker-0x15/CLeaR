@@ -12,6 +12,6 @@
 #include <vector>
 #include <stdint.h>
 
-bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height);
+bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, bool gammaCorrection);
 
 #endif /* defined(__OpenCL_TEST__ImageLoader__) */

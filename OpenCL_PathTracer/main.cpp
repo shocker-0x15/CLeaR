@@ -148,14 +148,16 @@ void buildScene() {
     mc.createFloat3ConstantTexture("R_otherWalls", 0.75f, 0.75f, 0.75f);
     mc.createFloatConstantTexture("sigma_lambert", 0.0f);
     mc.createFloat3CheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
-    mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
+//    mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
+    mc.createNormalMapTexture("bump_floor", "images/tiny_bump.png");
+    mc.createNormalMapTexture("bump_backWall", "images/paper_bump.png");
     mc.createImageTexture("R_backWall", "images/Kirby.png");
     
     mc.createMatteMaterial("mat_leftWall", nullptr, "R_leftWall", "sigma_lambert");
     mc.createMatteMaterial("mat_rightWall", nullptr, "R_rightWall", "sigma_lambert");
     mc.createMatteMaterial("mat_otherWalls", nullptr, "R_otherWalls", "sigma_lambert");
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
-    mc.createMatteMaterial("mat_backWall", nullptr, "R_backWall", "sigma_lambert");
+    mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
     scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall")));
     scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall")));
@@ -192,7 +194,7 @@ void buildScene() {
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t iterations = 1;
+    const uint32_t iterations = 32;
     
     buildScene();
     
@@ -276,7 +278,7 @@ int main(int argc, const char * argv[]) {
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
-#define SIMULATION 1
+#define SIMULATION 0
 #if SIMULATION
         sim::global_sizes[0] = (sim::uint)*tile;
         sim::global_sizes[1] = (sim::uint)*(tile + 1);

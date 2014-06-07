@@ -23,7 +23,7 @@ void libPNGreadRowCallback(png_structp pngStruct, png_uint_32 row, int pass) {
     
 }
 
-bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height) {
+bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, bool gammaCorrection) {
     FILE* fp = fopen(fileName, "rb");
     if (fp == nullptr) {
         printf("Failed to open the png file.\n");
@@ -116,11 +116,15 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     //        png_set_background(pngStruct, &myBackground, PNG_BACKGROUND_GAMMA_SCREEN, 0, 1.0);
     double gamma, screenGamma;
     const char* gammaStr;
-//    if ((gammaStr = getenv("SCREEN_GAMMA")) != nullptr)
-//        screenGamma = (double)atof(gammaStr);
-//    else
-//        screenGamma = 2.2;
-    screenGamma = 1.0f;
+    if (gammaCorrection) {
+        if ((gammaStr = getenv("SCREEN_GAMMA")) != nullptr)
+            screenGamma = (double)atof(gammaStr);
+        else
+            screenGamma = 2.2;
+    }
+    else{
+        screenGamma = 1.0f;
+    }
     if (png_get_gAMA(pngStruct, pngInfo, &gamma))
         png_set_gamma(pngStruct, screenGamma, gamma);//ファイルにガンマ値がある場合。
     else
@@ -154,7 +158,7 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     return false;
 }
 
-bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height) {
+bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, bool gammaCorrection) {
     std::string sFileName = fileName;
     
     size_t extPos = sFileName.find_first_of(".");
@@ -166,7 +170,7 @@ bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* wi
         return loadJPEG(fileName, storage, width, height);
     }
     else if (!sExt.compare("png")) {
-        return loadPNG(fileName, storage, width, height);
+        return loadPNG(fileName, storage, width, height, gammaCorrection);
     }
     
     return false;

@@ -123,7 +123,7 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
         if (hasVNormal)
             lpos->uDir = normalize(cross(cross(lpos->sNormal, uDir), lpos->sNormal));
         else
-            lpos->uDir = uDir;
+            lpos->uDir = normalize(uDir);
     }
 }
 

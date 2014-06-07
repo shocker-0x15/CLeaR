@@ -216,18 +216,20 @@ namespace sim {
                                 dot(vector3(isect->uDir.z, vDir.z, isect->sNormal.z), nBump));
             vector3 ax = cross(isect->sNormal, fsHead->n);
             float sinTH = length(ax);
-            ax = normalize(ax);
-            float cosTH = cosf(asinf(sinTH));
-            float oneMcosTH = 1 - cosTH;
-            fsHead->s = vector3(dot(vector3(ax.x * ax.x * oneMcosTH + cosTH,
-                                            ax.x * ax.y * oneMcosTH - ax.z * sinTH,
-                                            ax.z * ax.x * oneMcosTH + ax.y * sinTH), fsHead->s),
-                                dot(vector3(ax.x * ax.y * oneMcosTH + ax.z * sinTH,
-                                            ax.y * ax.y * oneMcosTH + cosTH,
-                                            ax.y * ax.z * oneMcosTH - ax.x * sinTH), fsHead->s),
-                                dot(vector3(ax.z * ax.x * oneMcosTH - ax.y * sinTH,
-                                            ax.y * ax.z * oneMcosTH + ax.x * sinTH,
-                                            ax.z * ax.z * oneMcosTH + cosTH), fsHead->s));
+            if (sinTH > 0.0001f) {
+                ax = normalize(ax);
+                float cosTH = cosf(asinf(sinTH));
+                float oneMcosTH = 1 - cosTH;
+                fsHead->s = vector3(dot(vector3(ax.x * ax.x * oneMcosTH + cosTH,
+                                                ax.x * ax.y * oneMcosTH - ax.z * sinTH,
+                                                ax.z * ax.x * oneMcosTH + ax.y * sinTH), fsHead->s),
+                                    dot(vector3(ax.x * ax.y * oneMcosTH + ax.z * sinTH,
+                                                ax.y * ax.y * oneMcosTH + cosTH,
+                                                ax.y * ax.z * oneMcosTH - ax.x * sinTH), fsHead->s),
+                                    dot(vector3(ax.z * ax.x * oneMcosTH - ax.y * sinTH,
+                                                ax.y * ax.z * oneMcosTH + ax.x * sinTH,
+                                                ax.z * ax.z * oneMcosTH + cosTH), fsHead->s));
+            }
         }
         
         fsHead->t = cross(fsHead->n, fsHead->s);

@@ -124,7 +124,7 @@ namespace sim {
             if (hasVNormal)
                 lpos->uDir = normalize(cross(cross(lpos->sNormal, uDir), lpos->sNormal));
             else
-                lpos->uDir = uDir;
+                lpos->uDir = normalize(uDir);
         }
     }
     

@@ -94,16 +94,25 @@ namespace sim {
                 float uComp = 0.0f;
                 float absWrapU = fmodf(fabsf(uv.s0), 1.0f);
                 if (absWrapU < halfWidth * 0.5f || absWrapU > 1.0f - halfWidth * 0.5f)
-                    uComp = reverse ? -1.0f : 1.0f;
+                    uComp = 1.0f;
                 else if (absWrapU > 0.5f - halfWidth * 0.5f && absWrapU < 0.5f + halfWidth * 0.5f)
-                    uComp = reverse ? 1.0f : -1.0f;
+                    uComp = -1.0f;
                 
                 float vComp = 0.0f;
-                float absWrapV = fmodf(fabs(uv.s1), 1.0f);
+                float absWrapV = fmodf(fabsf(uv.s1), 1.0f);
                 if (absWrapV < halfWidth * 0.5f || absWrapV > 1.0f - halfWidth * 0.5f)
-                    vComp = reverse ? -1.0f : 1.0f;
+                    vComp = 1.0f;
                 else if (absWrapV > 0.5f - halfWidth * 0.5f && absWrapV < 0.5f + halfWidth * 0.5f)
-                    vComp = reverse ? 1.0f : -1.0f;
+                    vComp = -1.0f;
+                
+                if (absWrapV > 0.5f)
+                    uComp *= -1;
+                if (absWrapU > 0.5f)
+                    vComp *= -1;
+                if (reverse) {
+                    uComp *= -1;
+                    vComp *= -1;
+                }
                 
                 return 0.5f * normalize(vector3(uComp, vComp, 1.0f)) + 0.5f;
             }

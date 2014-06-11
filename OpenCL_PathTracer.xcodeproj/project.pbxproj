@@ -37,6 +37,8 @@
 		46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46222A29191D04ED00D71891 /* ModelLoader.cpp */; };
 		4688CD57191E6CE200257766 /* clUtility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD55191E6CE200257766 /* clUtility.cpp */; };
 		4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD58191EA3F400257766 /* CreateFunctions.cpp */; };
+		46B46F9119460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */; };
+		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46E860641928DE9600944028 /* camera.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46E860631928DE9600944028 /* camera.cl */; };
 		46E860661928E89A00944028 /* matrix.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46E860651928E89A00944028 /* matrix.cl */; };
 		46E86067192A433300944028 /* matrix.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46E860651928E89A00944028 /* matrix.cl */; };
@@ -124,6 +126,8 @@
 		4649F3AA191EC64600C24459 /* sim_pathtracer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_pathtracer.h; sourceTree = "<group>"; };
 		4688CD55191E6CE200257766 /* clUtility.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clUtility.cpp; sourceTree = "<group>"; };
 		4688CD58191EA3F400257766 /* CreateFunctions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CreateFunctions.cpp; sourceTree = "<group>"; };
+		46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libIlmImf-Imf_2_1.21.dylib"; path = "../../../../../usr/local/lib/libIlmImf-Imf_2_1.21.dylib"; sourceTree = "<group>"; };
+		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
 		46E860631928DE9600944028 /* camera.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = camera.cl; sourceTree = "<group>"; };
 		46E860651928E89A00944028 /* matrix.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = matrix.cl; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -133,6 +137,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */,
+				46B46F9119460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib in Frameworks */,
 				462229F4191AB5BB00D71891 /* libpng16.16.dylib in Frameworks */,
 				462229F2191AB5AA00D71891 /* OpenCL.framework in Frameworks */,
 			);
@@ -144,6 +150,8 @@
 		462229DC191AB59D00D71891 = {
 			isa = PBXGroup;
 			children = (
+				46B46F9219461013005FD1EA /* libHalf.11.dylib */,
+				46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */,
 				462229F3191AB5BB00D71891 /* libpng16.16.dylib */,
 				462229F1191AB5AA00D71891 /* OpenCL.framework */,
 				462229E7191AB59D00D71891 /* OpenCL_PathTracer */,
@@ -360,6 +368,7 @@
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 					/opt/local/include,
+					/usr/local/include/OpenEXR,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				ONLY_ACTIVE_ARCH = YES;
@@ -399,6 +408,7 @@
 					"$(inherited)",
 					/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include,
 					/opt/local/include,
+					/usr/local/include/OpenEXR,
 				);
 				MACOSX_DEPLOYMENT_TARGET = 10.9;
 				SDKROOT = macosx;
@@ -411,6 +421,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					/opt/local/lib,
+					/usr/local/lib,
 				);
 				OPENCL_COMPILER_VERSION = CL1.2;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -423,6 +434,7 @@
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					/opt/local/lib,
+					/usr/local/lib,
 				);
 				OPENCL_COMPILER_VERSION = CL1.2;
 				PRODUCT_NAME = "$(TARGET_NAME)";

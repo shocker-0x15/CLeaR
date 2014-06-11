@@ -42,12 +42,12 @@ public:
     
     void beginLightProperty(const char* name) {
         numBxDFs = 0;
-        matHead = addDataAligned<cl_uchar>(&scene->lightPropsData, 0);
+        matHead = addDataAligned<cl_uchar>(&scene->materialsData, 0);
         scene->addLightProp(matHead, name);
     }
     
     void endLightProperty() {
-        scene->lightPropsData[matHead] = numBxDFs;
+        scene->materialsData[matHead] = numBxDFs;
     }
     
     void createFloat3ConstantTexture(const char* name, float s0, float s1, float s2);

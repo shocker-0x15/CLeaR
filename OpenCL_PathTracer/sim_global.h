@@ -91,6 +91,10 @@ namespace sim {
     } CameraHead;
     
     typedef struct {
+        uint dummy;
+    } EnvironmentHead;
+    
+    typedef struct {
         point3* vertices;
         vector3* normals;
         vector3* tangents;
@@ -99,20 +103,25 @@ namespace sim {
         uint* lights;
         uint numLights;
         uchar* materialsData;
-        uchar* lightsData;
         uchar* texturesData;
         BVHNode* BVHNodes;
         CameraHead* camera;
+        EnvironmentHead* environment;
     } Scene;
     
     //------------------------
     
     inline void memcpyG2P(uchar* dst, const uchar* src, uint numBytes);
+    inline void AlignPtr(uchar** ptr, uintptr_t bytes);
+    inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
+    inline const uchar* AlignPtrAddG(const uchar** ptr, uintptr_t bytes);
     inline bool zeroVec(const float3* v);
     inline float maxComp(const float3* v);
+    inline float luminance(const color* c);
     inline void makeTangent(const vector3* n, vector3* tangent);
     inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
     inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
+    inline float distance2(const point3* p0, const point3* p1);
     inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos);
     
     //------------------------
@@ -171,7 +180,7 @@ namespace sim {
                        s->z * v->x + t->z * v->y + n->z * v->z);
     }
     
-    inline float dist2(const point3* p0, const point3* p1) {
+    inline float distance2(const point3* p0, const point3* p1) {
         return (p1->x - p0->x) * (p1->x - p0->x) + (p1->y - p0->y) * (p1->y - p0->y) + (p1->z - p0->z) * (p1->z - p0->z);
     }
     

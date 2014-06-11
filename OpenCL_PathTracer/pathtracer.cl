@@ -6,14 +6,19 @@
 #include "reflection.cl"
 #include "camera.cl"
 
-kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs,
-                        global uchar* faces, global uint* lights, uint numLights,
-                        global uchar* materialsData, global uchar* lightsData, global uchar* texturesData,
-                        global uchar* BVHNodes, global uchar* camera,
-                        global uint* randStates,
-                        global float3* pixels) {
-    Scene scene = {vertices, normals, tangents, uvs, (global Face*)faces, lights, numLights,
-                   materialsData, lightsData, texturesData, (global BVHNode*)BVHNodes, (global CameraHead*)camera};
+kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
+                        global uint* lights, uint numLights,
+                        global uchar* materialsData, global uchar* texturesData,
+                        global uchar* BVHNodes,
+                        global uchar* others,
+                        global uint* randStates, global float3* pixels) {
+    Scene scene = {
+        vertices, normals, tangents, uvs, (global Face*)faces,
+        lights, numLights,
+        materialsData, texturesData,
+        (global BVHNode*)BVHNodes,
+        (global CameraHead*)(others + *((uint*)others + 0)), (global CameraHead*)(others + *((uint*)others + 1))
+    };
     
     const uint gid0 = get_global_id(0);
     const uint gid1 = get_global_id(1);
@@ -43,82 +48,97 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     Intersection isect;
     LightPosition lpos;
     bool traceContinue = true;
+    vector3 vout;
     BxDFType sampledType;
-//    if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
-//    if (gid0 == 512 && gid1 == 600) {
-    while (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
-        const global Face* face = &scene.faces[isect.faceID];
-        vector3 vout = -ray.dir;
+    //        if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
+    //        if (gid0 == 512 && gid1 == 600) {
+    if (!rayIntersection(&scene, &ray.org, &ray.dir, &isect))
+        return;
+    
+    const global Face* face = &scene.faces[isect.faceID];
+    vout = -ray.dir;
+    if (face->lightPtr != USHRT_MAX) {
+        LightPositionFromIntersection(&isect, &lpos);
+        EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
+        *pix += alpha * Le(EDF, &vout);
+    }
+    
+    while (true) {
         BSDFAlloc(&scene, face->matPtr, &isect, BSDF);
         
-        if (face->lightPtr != USHRT_MAX) {
-            LightPositionFromIntersection(&isect, &lpos);
-            EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
-            float expDirPDF = getAreaPDF(&scene, isect.faceID, isect.uv) * dist2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
-            if (isfinite(expDirPDF)) {
-                float MISWeight = (dirPDF * dirPDF) / (expDirPDF * expDirPDF + dirPDF * dirPDF);
-                if (ray.depth == 0 || (sampledType & BxDF_Specular) == BxDF_Specular)
-                    MISWeight = 1.0f;
-                
-                *pix += MISWeight * (alpha * Le(EDF, &vout));
-            }
-        }
+        float MISWeight;
+        float dist2;
+        float lightPDF;
         
         if (hasNonSpecular(BSDF)) {
             LightSample l_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
-            float areaPDF;
-            sampleLightPos(&scene, &l_sample, &isect.p, &lpos, &areaPDF);
+            sampleLightPos(&scene, &l_sample, &isect.p, &lpos, &lightPDF);
             EDFAlloc(&scene, scene.faces[lpos.faceID].lightPtr, &lpos, EDF);
             
-            vector3 lightDir = isect.p - lpos.p;
-            float dist2 = dot(lightDir, lightDir);
-            lightDir = normalize(lightDir);
-            vector3 lightDirRev = -lightDir;
+            vector3 vinL = lpos.p - isect.p;
+            dist2 = dot(vinL, vinL);
+            vinL = vinL * (1.0f / sqrt(dist2));
             
-            point3 shadowRayOrg = lpos.p + lightDir * EPSILON;
+            point3 shadowRayOrg = isect.p + vinL * EPSILON;
             Intersection lIsect;
-            rayIntersection(&scene, &shadowRayOrg, &lightDir, &lIsect);
-            if (lIsect.faceID == isect.faceID) {
-                float impDirPDF = fs_pdf(BSDF, &vout, &lightDirRev);
-                if (impDirPDF > 0.0f) {
-                    color fsCos = fs(BSDF, &vout, &lightDirRev) * absCosNsBSDF(BSDF, &lightDirRev);
-                    color fraction = fsCos / impDirPDF;
-                    float impAreaPDF = impDirPDF * absCosNsEDF(EDF, &lightDirRev) / dist2 * fmin(luminance(&fraction), 1.0f);
-                    float MISWeight = (areaPDF * areaPDF) / (areaPDF * areaPDF + impAreaPDF * impAreaPDF);
-                    *pix += (MISWeight * absCosNsEDF(EDF, &lightDirRev) / dist2 / areaPDF) * (alpha * Le(EDF, &lightDir) * fsCos);
-                }
+            rayIntersection(&scene, &shadowRayOrg, &vinL, &lIsect);
+            if (lIsect.faceID == lpos.faceID) {
+                vector3 vinLrev = -vinL;
+                float fsPDF = fs_pdf(BSDF, &vout, &vinL) * absCosNsEDF(EDF, &vinL) / dist2;
+                MISWeight = (lightPDF * lightPDF) / (lightPDF * lightPDF + fsPDF * fsPDF);
+                *pix += (MISWeight * absCosNsEDF(EDF, &vinL) * absCosNsBSDF(BSDF, &vinL) / dist2 / lightPDF) *
+                (alpha * Le(EDF, &vinLrev) * fs(BSDF, &vout, &vinL));
             }
         }
-        
-        if (ray.depth > 99) {
-            traceContinue = false;
-            break;
-        }
+
+        traceContinue = true;
         
         BSDFSample fs_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
-        vector3 vin;
-        color fs = sample_fs(BSDF, &vout, &fs_sample, &vin, &dirPDF, &sampledType);
+        color fs = sample_fs(BSDF, &vout, &fs_sample, &ray.dir, &dirPDF, &sampledType);
         if (zeroVec(&fs) || dirPDF == 0.0f) {
             traceContinue = false;
             break;
         }
-        color fraction = fs * (absCosNsBSDF(BSDF, &vin) / dirPDF);
-        float continueProb = fmin(luminance(&fraction), 1.0f);
-        if (getFloat0cTo1o(rds) < continueProb) {
-            alpha *= fraction / continueProb;
-            dirPDF *= continueProb;
-            ray.org = isect.p + vin * EPSILON;
-            ray.dir = vin;
-            ++ray.depth;
-            traceContinue = true;
+        float curY = luminance(&alpha);
+        alpha *= fs * (absCosNsBSDF(BSDF, &ray.dir) / dirPDF);
+        
+        ray.org = isect.p + ray.dir * EPSILON;
+        ++ray.depth;
+        if (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
+            face = &scene.faces[isect.faceID];
+            vout = -ray.dir;
+            
+            if (face->lightPtr != USHRT_MAX) {
+                MISWeight = 1.0f;
+                if ((sampledType & BxDF_Non_Singular) != 0) {
+                    LightPositionFromIntersection(&isect, &lpos);
+                    EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
+                    lightPDF = getAreaPDF(&scene, isect.faceID, isect.uv) * distance2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
+                    MISWeight = (dirPDF * dirPDF) / (lightPDF * lightPDF + dirPDF * dirPDF);
+                }
+                *pix += MISWeight * alpha * Le(EDF, &vout);
+            }
+            
+            if (ray.depth > 99) {
+                traceContinue = false;
+                break;
+            }
+            
+            float continueProb = fmin(luminance(&alpha) * (1.0f / curY), 1.0f);
+            if (getFloat0cTo1o(rds) < continueProb) {
+                alpha *= 1.0f / continueProb;
+                dirPDF *= continueProb;
+            }
+            else {
+                traceContinue = false;
+                break;
+            }
         }
         else {
-            traceContinue = false;
             break;
         }
     }
-//    }
-
+    //        }
 //    if (gid0 == 0 && gid1 == 0) {
 //        printf("uchar %u\t ushort %u\t uint %u\t ulong %u\n", sizeof(uchar), sizeof(ushort), sizeof(uint), sizeof(ulong));
 //        printf("uchar %u\t uchar2 %u\t uchar3 %u\t uchar4 %u\n", sizeof(uchar), sizeof(uchar2), sizeof(uchar3), sizeof(uchar4));

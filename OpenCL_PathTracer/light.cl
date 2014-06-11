@@ -173,7 +173,7 @@ inline float absCosNsEDF(const uchar* EDF, const vector3* v) {
 
 void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
     EDFHead* LeHead = (EDFHead*)EDF;
-    const global uchar* lightsData_p = scene->lightsData + offset;
+    const global uchar* lightsData_p = scene->materialsData + offset;
     
     LeHead->numEEDFs = *(lightsData_p++);
     LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =

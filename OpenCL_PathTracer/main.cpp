@@ -74,23 +74,24 @@ std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
 void buildScene() {
-    addDataAligned<cl_uint>(&scene.camera, g_width);
-    addDataAligned<cl_uint>(&scene.camera, g_height);
+    uint64_t cameraHeadAddress = addDataAligned<cl_uint>(&scene.others, 0);
+    uint64_t cameraHead = addDataAligned<cl_uint>(&scene.others, g_width, 128);
+    addDataAligned<cl_uint>(&scene.others, g_height);
     cl_float16 f16Val = {
         1.0f, 0.0f, 0.0f, 0.0f,
         0.0f, 1.0f, 0.0f, 0.0f,
         0.0f, 0.0f, 1.0f, 0.0f,
         0.0f, 0.0f, 3.999f, 1.0f
     };
-    addDataAligned<cl_float16>(&scene.camera, f16Val);// local to world transform
-    addDataAligned<cl_uchar>(&scene.camera, 0);// perspective
+    addDataAligned<cl_float16>(&scene.others, f16Val);// local to world transform
+    addDataAligned<cl_uchar>(&scene.others, 0);// perspective
     float fovY = 0.6435011088f;
     float aspect = 1;
     float near = 1;
     float far = 100;
-    addDataAligned<cl_float>(&scene.camera, aspect * powf(tanf(fovY / 2), 2));
-    addDataAligned<cl_float>(&scene.camera, 0.05f);// lens radius
-    addDataAligned<cl_float>(&scene.camera, 3.8f);// object plane distance
+    addDataAligned<cl_float>(&scene.others, aspect * powf(tanf(fovY / 2), 2));
+    addDataAligned<cl_float>(&scene.others, 0.05f);// lens radius
+    addDataAligned<cl_float>(&scene.others, 3.8f);// object plane distance
     Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
                                      Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
                                      Vector4f(0, 0, -(far + near) / (far - near), -1),
@@ -104,7 +105,8 @@ void buildScene() {
     f16Val.s1 = rasterToCamera.m10; f16Val.s5 = rasterToCamera.m11; f16Val.s9 = rasterToCamera.m12; f16Val.sd = rasterToCamera.m13;
     f16Val.s2 = rasterToCamera.m20; f16Val.s6 = rasterToCamera.m21; f16Val.sa = rasterToCamera.m22; f16Val.se = rasterToCamera.m23;
     f16Val.s3 = rasterToCamera.m30; f16Val.s7 = rasterToCamera.m31; f16Val.sb = rasterToCamera.m32; f16Val.sf = rasterToCamera.m33;
-    addDataAligned<cl_float16>(&scene.camera, f16Val);
+    addDataAligned<cl_float16>(&scene.others, f16Val);
+    *(cl_uint*)&scene.others[cameraHeadAddress] = (cl_uint)cameraHead;
     
     g_randStates.resize(g_width * g_height * 4);
     g_pixels.resize(g_width * g_height);
@@ -188,13 +190,13 @@ void buildScene() {
     scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
-    loadModel("models/Pikachu_textured.obj", &scene);
+    loadModel("models/Pikachu_corrected_subdivided.obj", &scene);
     
     scene.build();
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t iterations = 32;
+    const uint32_t iterations = 1;
     
     buildScene();
     
@@ -246,10 +248,9 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
         cl::Buffer buf_lights{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numLights() * sizeof(uint32_t), scene.rawLights(), nullptr};
         cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
-        cl::Buffer buf_lightsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfLightPropsData(), scene.rawLightPropsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
         cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
-        cl::Buffer buf_Camera{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfCamera(), scene.rawCamera(), nullptr};
+        cl::Buffer buf_Others{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOthers(), scene.rawOthers(), nullptr};
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
@@ -262,23 +263,22 @@ int main(int argc, const char * argv[]) {
         kernelRendering.setArg(5, buf_lights);
         kernelRendering.setArg(6, (uint32_t)scene.numLights());
         kernelRendering.setArg(7, buf_materialsData);
-        kernelRendering.setArg(8, buf_lightsData);
-        kernelRendering.setArg(9, buf_texturesData);
-        kernelRendering.setArg(10, buf_BVHnodes);
-        kernelRendering.setArg(11, buf_Camera);
-        kernelRendering.setArg(12, buf_randStates);
-        kernelRendering.setArg(13, buf_pixels);
+        kernelRendering.setArg(8, buf_texturesData);
+        kernelRendering.setArg(9, buf_BVHnodes);
+        kernelRendering.setArg(10, buf_Others);
+        kernelRendering.setArg(11, buf_randStates);
+        kernelRendering.setArg(12, buf_pixels);
         
         std::vector<cl::Event> eventList;
         cl::Event computeEvent;
         cl::Event readEvent;
         
         cl::CommandQueue queue{context, device};
-        const int numTilesX = 8, numTilesY = 8;
+        const int numTilesX = 16, numTilesY = 16;
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
-#define SIMULATION 0
+#define SIMULATION 1
 #if SIMULATION
         sim::global_sizes[0] = (sim::uint)*tile;
         sim::global_sizes[1] = (sim::uint)*(tile + 1);
@@ -293,8 +293,8 @@ int main(int argc, const char * argv[]) {
                         sim::global_ids[1] = sim::global_offsets[1] + ty;
                         sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
                                          (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLights(), (sim::uint)scene.numLights(),
-                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawLightPropsData(), (sim::uchar*)scene.rawTexturesData(),
-                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawCamera(), g_randStates.data(), (sim::float3*)g_pixels.data());
+                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(),
+                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawOthers(), g_randStates.data(), (sim::float3*)g_pixels.data());
                     }
                 }
                 printf("*");
@@ -309,7 +309,7 @@ int main(int argc, const char * argv[]) {
                 cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
                 cl::Event ev;
                 queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
-                //                ev.setCallback(CL_COMPLETE, completeTile);
+//                ev.setCallback(CL_COMPLETE, completeTile);
             }
             queue.finish();
             printf("\n");

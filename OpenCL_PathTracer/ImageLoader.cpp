@@ -8,8 +8,44 @@
 
 #include "ImageLoader.hpp"
 #include <libpng16/png.h>
+#include <ImfInputFile.h>
+#include <ImfRgbaFile.h>
+#include <ImfArray.h>
 #include <cstdlib>
 #include <string>
+
+enum EXRType {
+    Plane = 0,
+    LatitudeLongitude,
+    CubeMap
+};
+
+bool loadEXR(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, EXRType* exrtype) {
+    using namespace Imf;
+    using namespace Imath;
+    RgbaInputFile file(fileName);
+    Imf_2_1::Header header = file.header();
+    
+    Box2i dw = file.dataWindow();
+    *width = dw.max.x - dw.min.x + 1;
+    *height = dw.max.y - dw.min.y + 1;
+    Array2D<Rgba> pixels{*height, *width};
+    pixels.resizeErase(*height, *width);
+    file.setFrameBuffer(&pixels[0][0] - dw.min.x - dw.min.y * *width, 1, *width);
+    file.readPixels(dw.min.y, dw.max.y);
+    
+    size_t curSize = storage->size();
+    size_t rowSize = *width * sizeof(Rgba);
+    storage->resize(storage->size() + *height * rowSize);
+    uint8_t* orgDataHead = &(*storage)[curSize];
+    uint8_t* curDataHead = orgDataHead;
+    for (int i = 0; i < *height; ++i) {
+        memcpy(curDataHead, pixels[i], rowSize);
+        curDataHead += rowSize;
+    }
+    
+    return true;
+}
 
 bool loadJPEG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height) {
     return false;
@@ -174,4 +210,10 @@ bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* wi
     }
     
     return false;
+}
+
+bool loadEnvMap(const char* fileName, std::vector<uint8_t>* storage) {
+    uint32_t width, height;
+    EXRType exrtype;
+    return loadEXR(fileName, storage, &width, &height, &exrtype);
 }

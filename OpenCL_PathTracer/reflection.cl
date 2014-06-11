@@ -28,7 +28,7 @@ typedef enum {
     BxDF_Glossy       = 1 << 3,
     BxDF_Specular     = 1 << 4,
     
-    BxDF_Non_Singualar    = BxDF_Diffuse | BxDF_Glossy,
+    BxDF_Non_Singular    = BxDF_Diffuse | BxDF_Glossy,
     BxDF_All_Types        = BxDF_Diffuse | BxDF_Glossy | BxDF_Specular,
     BxDF_All_Reflection   = BxDF_Reflection | BxDF_All_Types,
     BxDF_All_Transmission = BxDF_Transmission | BxDF_All_Types,
@@ -148,7 +148,7 @@ inline bool hasNonSpecular(const uchar* BSDF) {
     const BSDFHead* fsHead = (const BSDFHead*)BSDF;
     for (int i = 0; i < fsHead->numBxDFs; ++i) {
         const BxDFHead* bxdf = (const BxDFHead*)(BSDF + fsHead->offsetsBxDFs[i]);
-        if((bool)(bxdf->fxType & BxDF_Non_Singualar))
+        if((bool)(bxdf->fxType & BxDF_Non_Singular))
             return true;
     }
     return false;

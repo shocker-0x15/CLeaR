@@ -171,20 +171,20 @@ namespace OBJ {
 //                              scene->idxOfTex("objfile_default_reflectance"),
 //                              scene->idxOfTex("objfile_default_roughX"),
 //                          scene->idxOfTex("objfile_default_roughX"));
-        //Ashikhmin
-        mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rs", 0.1f, 0.1f, 0.1f);
-        mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rd", 0.85f, 0.85f, 0.15f);
-        mc.createFloatConstantTexture("objfile_default_Ashikhmin_nu", 2000.0f);
-        mc.createFloatConstantTexture("objfile_default_Ashikhmin_nv", 2000.0f);
-        mc.createAshikhminMaterial("objfile_default_material", nullptr,
-                                   "objfile_default_Ashikhmin_Rs", "objfile_default_Ashikhmin_Rd",
-                                   "objfile_default_Ashikhmin_nu", "objfile_default_Ashikhmin_nv");
-//        //Water
-//        mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.95f, 0.95f, 0.95f);
-//        mc.createFloat3ConstantTexture("objfile_default_transmittance", 0.95f, 0.95f, 0.95f);
-//        mc.createGlassMaterial("objfile_default_material",
-//                               scene->idxOfTex("objfile_default_reflectance"),
-//                               scene->idxOfTex("objfile_default_transmittance"), 1.0f, 1.333f);
+//        //Ashikhmin
+//        mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rs", 0.1f, 0.1f, 0.1f);
+//        mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rd", 0.85f, 0.85f, 0.15f);
+//        mc.createFloatConstantTexture("objfile_default_Ashikhmin_nu", 2000.0f);
+//        mc.createFloatConstantTexture("objfile_default_Ashikhmin_nv", 2000.0f);
+//        mc.createAshikhminMaterial("objfile_default_material", nullptr,
+//                                   "objfile_default_Ashikhmin_Rs", "objfile_default_Ashikhmin_Rd",
+//                                   "objfile_default_Ashikhmin_nu", "objfile_default_Ashikhmin_nv");
+        //Water
+        mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.95f, 0.95f, 0.95f);
+        mc.createFloat3ConstantTexture("objfile_default_transmittance", 0.95f, 0.95f, 0.95f);
+        mc.createGlassMaterial("objfile_default_material", nullptr, 
+                               "objfile_default_reflectance",
+                               "objfile_default_transmittance", 1.0f, 1.333f);
 //        mc.createFloat3ConstantTexture("objfile_default_reflectance", 1.0f, 1.0f, 1.0f);
 //        //Gold
 //        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),

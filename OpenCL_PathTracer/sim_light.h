@@ -174,7 +174,7 @@ namespace sim {
     
     void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
         EDFHead* LeHead = (EDFHead*)EDF;
-        const uchar* lightsData_p = scene->lightsData + offset;
+        const uchar* lightsData_p = scene->materialsData + offset;
         
         LeHead->numEEDFs = *(lightsData_p++);
         LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =

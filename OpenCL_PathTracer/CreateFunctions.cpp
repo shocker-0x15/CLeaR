@@ -80,6 +80,10 @@ void MaterialCreator::createImageTexture(const char* name, const char* filename)
     uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorImage, 4);
     addDataAligned<cl_uint>(texData, 0);// width
     addDataAligned<cl_uint>(texData, 0);// height
+//    // DELETE ME/
+//    align(texData, sizeof(cl_half) * 4);
+//    loadEnvMap("images/LA_Downtown_Afternoon_Fishing_3k.exr", texData);
+//    // /DELETE ME
     align(texData, sizeof(cl_uchar3));
     loadImage(filename, texData, &w, &h, false);
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 1) = w;
@@ -278,7 +282,7 @@ void MaterialCreator::createMixMaterial(const char* name, const char* mat0, cons
 
 void MaterialCreator::createDiffuseEDF(size_t emittanceIdx) {
     ++numBxDFs;
-    std::vector<uint8_t>* lightPropData = &scene->lightPropsData;
+    std::vector<uint8_t>* lightPropData = &scene->materialsData;
     addDataAligned<cl_uchar>(lightPropData, EEDFID::DiffuseEmission);
     addDataAligned<cl_uint>(lightPropData, (cl_uint)emittanceIdx);//Emittance
 }

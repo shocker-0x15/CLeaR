@@ -27,12 +27,11 @@ public:
     std::vector<uint32_t> lights{};
     std::vector<uint8_t> materialsData{};
     std::map<std::string, size_t> materialsRef;
-    std::vector<uint8_t> lightPropsData{};
     std::map<std::string, size_t> lightPropsRef;
     std::vector<uint8_t> texturesData{};
     std::map<std::string, size_t> texturesRef;
     BVH bvh;
-    std::vector<uint8_t> camera{};
+    std::vector<uint8_t> others{};
     bool immediateMode;
     size_t idxBaseVertices;
     size_t idxBaseNormals;
@@ -133,17 +132,14 @@ public:
     void* rawMaterialsData() {
         return materialsData.data();
     }
-    void* rawLightPropsData() {
-        return lightPropsData.data();
-    }
     void* rawTexturesData() {
         return texturesData.data();
     }
     void* rawBVHNodes() {
         return bvh.nodes.data();
     }
-    void* rawCamera() {
-        return camera.data();
+    void* rawOthers() {
+        return others.data();
     }
     
     size_t numVertices() {
@@ -167,17 +163,14 @@ public:
     size_t sizeOfMaterialsData() {
         return materialsData.size() * sizeof(uint8_t);
     }
-    size_t sizeOfLightPropsData() {
-        return lightPropsData.size() * sizeof(uint8_t);
-    }
     size_t sizeOfTexturesData() {
         return texturesData.size() * sizeof(uint8_t);
     }
     size_t sizeOfBVHNodes() {
         return bvh.nodes.size() * sizeof(BVHNode);
     }
-    size_t sizeOfCamera() {
-        return camera.size();
+    size_t sizeOfOthers() {
+        return others.size();
     }
     
     size_t idxOfMat(const std::string &name) {

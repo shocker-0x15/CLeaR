@@ -32,14 +32,20 @@ namespace sim {
         uint depth; uchar dum[12];
     } Ray;
     
-    //64bytes
+    //52bytes
     typedef struct {
         uint p0, p1, p2;
         uint vn0, vn1, vn2;
         uint vt0, vt1, vt2;
         uint uv0, uv1, uv2;
-        ushort matPtr, lightPtr; uchar dum[12];
+        ushort matPtr, lightPtr;
     } Face;
+    
+    //8bytes
+    typedef struct {
+        uchar atInfinity; uchar dum0[3];
+        uint reference;
+    } LightInfo;
     
     //32bytes
     typedef struct {
@@ -100,25 +106,26 @@ namespace sim {
         vector3* tangents;
         float2* uvs;
         Face* faces;
-        uint* lights;
+        LightInfo* lights;
         uint numLights;
         uchar* materialsData;
         uchar* texturesData;
         BVHNode* BVHNodes;
         CameraHead* camera;
         EnvironmentHead* environment;
+        uchar* lightPowerCDF;
     } Scene;
     
     //------------------------
     
     inline void memcpyG2P(uchar* dst, const uchar* src, uint numBytes);
     inline void AlignPtr(uchar** ptr, uintptr_t bytes);
-    inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
-    inline const uchar* AlignPtrAddG(const uchar** ptr, uintptr_t bytes);
+    uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
+    const uchar* AlignPtrAddG(const uchar** ptr, uintptr_t bytes);
     inline bool zeroVec(const float3* v);
     inline float maxComp(const float3* v);
     inline float luminance(const color* c);
-    inline void makeTangent(const vector3* n, vector3* tangent);
+    void makeTangent(const vector3* n, vector3* tangent);
     inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
     inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
     inline float distance2(const point3* p0, const point3* p1);
@@ -135,13 +142,13 @@ namespace sim {
         *ptr = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     }
     
-    inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
+    uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
         uchar* ptrAligned = (uchar*)(((ulong)*ptr + (bytes - 1)) & ~(bytes - 1));
         *ptr = ptrAligned + bytes;
         return ptrAligned;
     }
     
-    inline const uchar* AlignPtrAddG(const uchar** ptr, uintptr_t bytes) {
+    const uchar* AlignPtrAddG(const uchar** ptr, uintptr_t bytes) {
         const uchar* ptrAligned = (const uchar*)(((ulong)*ptr + (bytes - 1)) & ~(bytes - 1));
         *ptr = ptrAligned + bytes;
         return ptrAligned;
@@ -159,7 +166,7 @@ namespace sim {
         return 0.2126f * c->r + 0.7152f * c->g + 0.0722f * c->b;
     }
     
-    inline void makeTangent(const vector3* n, vector3* tangent) {
+    void makeTangent(const vector3* n, vector3* tangent) {
         if (fabsf(n->x) > fabsf(n->y)) {
             float invLen = 1.0f / sqrtf(n->x * n->x + n->z * n->z);
             *tangent = vector3(-n->z * invLen, 0.0f, n->x * invLen);

@@ -17,7 +17,9 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         lights, numLights,
         materialsData, texturesData,
         (global BVHNode*)BVHNodes,
-        (global CameraHead*)(others + *((uint*)others + 0)), (global CameraHead*)(others + *((uint*)others + 1))
+        (global CameraHead*)(others + *((global uint*)others + 0)),
+        (global EnvironmentHead*)(others + *((global uint*)others + 1)),
+        others + *((global uint*)others + 2)
     };
     
     const uint gid0 = get_global_id(0);

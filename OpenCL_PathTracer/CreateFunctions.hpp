@@ -11,6 +11,7 @@
 
 #include "clUtility.hpp"
 #include "Scene.hpp"
+#include <cassert>
 
 class MaterialCreator {
     Scene* scene;
@@ -37,6 +38,7 @@ public:
     }
     
     void endMaterial() {
+        assert(numBxDFs > 0);
         scene->materialsData[matHead] = numBxDFs;
     }
     
@@ -47,6 +49,7 @@ public:
     }
     
     void endLightProperty() {
+        assert(numBxDFs > 0);
         scene->materialsData[matHead] = numBxDFs;
     }
     

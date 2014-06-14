@@ -17,14 +17,27 @@
 #include "clUtility.hpp"
 #include <cassert>
 
+//8bytes
+typedef struct {
+    uint8_t atInfinity; uint8_t dum0[3];
+    uint32_t reference;
+} LightInfo;
+
 class Scene {
+    struct PtrsOthers {
+        uint32_t camera;
+        uint32_t environment;
+        uint32_t lightPowerCDF;
+    };
+    
 public:
     std::vector<cl_float3> vertices{};
     std::vector<cl_float3> normals{};
     std::vector<cl_float3> tangents{};
     std::vector<cl_float2> uvs{};
     std::vector<Face> faces{};
-    std::vector<uint32_t> lights{};
+    std::vector<LightInfo> lightInfos{};
+    std::vector<float> lightPowers{};
     std::vector<uint8_t> materialsData{};
     std::map<std::string, size_t> materialsRef;
     std::map<std::string, size_t> lightPropsRef;
@@ -32,6 +45,8 @@ public:
     std::map<std::string, size_t> texturesRef;
     BVH bvh;
     std::vector<uint8_t> others{};
+    uint64_t idxPtrOthers;
+    
     bool immediateMode;
     size_t idxBaseVertices;
     size_t idxBaseNormals;
@@ -40,6 +55,8 @@ public:
     
     Scene() {
         immediateMode = false;
+        PtrsOthers tempPtrOthers;
+        idxPtrOthers = addDataAligned<PtrsOthers>(&others, tempPtrOthers);
     }
     
     void addVertex(float x, float y, float z) {
@@ -84,8 +101,14 @@ public:
         else {
             faces.push_back(face);
         }
-        if (face.lightPtr != UINT16_MAX)
-            lights.push_back((uint32_t)faces.size() - 1);
+        if (face.lightPtr != UINT16_MAX) {
+            LightInfo lInfo;
+            lInfo.atInfinity = 0;
+            lInfo.reference = (uint32_t)faces.size() - 1;
+            lightInfos.push_back(lInfo);
+            
+            lightPowers.push_back(1.0f);// 適当。ライトの出力に比例した値にすべき。
+        }
     }
     bool addMaterial(size_t idx, const char* name) {
         std::pair<std::map<std::string, size_t>::iterator, bool> ret = materialsRef.insert(std::pair<std::string, size_t>(name, idx));
@@ -126,8 +149,8 @@ public:
     void* rawFaces() {
         return faces.data();
     }
-    void* rawLights() {
-        return lights.data();
+    void* rawLightInfos() {
+        return lightInfos.data();
     }
     void* rawMaterialsData() {
         return materialsData.data();
@@ -142,34 +165,34 @@ public:
         return others.data();
     }
     
-    size_t numVertices() {
+    size_t numVertices() const {
         return vertices.size();
     }
-    size_t numNormals() {
+    size_t numNormals() const {
         return normals.size();
     }
-    size_t numTangents() {
+    size_t numTangents() const {
         return tangents.size();
     }
-    size_t numUVs() {
+    size_t numUVs() const {
         return uvs.size();
     }
-    size_t numFaces() {
+    size_t numFaces() const {
         return faces.size();
     }
-    size_t numLights() {
-        return lights.size();
+    size_t numLights() const {
+        return lightInfos.size();
     }
-    size_t sizeOfMaterialsData() {
+    size_t sizeOfMaterialsData() const {
         return materialsData.size() * sizeof(uint8_t);
     }
-    size_t sizeOfTexturesData() {
+    size_t sizeOfTexturesData() const {
         return texturesData.size() * sizeof(uint8_t);
     }
-    size_t sizeOfBVHNodes() {
+    size_t sizeOfBVHNodes() const {
         return bvh.nodes.size() * sizeof(BVHNode);
     }
-    size_t sizeOfOthers() {
+    size_t sizeOfOthers() const {
         return others.size();
     }
     
@@ -184,6 +207,39 @@ public:
     size_t idxOfTex(const std::string &name) {
         assert(texturesRef.count(name) == 1);
         return texturesRef[name];
+    }
+    
+    uint32_t* cameraIdx() {
+        PtrsOthers &ptrsOthers = *(PtrsOthers*)&others[idxPtrOthers];
+        return &ptrsOthers.camera;
+    }
+    
+    uint32_t* environementIdx() {
+        PtrsOthers &ptrsOthers = *(PtrsOthers*)&others[idxPtrOthers];
+        return &ptrsOthers.environment;
+    }
+    
+    uint32_t* lightPowerCDFIdx() {
+        PtrsOthers &ptrsOthers = *(PtrsOthers*)&others[idxPtrOthers];
+        return &ptrsOthers.lightPowerCDF;
+    }
+    
+    void calcLightPowerCDF() {
+        auto refOthers = &others;
+        *lightPowerCDFIdx() = (uint32_t)addDataAligned<cl_uint>(refOthers, (cl_uint)lightPowers.size());
+        
+        std::vector<float> PMF(lightPowers.size());
+        std::vector<float> CDF(lightPowers.size());
+        CDF[0] = lightPowers[0];
+        for (int i = 1; i < lightPowers.size(); ++i)
+            CDF[i] = CDF[i - 1] + lightPowers[i];
+        float sum = CDF.back();
+        for (int i = 0; i < CDF.size(); ++i) {
+            CDF[i] /= sum;
+            PMF[i] = lightPowers[i] / sum;
+        }
+        addDataAligned(refOthers, CDF.data(), sizeof(float) * CDF.size(), sizeof(float));
+        addDataAligned(refOthers, PMF.data(), sizeof(float) * PMF.size(), sizeof(float));
     }
     
     void build() {

@@ -5,12 +5,12 @@
 
 namespace sim {
     uint getUInt(uint* randState);
-    float getFloat0cTo1o(uint* randState);
+    inline float getFloat0cTo1o(uint* randState);
     inline uint randUInt(float u, uint maxv);
     void concentricSampleDisk(float u1, float u2, float* dx, float* dy);
-    inline vector3 cosineSampleHemisphere(float u1, float u2);
+    vector3 cosineSampleHemisphere(float u1, float u2);
     void uniformSampleTriangle(float u1, float u2, float* b0, float* b1);
-    inline void uniformSampleTriangle(float u1, float u2, float* b0, float* b1);
+    uint sampleDiscrete1D(const uchar* CDF1D, float u, float* prob);
     
     //------------------------
     
@@ -22,7 +22,7 @@ namespace sim {
         return randState[3] = (randState[3] ^ (randState[3] >> 19)) ^ (t ^ (t >> 8));
     }
     
-    float getFloat0cTo1o(uint* randState) {
+    inline float getFloat0cTo1o(uint* randState) {
         //    return (getUInt(randState) & 0xffffff) / (float)(1 << 24);
         uint rand23bit = (getUInt(randState) >> 9) | 0x3f800000;
         return *(float*)&rand23bit - 1.0f;
@@ -68,16 +68,27 @@ namespace sim {
         *dy = r * sinf(theta);
     }
     
-    inline vector3 cosineSampleHemisphere(float u1, float u2) {
+    vector3 cosineSampleHemisphere(float u1, float u2) {
         float x, y;
         concentricSampleDisk(u1, u2, &x, &y);
         return float3(x, y, sqrtf(fmaxf(0.0f, 1.0f - x * x - y * y)));
     }
     
-    inline void uniformSampleTriangle(float u1, float u2, float* b0, float* b1) {
+    void uniformSampleTriangle(float u1, float u2, float* b0, float* b1) {
         float su1 = sqrtf(u1);
         *b0 = 1.0f - su1;
         *b1 = u2 * su1;
+    }
+    
+    uint sampleDiscrete1D(const uchar* CDF1D, float u, float* prob) {
+        uint numElems = *(uint*)AlignPtrAddG(&CDF1D, sizeof(uint));
+        for (uint i = 0; i < numElems; ++i) {
+            if (*((float*)CDF1D + i) > u) {
+                *prob = *((float*)CDF1D + i + numElems);
+                return i;
+            }
+        }
+        return UINT_MAX;
     }
 }
 

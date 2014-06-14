@@ -3,14 +3,14 @@
 
 #include "global.cl"
 
-void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp);
-void mulMat4x4G_P4(const global mat4x4* m, const point4* p, point4* tp);
+inline void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp);
+inline void mulMat4x4G_P4(const global mat4x4* m, const point4* p, point4* tp);
 void mulMat4x4G_P3(const global mat4x4* m, const point3* p, point3* tp);
-void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv);
-void mulMat4x4G_V4(const global mat4x4* m, const vector4* v, vector4* tv);
-void mulMat4x4G_V3(const global mat4x4* m, const vector3* v, vector3* tv);
+inline void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv);
+inline void mulMat4x4G_V4(const global mat4x4* m, const vector4* v, vector4* tv);
+inline void mulMat4x4G_V3(const global mat4x4* m, const vector3* v, vector3* tv);
 
-void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp) {
+inline void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp) {
     tp->x = dot(m->s048c, *p);
     tp->y = dot(m->s159d, *p);
     tp->z = dot(m->s26ae, *p);
@@ -19,7 +19,7 @@ void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp) {
         *tp /= tp->w;
 }
 
-void mulMat4x4G_P4(const global mat4x4* m, const point4* p, point4* tp) {
+inline void mulMat4x4G_P4(const global mat4x4* m, const point4* p, point4* tp) {
     tp->x = dot(m->s048c, *p);
     tp->y = dot(m->s159d, *p);
     tp->z = dot(m->s26ae, *p);
@@ -38,19 +38,19 @@ void mulMat4x4G_P3(const global mat4x4* m, const point3* p, point3* tp) {
         *tp /= w;
 }
 
-void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv) {
+inline void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv) {
     tv->x = dot(m->s048, v->xyz);
     tv->y = dot(m->s159, v->xyz);
     tv->z = dot(m->s26a, v->xyz);
 }
 
-void mulMat4x4G_V4(const global mat4x4* m, const vector4* v, vector4* tv) {
+inline void mulMat4x4G_V4(const global mat4x4* m, const vector4* v, vector4* tv) {
     tv->x = dot(m->s048, v->xyz);
     tv->y = dot(m->s159, v->xyz);
     tv->z = dot(m->s26a, v->xyz);
 }
 
-void mulMat4x4G_V3(const global mat4x4* m, const vector3* v, vector3* tv) {
+inline void mulMat4x4G_V3(const global mat4x4* m, const vector3* v, vector3* tv) {
     tv->x = dot(m->s048, *v);
     tv->y = dot(m->s159, *v);
     tv->z = dot(m->s26a, *v);

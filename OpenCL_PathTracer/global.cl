@@ -28,14 +28,20 @@ typedef struct __attribute__((aligned(16))) {
     uint depth;
 } Ray;
 
-//64bytes
-typedef struct __attribute__((aligned(16))) {
+//52bytes
+typedef struct __attribute__((aligned(4))) {
     uint p0, p1, p2;
     uint vn0, vn1, vn2;
     uint vt0, vt1, vt2;
     uint uv0, uv1, uv2;
     ushort matPtr, lightPtr;
 } Face;
+
+//8bytes
+typedef struct __attribute__((aligned(4))) {
+    uchar atInfinity __attribute__((aligned(4)));
+    uint reference;
+} LightInfo;
 
 //32bytes
 typedef struct __attribute__((aligned(16))) {
@@ -81,12 +87,12 @@ typedef struct __attribute__((aligned(16))) {
 } LensPosition;
 
 //128bytes
-typedef struct __attribute__((aligned(16))) {
+typedef struct __attribute__((aligned(64))) {
     uint width, height;
     mat4x4 localToWorld;
 } CameraHead;
 
-typedef struct __attribute__((aligned(16))) {
+typedef struct __attribute__((aligned(4))) {
     uint dummy;
 } EnvironmentHead;
 
@@ -96,25 +102,26 @@ typedef struct {
     global vector3* tangents;
     global float2* uvs;
     global Face* faces;
-    global uint* lights;
+    global LightInfo* lights;
     uint numLights;
     global uchar* materialsData;
     global uchar* texturesData;
     global BVHNode* BVHNodes;
     global CameraHead* camera;
     global EnvironmentHead* environment;
+    global uchar* lightPowerCDF;
 } Scene;
 
 //------------------------
 
 inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes);
 inline void AlignPtr(uchar** ptr, uintptr_t bytes);
-inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
-inline const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes);
+uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
+const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes);
 inline bool zeroVec(const float3* v);
 inline float maxComp(const float3* v);
 inline float luminance(const color* c);
-inline void makeTangent(const vector3* n, vector3* tangent);
+void makeTangent(const vector3* n, vector3* tangent);
 inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
 inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
 inline float distance2(const point3* p0, const point3* p1);
@@ -131,13 +138,13 @@ inline void AlignPtr(uchar** ptr, uintptr_t bytes) {
     *ptr = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
 }
 
-inline uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
+uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
     uchar* ptrAligned = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     *ptr = ptrAligned + bytes;
     return ptrAligned;
 }
 
-inline const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes) {
+const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes) {
     const global uchar* ptrAligned = (const global uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     *ptr = ptrAligned + bytes;
     return ptrAligned;
@@ -155,7 +162,7 @@ inline float luminance(const color* c) {
     return 0.2126f * c->r + 0.7152f * c->g + 0.0722f * c->b;
 }
 
-inline void makeTangent(const vector3* n, vector3* tangent) {
+void makeTangent(const vector3* n, vector3* tangent) {
     if (fabs(n->x) > fabs(n->y)) {
         float invLen = 1.0f / sqrt(n->x * n->x + n->z * n->z);
         *tangent = (vector3)(-n->z * invLen, 0.0f, n->x * invLen);

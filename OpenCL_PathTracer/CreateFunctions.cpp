@@ -64,14 +64,16 @@ void MaterialCreator::createFloat3ConstantTexture(const char* name, float s0, fl
     uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorConstant, 16);
     f3Val.s0 = s0; f3Val.s1 = s1; f3Val.s2 = s2;
     addDataAligned<cl_float3>(texData, f3Val);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createFloatConstantTexture(const char* name, float val) {
     std::vector<uint8_t>* texData = &scene->texturesData;
     uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::FloatConstant, 4);
     addDataAligned<cl_float>(texData, val);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createImageTexture(const char* name, const char* filename) {
@@ -80,15 +82,13 @@ void MaterialCreator::createImageTexture(const char* name, const char* filename)
     uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorImage, 4);
     addDataAligned<cl_uint>(texData, 0);// width
     addDataAligned<cl_uint>(texData, 0);// height
-//    // DELETE ME/
-//    align(texData, sizeof(cl_half) * 4);
-//    loadEnvMap("images/LA_Downtown_Afternoon_Fishing_3k.exr", texData);
-//    // /DELETE ME
     align(texData, sizeof(cl_uchar3));
-    loadImage(filename, texData, &w, &h, false);
+    bool ret = loadImage(filename, texData, &w, &h, false);
+    assert(ret);
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 1) = w;
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 2) = h;
-    scene->addTexture(texHead, name);
+    ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createNormalMapTexture(const char* name, const char* filename) {
@@ -98,10 +98,12 @@ void MaterialCreator::createNormalMapTexture(const char* name, const char* filen
     addDataAligned<cl_uint>(texData, 0);// width
     addDataAligned<cl_uint>(texData, 0);// height
     align(texData, sizeof(cl_uchar3));
-    loadImage(filename, texData, &w, &h, true);
+    bool ret = loadImage(filename, texData, &w, &h, true);
+    assert(ret);
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 1) = w;
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 2) = h;
-    scene->addTexture(texHead, name);
+    ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createFloat3CheckerBoardTexture(const char* name, float c0r, float c0g, float c0b, float c1r, float c1g, float c1b) {
@@ -113,7 +115,8 @@ void MaterialCreator::createFloat3CheckerBoardTexture(const char* name, float c0
     addDataAligned<cl_float3>(texData, f3Val);
     f3Val.s0 = c1r; f3Val.s1 = c1g; f3Val.s2 = c1b;
     addDataAligned<cl_float3>(texData, f3Val);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createFloat3CheckerBoardBumpTexture(const char* name, float width, bool reverse) {
@@ -122,7 +125,8 @@ void MaterialCreator::createFloat3CheckerBoardBumpTexture(const char* name, floa
     addDataAligned<cl_uchar>(texData, ColorProceduralType::CheckerBoardBump);
     addDataAligned<cl_float>(texData, width);
     addDataAligned<cl_uchar>(texData, reverse);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createFloatCheckerBoardTexture(const char* name, float c0, float c1) {
@@ -131,14 +135,16 @@ void MaterialCreator::createFloatCheckerBoardTexture(const char* name, float c0,
     addDataAligned<cl_uchar>(texData, FloatProceduralType::CheckerBoard);
     addDataAligned<cl_float>(texData, c0);
     addDataAligned<cl_float>(texData, c1);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 
 void MaterialCreator::createFresnelNoOp(const char* name) {
     std::vector<uint8_t>* texData = &scene->texturesData;
     uint64_t texHead = addDataAligned<cl_uchar>(texData, FresnelID::NoOp, 1);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createFresnelConductor(const char* name, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b) {
@@ -149,7 +155,8 @@ void MaterialCreator::createFresnelConductor(const char* name, float eta_r, floa
     addDataAligned<cl_float3>(texData, f3Val);
     f3Val.s0 = k_r; f3Val.s1 = k_g; f3Val.s2 = k_b;
     addDataAligned<cl_float3>(texData, f3Val);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 void MaterialCreator::createFresnelDielectric(const char* name, float etaExt, float etaInt) {
@@ -157,7 +164,8 @@ void MaterialCreator::createFresnelDielectric(const char* name, float etaExt, fl
     uint64_t texHead = addDataAligned<cl_uchar>(texData, FresnelID::Dielectric, 4);
     addDataAligned<float>(texData, etaExt);
     addDataAligned<float>(texData, etaInt);
-    scene->addTexture(texHead, name);
+    bool ret = scene->addTexture(texHead, name);
+    assert(ret);
 }
 
 
@@ -233,7 +241,7 @@ void MaterialCreator::createGlassMaterial(const char* name, const char* bump, co
     bool hasBump = bump != nullptr;
     addDataAligned<cl_uchar>(matData, hasBump);
     addDataAligned<cl_uint>(matData, hasBump ? (cl_uint)scene->idxOfTex(bump) : 0);
-    char fresnelName[256] = "internalFresnelDielectric_";
+    char fresnelName[256] = "GlassInternalFresnelDielectric_";
     strcat(fresnelName, matName);
     createFresnelDielectric(fresnelName, etaExt, etaInt);
     createSpecularBRDF(scene->idxOfTex(R), scene->idxOfTex(fresnelName));
@@ -247,7 +255,7 @@ void MaterialCreator::createMetalMaterial(const char* name, const char* bump, co
     bool hasBump = bump != nullptr;
     addDataAligned<cl_uchar>(matData, hasBump);
     addDataAligned<cl_uint>(matData, hasBump ? (cl_uint)scene->idxOfTex(bump) : 0);
-    char fresnelName[256] = "internalFresnelConductor_";
+    char fresnelName[256] = "MetalInternalFresnelConductor_";
     strcat(fresnelName, matName);
     createFresnelConductor(fresnelName, eta_r, eta_g, eta_b, k_r, k_g, k_b);
     createSpecularBRDF(scene->idxOfTex(R), scene->idxOfTex(fresnelName));

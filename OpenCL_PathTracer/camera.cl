@@ -6,25 +6,25 @@
 #include "matrix.cl"
 
 //8bytes
-typedef struct {
+typedef struct __attribute__((aligned(4))) {
 //    float uCamera;
     float uLens[2];
 } CameraSample;
 
 //8bytes
-typedef struct {
+typedef struct __attribute__((aligned(4))) {
 //    float uComponent;
     float uDir[2];
 } IDFSample;
 
 //256bytes
-typedef struct __attribute__((aligned(16))) {
+typedef struct __attribute__((aligned(64))) {
     CameraHead head;
-    uchar __attribute__((aligned(4))) id;
-    float virtualPlaneArea;
+    uchar id;
+    float virtualPlaneArea __attribute__((aligned(4)));
     float lensRadius;
     float objPDistance;
-    mat4x4 rasterToCamera;
+    mat4x4 rasterToCamera __attribute__((aligned(64)));
 } PerspectiveInfo;
 
 //32bytes

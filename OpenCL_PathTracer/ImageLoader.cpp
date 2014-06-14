@@ -191,7 +191,7 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     
     fclose(fp);
     
-    return false;
+    return true;
 }
 
 bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, bool gammaCorrection) {
@@ -212,8 +212,7 @@ bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* wi
     return false;
 }
 
-bool loadEnvMap(const char* fileName, std::vector<uint8_t>* storage) {
-    uint32_t width, height;
+bool loadEnvMap(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height) {
     EXRType exrtype;
-    return loadEXR(fileName, storage, &width, &height, &exrtype);
+    return loadEXR(fileName, storage, width, height, &exrtype);
 }

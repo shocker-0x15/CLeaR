@@ -4,14 +4,14 @@
 #include "sim_global.h"
 
 namespace sim {
-    void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp);
-    void mulMat4x4G_P4(const mat4x4* m, const point4* p, point4* tp);
+    inline void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp);
+    inline void mulMat4x4G_P4(const mat4x4* m, const point4* p, point4* tp);
     void mulMat4x4G_P3(const mat4x4* m, const point3* p, point3* tp);
-    void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv);
-    void mulMat4x4G_V4(const mat4x4* m, const vector4* v, vector4* tv);
-    void mulMat4x4G_V3(const mat4x4* m, const vector3* v, vector3* tv);
+    inline void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv);
+    inline void mulMat4x4G_V4(const mat4x4* m, const vector4* v, vector4* tv);
+    inline void mulMat4x4G_V3(const mat4x4* m, const vector3* v, vector3* tv);
     
-    void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp) {
+    inline void mulMat4x4_P4(const mat4x4* m, const point4* p, point4* tp) {
         tp->x = dot(sw4(*m, s0, s4, s8, sc), *p);
         tp->y = dot(sw4(*m, s1, s5, s9, sd), *p);
         tp->z = dot(sw4(*m, s2, s6, sa, se), *p);
@@ -20,7 +20,7 @@ namespace sim {
             *tp /= tp->w;
     }
     
-    void mulMat4x4G_P4(const mat4x4* m, const point4* p, point4* tp) {
+    inline void mulMat4x4G_P4(const mat4x4* m, const point4* p, point4* tp) {
         tp->x = dot(sw4(*m, s0, s4, s8, sc), *p);
         tp->y = dot(sw4(*m, s1, s5, s9, sd), *p);
         tp->z = dot(sw4(*m, s2, s6, sa, se), *p);
@@ -39,19 +39,19 @@ namespace sim {
             *tp /= w;
     }
     
-    void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv) {
+    inline void mulMat4x4_V4(const mat4x4* m, const vector4* v, vector4* tv) {
         tv->x = dot(sw3(*m, s0, s4, s8), sw3(*v, x, y, z));
         tv->y = dot(sw3(*m, s1, s5, s9), sw3(*v, x, y, z));
         tv->z = dot(sw3(*m, s2, s6, sa), sw3(*v, x, y, z));
     }
     
-    void mulMat4x4G_V4(const mat4x4* m, const vector4* v, vector4* tv) {
+    inline void mulMat4x4G_V4(const mat4x4* m, const vector4* v, vector4* tv) {
         tv->x = dot(sw3(*m, s0, s4, s8), sw3(*v, x, y, z));
         tv->y = dot(sw3(*m, s1, s5, s9), sw3(*v, x, y, z));
         tv->z = dot(sw3(*m, s2, s6, sa), sw3(*v, x, y, z));
     }
     
-    void mulMat4x4G_V3(const mat4x4* m, const vector3* v, vector3* tv) {
+    inline void mulMat4x4G_V3(const mat4x4* m, const vector3* v, vector3* tv) {
         tv->x = dot(sw3(*m, s0, s4, s8), *v);
         tv->y = dot(sw3(*m, s1, s5, s9), *v);
         tv->z = dot(sw3(*m, s2, s6, sa), *v);

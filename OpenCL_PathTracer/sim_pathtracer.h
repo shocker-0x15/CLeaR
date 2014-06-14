@@ -15,10 +15,12 @@ namespace sim {
                      uint* randStates, float3* pixels) {
         Scene scene = {
             vertices, normals, tangents, uvs, (Face*)faces,
-            lights, numLights,
+            (LightInfo*)lights, numLights,
             materialsData, texturesData,
             (BVHNode*)BVHNodes,
-            (CameraHead*)(others + *((uint*)others + 0)), (EnvironmentHead*)(others + *((uint*)others + 1))
+            (CameraHead*)(others + *((uint*)others + 0)),
+            (EnvironmentHead*)(others + *((uint*)others + 1)),
+            others + *((uint*)others + 2)
         };
         
         const uint gid0 = get_global_id(0);

@@ -19,34 +19,34 @@ typedef enum {
 } EEDFType;
 
 //12bytes
-typedef struct {
+typedef struct __attribute__((aligned(4))) {
     float uLight;
     float uPos[2];
 } LightSample;
 
 //8bytes
-typedef struct {
+typedef struct __attribute__((aligned(4))) {
 //    float uComponent;
     float uDir[2];
 } EDFSample;
 
 //8bytes
-typedef struct {
-    uchar __attribute__((aligned(4))) id;
-    EEDFType eLeType;
+typedef struct __attribute__((aligned(4))) {
+    uchar id;
+    EEDFType eLeType __attribute__((aligned(4)));
 } EEDFHead;
 
 //32bytes
 typedef struct __attribute__((aligned(16))) {
-    EEDFHead __attribute__((aligned(16))) head;
-    color M;
+    EEDFHead head;
+    color M __attribute__((aligned(16)));
 } DiffuseEmission;
 
 //80bytes
 typedef struct __attribute__((aligned(16))) {
     vector3 n, s, t, ng;
-    uchar __attribute__((aligned(2))) numEEDFs;
-    ushort __attribute__((aligned(2))) offsetsEEDFs[4];
+    uchar numEEDFs;
+    ushort offsetsEEDFs[4] __attribute__((aligned(2)));
 } EDFHead;
 
 //------------------------
@@ -73,57 +73,63 @@ color Le(const uchar* EDF, const vector3* vout);
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, float* areaPDF) {
-    lpos->faceID = scene->lights[randUInt(l_sample->uLight, scene->numLights)];
-    const global Face* face = scene->faces + lpos->faceID;
-    const global point3* p0 = scene->vertices + face->p0;
-    const global point3* p1 = scene->vertices + face->p1;
-    const global point3* p2 = scene->vertices + face->p2;
-    
-    float b0, b1, b2;
-    uniformSampleTriangle(l_sample->uPos[0], l_sample->uPos[1], &b0, &b1);
-    b2 = 1.0f - b0 - b1;
-    
-    vector3 ng = cross(*p1 - *p0, *p2 - *p0);
-    
-    float area = 0.5f * length(ng);
-    *areaPDF = 1.0f / (area * scene->numLights);
-    
-    lpos->p = b0 * *p0 + b1 * *p1 + b2 * *p2;
-    lpos->gNormal = normalize(ng);
-    
-    bool hasVNormal = face->vn0 != UINT_MAX && face->vn1 != UINT_MAX && face->vn2 != UINT_MAX;
-    if (hasVNormal)
-        lpos->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
-                                  b1 * *(scene->normals + face->vn1) +
-                                  b2 * *(scene->normals + face->vn2));
-    else
-        lpos->sNormal = lpos->gNormal;
-    
-    lpos->hasTangent = face->vt0 != UINT_MAX && face->vt1 != UINT_MAX && face->vt2 != UINT_MAX;
-    if (lpos->hasTangent)
-        lpos->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
-                                   b1 * *(scene->tangents + face->vt1) +
-                                   b2 * *(scene->tangents + face->vt2));
-    
-    bool hasUV = face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX;
-    if (hasUV) {
-        float2 uv0 = *(scene->uvs + face->uv0);
-        float2 uv1 = *(scene->uvs + face->uv1);
-        float2 uv2 = *(scene->uvs + face->uv2);
-        lpos->uv = b0 * uv0 + b1 * uv1 + b2 * uv2;
+    LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerCDF, l_sample->uLight, areaPDF)];
+    if (lInfo.atInfinity) {
         
-        float2 dUV0m2 = uv0 - uv2;
-        float2 dUV1m2 = uv1 - uv2;
-        float3 dP0m2 = *p0 - *p2;
-        float3 dP1m2 = *p1 - *p2;
-        float invDetUV = 1.0f / (dUV0m2.x * dUV1m2.y - dUV0m2.y * dUV1m2.x);
-        float3 uDir = invDetUV * (float3)(dUV1m2.y * dP0m2.x - dUV0m2.y * dP1m2.x,
-                                          dUV1m2.y * dP0m2.y - dUV0m2.y * dP1m2.y, 
-                                          dUV1m2.y * dP0m2.z - dUV0m2.y * dP1m2.z);
+    }
+    else {
+        lpos->faceID = lInfo.reference;
+        const global Face* face = scene->faces + lpos->faceID;
+        const global point3* p0 = scene->vertices + face->p0;
+        const global point3* p1 = scene->vertices + face->p1;
+        const global point3* p2 = scene->vertices + face->p2;
+        
+        float b0, b1, b2;
+        uniformSampleTriangle(l_sample->uPos[0], l_sample->uPos[1], &b0, &b1);
+        b2 = 1.0f - b0 - b1;
+        
+        vector3 ng = cross(*p1 - *p0, *p2 - *p0);
+        
+        float area = 0.5f * length(ng);
+        *areaPDF = 1.0f / (area * scene->numLights);
+        
+        lpos->p = b0 * *p0 + b1 * *p1 + b2 * *p2;
+        lpos->gNormal = normalize(ng);
+        
+        bool hasVNormal = face->vn0 != UINT_MAX && face->vn1 != UINT_MAX && face->vn2 != UINT_MAX;
         if (hasVNormal)
-            lpos->uDir = normalize(cross(cross(lpos->sNormal, uDir), lpos->sNormal));
+            lpos->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
+                                      b1 * *(scene->normals + face->vn1) +
+                                      b2 * *(scene->normals + face->vn2));
         else
-            lpos->uDir = normalize(uDir);
+            lpos->sNormal = lpos->gNormal;
+        
+        lpos->hasTangent = face->vt0 != UINT_MAX && face->vt1 != UINT_MAX && face->vt2 != UINT_MAX;
+        if (lpos->hasTangent)
+            lpos->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
+                                       b1 * *(scene->tangents + face->vt1) +
+                                       b2 * *(scene->tangents + face->vt2));
+        
+        bool hasUV = face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX;
+        if (hasUV) {
+            float2 uv0 = *(scene->uvs + face->uv0);
+            float2 uv1 = *(scene->uvs + face->uv1);
+            float2 uv2 = *(scene->uvs + face->uv2);
+            lpos->uv = b0 * uv0 + b1 * uv1 + b2 * uv2;
+            
+            float2 dUV0m2 = uv0 - uv2;
+            float2 dUV1m2 = uv1 - uv2;
+            float3 dP0m2 = *p0 - *p2;
+            float3 dP1m2 = *p1 - *p2;
+            float invDetUV = 1.0f / (dUV0m2.x * dUV1m2.y - dUV0m2.y * dUV1m2.x);
+            float3 uDir = invDetUV * (float3)(dUV1m2.y * dP0m2.x - dUV0m2.y * dP1m2.x,
+                                              dUV1m2.y * dP0m2.y - dUV0m2.y * dP1m2.y,
+                                              dUV1m2.y * dP0m2.z - dUV0m2.y * dP1m2.z);
+            if (hasVNormal)
+                lpos->uDir = normalize(cross(cross(lpos->sNormal, uDir), lpos->sNormal));
+            else
+                lpos->uDir = normalize(uDir);
+        }
     }
 }
 

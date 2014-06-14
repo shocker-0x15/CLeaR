@@ -55,21 +55,21 @@ namespace sim {
         float A, B; uchar dum1[8];
     } Diffuse;
     
-    //4bytes
+    //1bytes
     typedef struct {
-        uchar ftype; uchar dum[3];
+        uchar ftype;
     } FresnelHead;
     
     //48bytes
     typedef struct {
-        FresnelHead head; uchar dum[12];
+        FresnelHead head; uchar dum0[12];
         color eta, k;
     } FresnelConductor;
     
-    //16bytes
+    //12bytes
     typedef struct {
-        FresnelHead head;
-        float etaExt, etaInt; uchar dum[4];
+        FresnelHead head; uchar dum0[3];
+        float etaExt, etaInt;
     } FresnelDielectric;
     
     //48bytes
@@ -116,15 +116,15 @@ namespace sim {
     
     //------------------------
     
-    inline bool hasNonSpecular(const uchar* BSDF);
+    bool hasNonSpecular(const uchar* BSDF);
     inline float absCosNsBSDF(const uchar* BSDF, const vector3* v);
     
     static inline float cosTheta(const vector3* v);
     static inline float absCosTheta(const vector3* v);
     static inline float sinTheta2(const vector3* v);
     static inline float sinTheta(const vector3* v);
-    static inline float cosPhi(const vector3* v);
-    static inline float sinPhi(const vector3* v);
+    static float cosPhi(const vector3* v);
+    static float sinPhi(const vector3* v);
     
     static inline vector3 halfvec(const vector3* v0, const vector3* v1);
     
@@ -145,7 +145,7 @@ namespace sim {
     
     //------------------------
     
-    inline bool hasNonSpecular(const uchar* BSDF) {
+    bool hasNonSpecular(const uchar* BSDF) {
         const BSDFHead* fsHead = (const BSDFHead*)BSDF;
         for (int i = 0; i < fsHead->numBxDFs; ++i) {
             const BxDFHead* bxdf = (const BxDFHead*)(BSDF + fsHead->offsetsBxDFs[i]);
@@ -175,21 +175,20 @@ namespace sim {
         return sqrtf(sinTheta2(v));
     }
     
-    static inline float cosPhi(const vector3* v) {
+    static float cosPhi(const vector3* v) {
         float sinT = sinTheta(v);
         if (sinT == 0.0f) return 1.0f;
         return clamp(v->x / sinT, -1.0f, 1.0f);
     }
     
-    static inline float sinPhi(const vector3* v) {
+    static float sinPhi(const vector3* v) {
         float sinT = sinTheta(v);
         if (sinT == 0.0f) return 0.0f;
         return clamp(v->y / sinT, -1.0f, 1.0f);
     }
     
     static inline vector3 halfvec(const vector3* v0, const vector3* v1) {
-        vector3 sum = *v0 + *v1;
-        return normalize(sum);
+        return normalize(*v0 + *v1);
     }
     
     void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar* BSDF) {

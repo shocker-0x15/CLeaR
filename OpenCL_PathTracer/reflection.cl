@@ -36,94 +36,94 @@ typedef enum {
 } BxDFType;
 
 //12bytes
-typedef struct {
+typedef struct __attribute__((aligned(4))) {
     float uComponent;
     float uDir[2];
 } BSDFSample;
 
 //8bytes
-typedef struct {
-    uchar __attribute__((aligned(4))) id;
-    BxDFType fxType;
+typedef struct __attribute__((aligned(4))) {
+    uchar id;
+    BxDFType fxType __attribute__((aligned(4)));
 } BxDFHead;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    BxDFHead __attribute__((aligned(16))) head;
-    color R;
+    BxDFHead head;
+    color R __attribute__((aligned(16)));
     float A, B;
 } Diffuse;
 
-//4bytes
-typedef struct __attribute__((aligned(4))) {
+//1bytes
+typedef struct __attribute__((aligned(1))) {
     uchar ftype;
 } FresnelHead;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    FresnelHead __attribute__((aligned(16))) head;
-    color eta, k;
+    FresnelHead head;
+    color eta __attribute__((aligned(16))), k;
 } FresnelConductor;
 
-//16bytes
-typedef struct __attribute__((aligned(16))) {
+//12bytes
+typedef struct __attribute__((aligned(4))) {
     FresnelHead head;
-    float etaExt, etaInt;
+    float etaExt __attribute__((aligned(4))), etaInt;
 } FresnelDielectric;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    BxDFHead __attribute__((aligned(16))) head;
-    color R;
+    BxDFHead head;
+    color R __attribute__((aligned(16)));
     const global uchar* fresnel;
 } SpecularReflection;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    BxDFHead __attribute__((aligned(16))) head;
-    color T;
+    BxDFHead head;
+    color T __attribute__((aligned(16)));
     float etaExt, etaInt;
     const global uchar* fresnel;
 } SpecularTransmission;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    BxDFHead __attribute__((aligned(16))) head;
-    color R;
+    BxDFHead head;
+    color R __attribute__((aligned(16)));
     float ax, ay;
 } NewWard;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    BxDFHead __attribute__((aligned(16))) head;
-    color Rs;
+    BxDFHead head;
+    color Rs __attribute__((aligned(16)));
     float nu, nv;
 } AshikhminS;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
-    BxDFHead __attribute__((aligned(16))) head;
-    color Rd, Rs;
+    BxDFHead head;
+    color Rd __attribute__((aligned(16))), Rs;
 } AshikhminD;
 
 //80bytes
 typedef struct __attribute__((aligned(16))) {
     vector3 n, s, t, ng;
-    uchar __attribute__((aligned(2))) numBxDFs;
-    ushort __attribute__((aligned(2))) offsetsBxDFs[4];
+    uchar numBxDFs;
+    ushort offsetsBxDFs[4] __attribute__((aligned(2)));
 } BSDFHead;
 
 //------------------------
 
-inline bool hasNonSpecular(const uchar* BSDF);
+bool hasNonSpecular(const uchar* BSDF);
 inline float absCosNsBSDF(const uchar* BSDF, const vector3* v);
 
 static inline float cosTheta(const vector3* v);
 static inline float absCosTheta(const vector3* v);
 static inline float sinTheta2(const vector3* v);
 static inline float sinTheta(const vector3* v);
-static inline float cosPhi(const vector3* v);
-static inline float sinPhi(const vector3* v);
+static float cosPhi(const vector3* v);
+static float sinPhi(const vector3* v);
 
 static inline vector3 halfvec(const vector3* v0, const vector3* v1);
 
@@ -144,7 +144,7 @@ float fs_pdf(const uchar* BSDF, const vector3* vout, const vector3* vin);
 
 //------------------------
 
-inline bool hasNonSpecular(const uchar* BSDF) {
+bool hasNonSpecular(const uchar* BSDF) {
     const BSDFHead* fsHead = (const BSDFHead*)BSDF;
     for (int i = 0; i < fsHead->numBxDFs; ++i) {
         const BxDFHead* bxdf = (const BxDFHead*)(BSDF + fsHead->offsetsBxDFs[i]);
@@ -174,21 +174,20 @@ static inline float sinTheta(const vector3* v) {
     return sqrt(sinTheta2(v));
 }
 
-static inline float cosPhi(const vector3* v) {
+static float cosPhi(const vector3* v) {
     float sinT = sinTheta(v);
     if (sinT == 0.0f) return 1.0f;
     return clamp(v->x / sinT, -1.0f, 1.0f);
 }
 
-static inline float sinPhi(const vector3* v) {
+static float sinPhi(const vector3* v) {
     float sinT = sinTheta(v);
     if (sinT == 0.0f) return 0.0f;
     return clamp(v->y / sinT, -1.0f, 1.0f);
 }
 
 static inline vector3 halfvec(const vector3* v0, const vector3* v1) {
-    vector3 sum = *v0 + *v1;
-    return normalize(sum);
+    return normalize(*v0 + *v1);
 }
 
 void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar* BSDF) {

@@ -11,13 +11,13 @@
 
 #include <stdint.h>
 
-//64bytes
+//52bytes
 struct Face {
     uint32_t p0, p1, p2;
     uint32_t vn0, vn1, vn2;
     uint32_t vt0, vt1, vt2;
     uint32_t uv0, uv1, uv2;
-    uint16_t matPtr, lightPtr; uint8_t dum[12];
+    uint16_t matPtr, lightPtr;
     
     Face() :
     p0(UINT32_MAX), p1(UINT32_MAX), p2(UINT32_MAX),

@@ -1,5 +1,5 @@
 #include "global.cl"
-#include "bvh.cl"
+#include "bvh_traversal.cl"
 #include "matrix.cl"
 #include "rng.cl"
 #include "light.cl"
@@ -14,7 +14,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
                         global uint* randStates, global float3* pixels) {
     Scene scene = {
         vertices, normals, tangents, uvs, (global Face*)faces,
-        lights, numLights,
+        (global LightInfo*)lights, numLights,
         materialsData, texturesData,
         (global BVHNode*)BVHNodes,
         (global CameraHead*)(others + *((global uint*)others + 0)),
@@ -31,6 +31,8 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     global uint* rds = randStates + 4 * (gsize0 * tileY + tileX);
     global float3* pix = pixels + (scene.camera->width * gid1 + gid0);
 
+    //レンズ上の点をサンプル、IDFを生成してレンズへの入射方向をサンプルする。
+    //IDFの値などからパスのウェイトを計算する。
     Ray ray;
     ray.depth = 0;
     float lensPDF;
@@ -44,6 +46,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     IDFSample pixSample = {{gid0 + getFloat0cTo1o(rds), gid1 + getFloat0cTo1o(rds)}};
     color alpha = sample_We(IDF, &pixSample, &ray.dir, &dirPDF);
     alpha *= absCosNsIDF(IDF, &ray.dir) / dirPDF;
+    float initY = luminance(&alpha);
     
     uchar BSDF[256] __attribute__((aligned(16)));
     uchar EDF[256] __attribute__((aligned(16)));
@@ -52,11 +55,13 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     bool traceContinue = true;
     vector3 vout;
     BxDFType sampledType;
-    //        if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
-    //        if (gid0 == 512 && gid1 == 600) {
+//    if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
+//    if (gid0 == 512 && gid1 == 130) {
+    //レイとシーンとの交差判定、交点の情報を取得する。
     if (!rayIntersection(&scene, &ray.org, &ray.dir, &isect))
         return;
     
+    //光源に直接ヒットする1次レイはMISは使用せず値を評価。
     const global Face* face = &scene.faces[isect.faceID];
     vout = -ray.dir;
     if (face->lightPtr != USHRT_MAX) {
@@ -65,13 +70,18 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         *pix += alpha * Le(EDF, &vout);
     }
     
+    //1次レイの交点のシェーディングおよび2次レイ以降の処理。
     while (true) {
+        //交点情報からBSDFを構築する。
         BSDFAlloc(&scene, face->matPtr, &isect, BSDF);
         
         float MISWeight;
         float dist2;
         float lightPDF;
         
+        //MISを用いたNext Event Estimation (explicit path)で光源からの寄与を計算する。
+        //まず光源上の位置をサンプル、間に遮蔽物が無い場合はBSDFなどを用いて寄与を計算する。
+        //BSDFがスペキュラー成分しか持っていない場合は寄与が取れる確率がゼロであるため処理しない。
         if (hasNonSpecular(BSDF)) {
             LightSample l_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
             sampleLightPos(&scene, &l_sample, &isect.p, &lpos, &lightPDF);
@@ -95,52 +105,56 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
 
         traceContinue = true;
         
+        //BSDFから入射方向をサンプルする。
+        //サンプル方向のBSDFの値とPDFなどを用いてパスのウェイトを計算。
         BSDFSample fs_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
         color fs = sample_fs(BSDF, &vout, &fs_sample, &ray.dir, &dirPDF, &sampledType);
         if (zeroVec(&fs) || dirPDF == 0.0f) {
             traceContinue = false;
             break;
         }
-        float curY = luminance(&alpha);
         alpha *= fs * (absCosNsBSDF(BSDF, &ray.dir) / dirPDF);
         
+        //サンプルした入射方向から新たなレイを生成し、シーンとの交差判定を行う。
         ray.org = isect.p + ray.dir * EPSILON;
         ++ray.depth;
-        if (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
-            face = &scene.faces[isect.faceID];
-            vout = -ray.dir;
-            
-            if (face->lightPtr != USHRT_MAX) {
-                MISWeight = 1.0f;
-                if ((sampledType & BxDF_Non_Singular) != 0) {
-                    LightPositionFromIntersection(&isect, &lpos);
-                    EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
-                    lightPDF = getAreaPDF(&scene, isect.faceID, isect.uv) * distance2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
-                    MISWeight = (dirPDF * dirPDF) / (lightPDF * lightPDF + dirPDF * dirPDF);
-                }
-                *pix += MISWeight * alpha * Le(EDF, &vout);
+        if (!rayIntersection(&scene, &ray.org, &ray.dir, &isect))
+            break;
+        
+        face = &scene.faces[isect.faceID];
+        vout = -ray.dir;
+        
+        //レイが光源にヒットした場合(implicit path)はMISを用いて寄与を計算する。
+        //スペキュラー成分をサンプルしている場合は特殊処理。
+        if (face->lightPtr != USHRT_MAX) {
+            MISWeight = 1.0f;
+            if ((sampledType & BxDF_Non_Singular) != 0) {
+                LightPositionFromIntersection(&isect, &lpos);
+                EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
+                lightPDF = getAreaPDF(&scene, isect.faceID, isect.uv) * distance2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
+                MISWeight = (dirPDF * dirPDF) / (lightPDF * lightPDF + dirPDF * dirPDF);
             }
-            
-            if (ray.depth > 99) {
-                traceContinue = false;
-                break;
-            }
-            
-            float continueProb = fmin(luminance(&alpha) * (1.0f / curY), 1.0f);
-            if (getFloat0cTo1o(rds) < continueProb) {
-                alpha *= 1.0f / continueProb;
-                dirPDF *= continueProb;
-            }
-            else {
-                traceContinue = false;
-                break;
-            }
+            *pix += MISWeight * alpha * Le(EDF, &vout);
+        }
+        
+        //パスが規定の長さを超える場合は打ち切る。
+        if (ray.depth > 99) {
+            traceContinue = false;
+            break;
+        }
+        
+        //パススループットを基準にしてロシアンルーレットを行い、トレースを続けるかを決定する。
+        float continueProb = fmin(luminance(&alpha) * (1.0f / initY), 1.0f);
+        if (getFloat0cTo1o(rds) < continueProb) {
+            alpha *= 1.0f / continueProb;
+            dirPDF *= continueProb;
         }
         else {
+            traceContinue = false;
             break;
         }
     }
-    //        }
+//    }
 //    if (gid0 == 0 && gid1 == 0) {
 //        printf("uchar %u\t ushort %u\t uint %u\t ulong %u\n", sizeof(uchar), sizeof(ushort), sizeof(uint), sizeof(ulong));
 //        printf("uchar %u\t uchar2 %u\t uchar3 %u\t uchar4 %u\n", sizeof(uchar), sizeof(uchar2), sizeof(uchar3), sizeof(uchar4));

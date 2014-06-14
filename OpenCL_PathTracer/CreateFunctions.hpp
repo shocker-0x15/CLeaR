@@ -17,7 +17,9 @@ class MaterialCreator {
     Scene* scene;
     char matName[256];
     uint8_t numBxDFs;
+    uint8_t numEEDFs;
     uint64_t matHead;
+    uint64_t litHead;
     
     MaterialCreator() { };
 public:
@@ -43,14 +45,14 @@ public:
     }
     
     void beginLightProperty(const char* name) {
-        numBxDFs = 0;
-        matHead = addDataAligned<cl_uchar>(&scene->materialsData, 0);
-        scene->addLightProp(matHead, name);
+        numEEDFs = 0;
+        litHead = addDataAligned<cl_uchar>(&scene->materialsData, 0);
+        scene->addLightProp(litHead, name);
     }
     
     void endLightProperty() {
-        assert(numBxDFs > 0);
-        scene->materialsData[matHead] = numBxDFs;
+        assert(numEEDFs > 0);
+        scene->materialsData[litHead] = numEEDFs;
     }
     
     void createFloat3ConstantTexture(const char* name, float s0, float s1, float s2);

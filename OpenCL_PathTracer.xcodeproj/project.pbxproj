@@ -13,7 +13,7 @@
 		462229F4191AB5BB00D71891 /* libpng16.16.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 462229F3191AB5BB00D71891 /* libpng16.16.dylib */; };
 		462229F7191AB60200D71891 /* XORShift.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 462229F5191AB60200D71891 /* XORShift.cpp */; };
 		462229FB191AB64300D71891 /* ImageLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 462229F9191AB64300D71891 /* ImageLoader.cpp */; };
-		46222A04191AB6B800D71891 /* bvh.cl in Sources */ = {isa = PBXBuildFile; fileRef = 462229FC191AB6B800D71891 /* bvh.cl */; };
+		46222A04191AB6B800D71891 /* bvh_traversal.cl in Sources */ = {isa = PBXBuildFile; fileRef = 462229FC191AB6B800D71891 /* bvh_traversal.cl */; };
 		46222A05191AB6B800D71891 /* global.cl in Sources */ = {isa = PBXBuildFile; fileRef = 462229FD191AB6B800D71891 /* global.cl */; };
 		46222A06191AB6B800D71891 /* light.cl in Sources */ = {isa = PBXBuildFile; fileRef = 462229FE191AB6B800D71891 /* light.cl */; };
 		46222A07191AB6B800D71891 /* pathtracer.cl in Sources */ = {isa = PBXBuildFile; fileRef = 462229FF191AB6B800D71891 /* pathtracer.cl */; };
@@ -21,7 +21,7 @@
 		46222A09191AB6B800D71891 /* rng.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46222A01191AB6B800D71891 /* rng.cl */; };
 		46222A0A191AB6B800D71891 /* texture.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46222A02191AB6B800D71891 /* texture.cl */; };
 		46222A0B191AB6B800D71891 /* tonemapping.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46222A03191AB6B800D71891 /* tonemapping.cl */; };
-		46222A0D191AB6D400D71891 /* bvh.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 462229FC191AB6B800D71891 /* bvh.cl */; };
+		46222A0D191AB6D400D71891 /* bvh_traversal.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 462229FC191AB6B800D71891 /* bvh_traversal.cl */; };
 		46222A0E191AB6D400D71891 /* global.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 462229FD191AB6B800D71891 /* global.cl */; };
 		46222A0F191AB6D400D71891 /* light.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 462229FE191AB6B800D71891 /* light.cl */; };
 		46222A10191AB6D400D71891 /* pathtracer.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 462229FF191AB6B800D71891 /* pathtracer.cl */; };
@@ -39,6 +39,8 @@
 		4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD58191EA3F400257766 /* CreateFunctions.cpp */; };
 		46B46F9119460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */; };
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
+		46B46F96194C4272005FD1EA /* materials.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* materials.cl */; };
+		46B46F97194C457A005FD1EA /* materials.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* materials.cl */; };
 		46E860641928DE9600944028 /* camera.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46E860631928DE9600944028 /* camera.cl */; };
 		46E860661928E89A00944028 /* matrix.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46E860651928E89A00944028 /* matrix.cl */; };
 		46E86067192A433300944028 /* matrix.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46E860651928E89A00944028 /* matrix.cl */; };
@@ -62,9 +64,10 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				46B46F97194C457A005FD1EA /* materials.cl in CopyFiles */,
 				46E86067192A433300944028 /* matrix.cl in CopyFiles */,
 				46E86068192A433300944028 /* camera.cl in CopyFiles */,
-				46222A0D191AB6D400D71891 /* bvh.cl in CopyFiles */,
+				46222A0D191AB6D400D71891 /* bvh_traversal.cl in CopyFiles */,
 				46222A0E191AB6D400D71891 /* global.cl in CopyFiles */,
 				46222A0F191AB6D400D71891 /* light.cl in CopyFiles */,
 				46222A10191AB6D400D71891 /* pathtracer.cl in CopyFiles */,
@@ -88,14 +91,14 @@
 		462229F8191AB62700D71891 /* BVH.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = BVH.hpp; sourceTree = "<group>"; };
 		462229F9191AB64300D71891 /* ImageLoader.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = ImageLoader.cpp; sourceTree = "<group>"; };
 		462229FA191AB64300D71891 /* ImageLoader.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = ImageLoader.hpp; sourceTree = "<group>"; };
-		462229FC191AB6B800D71891 /* bvh.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = bvh.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
-		462229FD191AB6B800D71891 /* global.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = global.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
-		462229FE191AB6B800D71891 /* light.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = light.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
-		462229FF191AB6B800D71891 /* pathtracer.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = pathtracer.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
-		46222A00191AB6B800D71891 /* reflection.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = reflection.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
-		46222A01191AB6B800D71891 /* rng.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = rng.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
-		46222A02191AB6B800D71891 /* texture.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = texture.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
-		46222A03191AB6B800D71891 /* tonemapping.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; lineEnding = 0; path = tonemapping.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		462229FC191AB6B800D71891 /* bvh_traversal.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = bvh_traversal.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		462229FD191AB6B800D71891 /* global.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = global.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		462229FE191AB6B800D71891 /* light.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = light.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		462229FF191AB6B800D71891 /* pathtracer.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = pathtracer.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		46222A00191AB6B800D71891 /* reflection.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = reflection.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		46222A01191AB6B800D71891 /* rng.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = rng.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		46222A02191AB6B800D71891 /* texture.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = texture.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
+		46222A03191AB6B800D71891 /* tonemapping.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = tonemapping.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
 		46222A16191AB70100D71891 /* LinearAlgebra.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LinearAlgebra.cpp; sourceTree = "<group>"; };
 		46222A17191AB70100D71891 /* LinearAlgebra.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = LinearAlgebra.hpp; sourceTree = "<group>"; };
 		46222A18191AB70100D71891 /* Matrix4f.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Matrix4f.cpp; sourceTree = "<group>"; };
@@ -114,22 +117,25 @@
 		46222A2E191D0ECD00D71891 /* clUtility.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = clUtility.hpp; sourceTree = "<group>"; };
 		46222A2F191D122B00D71891 /* Face.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Face.hpp; sourceTree = "<group>"; };
 		46222A30191D1D5D00D71891 /* Scene.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Scene.hpp; sourceTree = "<group>"; };
-		4622DFE1193A183100CF2A3B /* sim_matrix.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sim_matrix.h; sourceTree = "<group>"; };
-		4622DFE2193A350A00CF2A3B /* sim_camera.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = sim_camera.h; sourceTree = "<group>"; };
-		4649F3A3191EBA5B00C24459 /* sim_global.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_global.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
-		4649F3A4191EBB7300C24459 /* sim_bvh.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_bvh.h; sourceTree = "<group>"; };
-		4649F3A5191EBD8600C24459 /* sim_light.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_light.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
-		4649F3A6191EBFA200C24459 /* sim_base.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_base.h; sourceTree = "<group>"; };
-		4649F3A7191EC50100C24459 /* sim_reflection.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_reflection.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
-		4649F3A8191EC58900C24459 /* sim_rng.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_rng.h; sourceTree = "<group>"; };
-		4649F3A9191EC5DC00C24459 /* sim_texture.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; lineEnding = 0; path = sim_texture.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
-		4649F3AA191EC64600C24459 /* sim_pathtracer.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = sim_pathtracer.h; sourceTree = "<group>"; };
+		4622DFE1193A183100CF2A3B /* sim_matrix.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_matrix.hpp; sourceTree = "<group>"; };
+		4622DFE2193A350A00CF2A3B /* sim_camera.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_camera.hpp; sourceTree = "<group>"; };
+		4649F3A3191EBA5B00C24459 /* sim_global.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = sim_global.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
+		4649F3A4191EBB7300C24459 /* sim_bvh_traversal.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_bvh_traversal.hpp; sourceTree = "<group>"; };
+		4649F3A5191EBD8600C24459 /* sim_light.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = sim_light.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
+		4649F3A6191EBFA200C24459 /* sim_base.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_base.hpp; sourceTree = "<group>"; };
+		4649F3A7191EC50100C24459 /* sim_reflection.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = sim_reflection.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
+		4649F3A8191EC58900C24459 /* sim_rng.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_rng.hpp; sourceTree = "<group>"; };
+		4649F3A9191EC5DC00C24459 /* sim_texture.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = sim_texture.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
+		4649F3AA191EC64600C24459 /* sim_pathtracer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_pathtracer.hpp; sourceTree = "<group>"; };
 		4688CD55191E6CE200257766 /* clUtility.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clUtility.cpp; sourceTree = "<group>"; };
 		4688CD58191EA3F400257766 /* CreateFunctions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CreateFunctions.cpp; sourceTree = "<group>"; };
 		46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libIlmImf-Imf_2_1.21.dylib"; path = "../../../../../usr/local/lib/libIlmImf-Imf_2_1.21.dylib"; sourceTree = "<group>"; };
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
-		46E860631928DE9600944028 /* camera.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = camera.cl; sourceTree = "<group>"; };
-		46E860651928E89A00944028 /* matrix.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = matrix.cl; sourceTree = "<group>"; };
+		46B46F94194C2AE2005FD1EA /* sim_materials.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_materials.hpp; sourceTree = "<group>"; };
+		46B46F95194C4272005FD1EA /* materials.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = materials.cl; sourceTree = "<group>"; };
+		46B83B80194CBF0900BF8D41 /* Materials.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Materials.hpp; sourceTree = "<group>"; };
+		46E860631928DE9600944028 /* camera.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = camera.cl; sourceTree = "<group>"; };
+		46E860651928E89A00944028 /* matrix.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = matrix.cl; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -179,6 +185,7 @@
 				462229F8191AB62700D71891 /* BVH.hpp */,
 				46222A2A191D04ED00D71891 /* ModelLoader.hpp */,
 				46222A29191D04ED00D71891 /* ModelLoader.cpp */,
+				46B83B80194CBF0900BF8D41 /* Materials.hpp */,
 				46222A2D191D0A1F00D71891 /* CreateFunctions.hpp */,
 				4688CD58191EA3F400257766 /* CreateFunctions.cpp */,
 				462229E8191AB59D00D71891 /* main.cpp */,
@@ -226,7 +233,8 @@
 				46E860651928E89A00944028 /* matrix.cl */,
 				46222A01191AB6B800D71891 /* rng.cl */,
 				46222A02191AB6B800D71891 /* texture.cl */,
-				462229FC191AB6B800D71891 /* bvh.cl */,
+				462229FC191AB6B800D71891 /* bvh_traversal.cl */,
+				46B46F95194C4272005FD1EA /* materials.cl */,
 				46222A00191AB6B800D71891 /* reflection.cl */,
 				462229FE191AB6B800D71891 /* light.cl */,
 				46E860631928DE9600944028 /* camera.cl */,
@@ -239,16 +247,17 @@
 		4649F3A2191EB9B600C24459 /* Host */ = {
 			isa = PBXGroup;
 			children = (
-				4649F3A6191EBFA200C24459 /* sim_base.h */,
-				4649F3A3191EBA5B00C24459 /* sim_global.h */,
-				4622DFE1193A183100CF2A3B /* sim_matrix.h */,
-				4649F3A8191EC58900C24459 /* sim_rng.h */,
-				4649F3A9191EC5DC00C24459 /* sim_texture.h */,
-				4649F3A4191EBB7300C24459 /* sim_bvh.h */,
-				4649F3A7191EC50100C24459 /* sim_reflection.h */,
-				4649F3A5191EBD8600C24459 /* sim_light.h */,
-				4622DFE2193A350A00CF2A3B /* sim_camera.h */,
-				4649F3AA191EC64600C24459 /* sim_pathtracer.h */,
+				4649F3A6191EBFA200C24459 /* sim_base.hpp */,
+				4649F3A3191EBA5B00C24459 /* sim_global.hpp */,
+				4622DFE1193A183100CF2A3B /* sim_matrix.hpp */,
+				4649F3A8191EC58900C24459 /* sim_rng.hpp */,
+				4649F3A9191EC5DC00C24459 /* sim_texture.hpp */,
+				4649F3A4191EBB7300C24459 /* sim_bvh_traversal.hpp */,
+				46B46F94194C2AE2005FD1EA /* sim_materials.hpp */,
+				4649F3A7191EC50100C24459 /* sim_reflection.hpp */,
+				4649F3A5191EBD8600C24459 /* sim_light.hpp */,
+				4622DFE2193A350A00CF2A3B /* sim_camera.hpp */,
+				4649F3AA191EC64600C24459 /* sim_pathtracer.hpp */,
 			);
 			name = Host;
 			sourceTree = "<group>";
@@ -312,6 +321,7 @@
 				46222A07191AB6B800D71891 /* pathtracer.cl in Sources */,
 				46222A0B191AB6B800D71891 /* tonemapping.cl in Sources */,
 				46222A05191AB6B800D71891 /* global.cl in Sources */,
+				46B46F96194C4272005FD1EA /* materials.cl in Sources */,
 				4688CD57191E6CE200257766 /* clUtility.cpp in Sources */,
 				46222A22191AB70100D71891 /* Matrix4f.cpp in Sources */,
 				46222A24191AB70100D71891 /* Vector3f.cpp in Sources */,
@@ -319,7 +329,7 @@
 				46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */,
 				4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */,
 				46222A25191AB70100D71891 /* Vector4f.cpp in Sources */,
-				46222A04191AB6B800D71891 /* bvh.cl in Sources */,
+				46222A04191AB6B800D71891 /* bvh_traversal.cl in Sources */,
 				46222A0A191AB6B800D71891 /* texture.cl in Sources */,
 				46222A23191AB70100D71891 /* Point3f.cpp in Sources */,
 				46222A06191AB6B800D71891 /* light.cl in Sources */,

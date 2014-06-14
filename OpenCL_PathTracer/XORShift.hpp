@@ -30,8 +30,8 @@ public:
     };
     
     float getFloat0cTo1o() {
-        return getUInt() * (1.0 / 4294967296.0);//この方法ではfloatの精度上2^32に近い数字は1をとってしまうことがある．
-        //        return (getUInt() & 0xffffff) / (float)(1 << 24);//この方法なら1は絶対にとらないが乱数の質としては低下する？
+        unsigned int rand23bit = (getUInt() >> 9) | 0x3f800000;
+        return *(float*)&rand23bit - 1.0f;
     };
     
     float getFloat0cTo1c() {

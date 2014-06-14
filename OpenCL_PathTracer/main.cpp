@@ -20,7 +20,7 @@
 #include "Scene.hpp"
 #include "ImageLoader.hpp"
 
-#include "sim_pathtracer.h"
+#include "sim_pathtracer.hpp"
 
 CL_CALLBACK void completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
@@ -225,7 +225,7 @@ void buildScene() {
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t iterations = 4;
+    const uint32_t iterations = 1;
     
     buildScene();
     

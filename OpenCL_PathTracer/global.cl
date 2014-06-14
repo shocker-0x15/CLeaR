@@ -1,5 +1,5 @@
-#ifndef global_cl
-#define global_cl
+#ifndef device_global_cl
+#define device_global_cl
 
 #define printfF3(f3) printf(#f3": %f, %f, %f\n", (f3).x, (f3).y, (f3).z)
 #define printfMat4(mat) printf(#mat": \n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f\n%f, %f, %f, %f\n",\
@@ -7,6 +7,7 @@
                                head->localToWorld.s1, head->localToWorld.s5, head->localToWorld.s9, head->localToWorld.sd,\
                                head->localToWorld.s2, head->localToWorld.s6, head->localToWorld.sa, head->localToWorld.se,\
                                head->localToWorld.s3, head->localToWorld.s7, head->localToWorld.sb, head->localToWorld.sf)
+#define printSize(t) printf("sizeof("#t"): %u\n", sizeof(t))
 
 typedef float2 point2;
 typedef float3 vector3;
@@ -116,6 +117,7 @@ typedef struct {
 
 inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes);
 inline void AlignPtr(uchar** ptr, uintptr_t bytes);
+inline void AlignPtrG(const global uchar** ptr, uintptr_t bytes);
 uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
 const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes);
 inline bool zeroVec(const float3* v);
@@ -136,6 +138,10 @@ inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes) {
 
 inline void AlignPtr(uchar** ptr, uintptr_t bytes) {
     *ptr = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
+}
+
+inline void AlignPtrG(const global uchar** ptr, uintptr_t bytes) {
+    *ptr = (const global uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
 }
 
 uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {

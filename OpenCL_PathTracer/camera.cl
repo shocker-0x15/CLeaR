@@ -1,5 +1,5 @@
-#ifndef camera_cl
-#define camera_cl
+#ifndef device_camera_cl
+#define device_camera_cl
 
 #include "global.cl"
 #include "rng.cl"
@@ -42,19 +42,10 @@ typedef struct __attribute__((aligned(16))) {
 
 void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition* lpos, float* areaPDF);
 
-inline float absCosNsIDF(const uchar* IDF, const vector3* v);
-
-//static inline float cosTheta(const vector3* v);
-//static inline float absCosTheta(const vector3* v);
-//static inline float sinTheta2(const vector3* v);
-//static inline float sinTheta(const vector3* v);
-//static inline float cosPhi(const vector3* v);
-//static inline float sinPhi(const vector3* v);
-
 void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF);
 
 color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* dirPDF);
-//color We(const uchar* IDF, const vector3* vin);
+inline float absCosNsIDF(const uchar* IDF, const vector3* v);
 
 //------------------------
 
@@ -76,9 +67,6 @@ void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition*
     lpos->uv = lensPosLocal.xy;
 }
 
-inline float absCosNsIDF(const uchar* IDF, const vector3* v) {
-    return fabs(dot(((IDFHead*)IDF)->n, *v));
-}
 
 void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF) {
     IDFHead* WeHead = (IDFHead*)IDF;
@@ -93,6 +81,7 @@ void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF) {
     perspective->info = (const global PerspectiveInfo*)scene->camera;
 }
 
+
 color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* dirPDF) {
     const IDFHead* head = (const IDFHead*)IDF;
     const vector3* s = &head->s;
@@ -102,7 +91,7 @@ color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* 
     
     const PerspectiveIDF* pIDF = (const PerspectiveIDF*)(head + 1);
     const global PerspectiveInfo* info = pIDF->info;
-
+    
     point4 pRas = (point4)(sample->uDir[0], sample->uDir[1], 0, 1);
     point4 pCamera;
     mulMat4x4G_P4(&info->rasterToCamera, &pRas, &pCamera);
@@ -122,7 +111,11 @@ color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* 
 }
 
 //color We(const uchar* IDF, const vector3* vin) {
-//    
+//
 //}
+
+inline float absCosNsIDF(const uchar* IDF, const vector3* v) {
+    return fabs(dot(((IDFHead*)IDF)->n, *v));
+}
 
 #endif

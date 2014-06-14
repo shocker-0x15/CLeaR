@@ -8,6 +8,7 @@
 
 #include "CreateFunctions.hpp"
 #include "ImageLoader.hpp"
+#include "Materials.hpp"
 
 namespace TextureType {
     enum Values {
@@ -172,56 +173,74 @@ void MaterialCreator::createFresnelDielectric(const char* name, float etaExt, fl
 void MaterialCreator::createDiffuseBRDF(size_t reflectanceIdx, size_t sigmaIdx) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    addDataAligned<cl_uchar>(matData, BxDFID::Diffuse, 4);
-    addDataAligned<cl_uint>(matData, (cl_uint)reflectanceIdx);//Reflectance
-    addDataAligned<cl_uint>(matData, (cl_uint)sigmaIdx);//Roughness
+    uint64_t head = align(matData, 4);
+    matData->insert(matData->end(), sizeof(DiffuseBRDFInfo), 0);
+    DiffuseBRDFInfo* diffuseInfo = (DiffuseBRDFInfo*)&(*matData)[head];
+    diffuseInfo->id = BxDFID::Diffuse;
+    diffuseInfo->idx_R = (cl_uint)reflectanceIdx;
+    diffuseInfo->idx_sigma = (cl_uint)sigmaIdx;
 }
 
 void MaterialCreator::createSpecularBRDF(size_t reflectanceIdx, size_t fresnelIdx) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    addDataAligned<cl_uchar>(matData, BxDFID::SpecularReflection, 4);
-    addDataAligned<cl_uint>(matData, (cl_uint)reflectanceIdx);//Reflectance
-    addDataAligned<cl_uint>(matData, (cl_uint)fresnelIdx);//Fresnel
+    uint64_t head = align(matData, 4);
+    matData->insert(matData->end(), sizeof(SpecularBRDFInfo), 0);
+    SpecularBRDFInfo* speRInfo = (SpecularBRDFInfo*)&(*matData)[head];
+    speRInfo->id = BxDFID::SpecularReflection;
+    speRInfo->idx_R = (cl_uint)reflectanceIdx;
+    speRInfo->idx_Fresnel = (cl_uint)fresnelIdx;
 }
 
 void MaterialCreator::createSpecularBTDF(size_t transmissionIdx, float etaExt, float etaInt) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    addDataAligned<cl_uchar>(matData, BxDFID::SpecularTransmission, 4);
-    addDataAligned<cl_uint>(matData, (cl_uint)transmissionIdx);//Transmittance
-    addDataAligned<cl_float>(matData, etaExt);
-    addDataAligned<cl_float>(matData, etaInt);
+    uint64_t head = align(matData, 4);
+    matData->insert(matData->end(), sizeof(SpecularBTDFInfo), 0);
+    SpecularBTDFInfo* speTInfo = (SpecularBTDFInfo*)&(*matData)[head];
+    speTInfo->id = BxDFID::SpecularTransmission;
+    speTInfo->idx_T = (cl_uint)transmissionIdx;
+    speTInfo->etaExt = (cl_float)etaExt;
+    speTInfo->etaInt = (cl_float)etaInt;
     char fresnelName[256] = "internalFresnelDielectric_";
     strcat(fresnelName, matName);
     createFresnelDielectric(fresnelName, etaExt, etaInt);
-    addDataAligned<cl_uint>(matData, (cl_uint)scene->idxOfTex(fresnelName));
+    speTInfo->idx_Fresnel = (cl_uint)scene->idxOfTex(fresnelName);
 }
 
 void MaterialCreator::createNewWardBRDF(size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    addDataAligned<cl_uchar>(matData, BxDFID::NewWard, 4);
-    addDataAligned<cl_uint>(matData, (cl_uint)reflectanceIdx);//Reflectance
-    addDataAligned<cl_uint>(matData, (cl_uint)anisoXIdx);//Roughness X
-    addDataAligned<cl_uint>(matData, (cl_uint)anisoYIdx);//Roughness Y
+    uint64_t head = align(matData, 4);
+    matData->insert(matData->end(), sizeof(NewWardBRDFInfo), 0);
+    NewWardBRDFInfo* wardInfo = (NewWardBRDFInfo*)&(*matData)[head];
+    wardInfo->id = BxDFID::NewWard;
+    wardInfo->idx_R = (cl_uint)reflectanceIdx;
+    wardInfo->idx_anisoX = (cl_uint)anisoXIdx;
+    wardInfo->idx_anisoY = (cl_uint)anisoYIdx;
 }
 
 void MaterialCreator::createAshikhminSBRDF(size_t RsIdx, size_t nuIdx, size_t nvIdx) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    addDataAligned<cl_uchar>(matData, BxDFID::AshikhminS, 4);
-    addDataAligned<cl_uint>(matData, (cl_uint)RsIdx);//Perpendicular Reflectance of Specular
-    addDataAligned<cl_uint>(matData, (cl_uint)nuIdx);//exponent u
-    addDataAligned<cl_uint>(matData, (cl_uint)nvIdx);//exponent v
+    uint64_t head = align(matData, 4);
+    matData->insert(matData->end(), sizeof(AshikhminSBRDFInfo), 0);
+    AshikhminSBRDFInfo* ashSInfo = (AshikhminSBRDFInfo*)&(*matData)[head];
+    ashSInfo->id = BxDFID::AshikhminS;
+    ashSInfo->idx_Rs = (cl_uint)RsIdx;
+    ashSInfo->idx_nu = (cl_uint)nuIdx;
+    ashSInfo->idx_nv = (cl_uint)nvIdx;
 }
 
 void MaterialCreator::createAshikhminDBRDF(size_t RdIdx, size_t RsIdx) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    addDataAligned<cl_uchar>(matData, BxDFID::AshikhminD, 4);
-    addDataAligned<cl_uint>(matData, (cl_uint)RdIdx);//Reflectance of Diffuse
-    addDataAligned<cl_uint>(matData, (cl_uint)RsIdx);//Perpendicular Reflectance of Specular Coating
+    uint64_t head = align(matData, 4);
+    matData->insert(matData->end(), sizeof(AshikhminDBRDFInfo), 0);
+    AshikhminDBRDFInfo* ashDInfo = (AshikhminDBRDFInfo*)&(*matData)[head];
+    ashDInfo->id = BxDFID::AshikhminD;
+    ashDInfo->idx_Rd = (cl_uint)RdIdx;
+    ashDInfo->idx_Rs = (cl_uint)RsIdx;
 }
 
 
@@ -289,10 +308,13 @@ void MaterialCreator::createMixMaterial(const char* name, const char* mat0, cons
 
 
 void MaterialCreator::createDiffuseEDF(size_t emittanceIdx) {
-    ++numBxDFs;
+    ++numEEDFs;
     std::vector<uint8_t>* lightPropData = &scene->materialsData;
-    addDataAligned<cl_uchar>(lightPropData, EEDFID::DiffuseEmission);
-    addDataAligned<cl_uint>(lightPropData, (cl_uint)emittanceIdx);//Emittance
+    uint64_t head = align(lightPropData, 4);
+    lightPropData->insert(lightPropData->end(), sizeof(DiffuseEDFInfo), 0);
+    DiffuseEDFInfo* diffuseInfo = (DiffuseEDFInfo*)&(*lightPropData)[head];
+    diffuseInfo->id = (cl_uchar)EEDFID::DiffuseEmission;
+    diffuseInfo->idx_M = (cl_uint)emittanceIdx;
 }
 
 void MaterialCreator::createDiffuseLightProperty(const char* name, const char* emittance) {

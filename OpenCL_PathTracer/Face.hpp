@@ -9,7 +9,7 @@
 #ifndef OpenCL_PathTracer_Face_hpp
 #define OpenCL_PathTracer_Face_hpp
 
-#include <stdint.h>
+#include <cstdint>
 
 //52bytes
 struct Face {

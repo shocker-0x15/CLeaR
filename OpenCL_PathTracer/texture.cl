@@ -1,5 +1,5 @@
-#ifndef texture_cl
-#define texture_cl
+#ifndef device_texture_cl
+#define device_texture_cl
 
 #include "global.cl"
 
@@ -25,6 +25,8 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv);
 float evaluateFloatTexture(const global uchar* textureData, float2 uv);
 color proceduralColorTexture(const global uchar* textureData, float2 uv);
 float proceduralFloatTexture(const global uchar* textureData, float2 uv);
+
+//------------------------
 
 color evaluateColorTexture(const global uchar* textureData, float2 uv) {
     uchar textureType = *(textureData++);

@@ -1,9 +1,10 @@
-#ifndef light_cl
-#define light_cl
+#ifndef device_light_cl
+#define device_light_cl
 
 #include "global.cl"
 #include "rng.cl"
 #include "texture.cl"
+#include "materials.cl"
 
 typedef enum {
     EEDFID_DiffuseEmission = 0,
@@ -51,25 +52,54 @@ typedef struct __attribute__((aligned(16))) {
 
 //------------------------
 
+static inline float l_cosTheta(const vector3* v);
+static inline float l_absCosTheta(const vector3* v);
+static inline float l_sinTheta2(const vector3* v);
+static inline float l_sinTheta(const vector3* v);
+static float l_cosPhi(const vector3* v);
+static float l_sinPhi(const vector3* v);
+
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, float* areaPDF);
 float getAreaPDF(const Scene* scene, uint faceID, float2 uv);
 
-inline float absCosNsEDF(const uchar* EDF, const vector3* v);
-
-//static inline float cosTheta(const vector3* v);
-//static inline float absCosTheta(const vector3* v);
-//static inline float sinTheta2(const vector3* v);
-//static inline float sinTheta(const vector3* v);
-//static inline float cosPhi(const vector3* v);
-//static inline float sinPhi(const vector3* v);
-
 void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF);
 
 static color eLe(const EEDFHead* EEDF, const vector3* vout);
+
 color Le(const uchar* EDF, const vector3* vout);
+inline float absCosNsEDF(const uchar* EDF, const vector3* v);
 
 //------------------------
+
+static inline float l_cosTheta(const vector3* v) {
+    return v->z;
+}
+
+static inline float l_absCosTheta(const vector3* v) {
+    return fabsf(v->z);
+}
+
+static inline float l_sinTheta2(const vector3* v) {
+    return fmaxf(1.0f - v->z * v->z, 0.0f);
+}
+
+static inline float l_sinTheta(const vector3* v) {
+    return sqrtf(l_sinTheta2(v));
+}
+
+static float l_cosPhi(const vector3* v) {
+    float sinT = l_sinTheta(v);
+    if (sinT == 0.0f) return 1.0f;
+    return clamp(v->x / sinT, -1.0f, 1.0f);
+}
+
+static float l_sinPhi(const vector3* v) {
+    float sinT = l_sinTheta(v);
+    if (sinT == 0.0f) return 0.0f;
+    return clamp(v->y / sinT, -1.0f, 1.0f);
+}
+
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, float* areaPDF) {
@@ -145,43 +175,13 @@ float getAreaPDF(const Scene* scene, uint faceID, float2 uv) {
     return 1.0f / (area * scene->numLights);
 }
 
-inline float absCosNsEDF(const uchar* EDF, const vector3* v) {
-    return fabs(dot(((const EDFHead*)EDF)->n, *v));
-}
-
-//static inline float cosTheta(const vector3* v) {
-//    return v->z;
-//}
-//
-//static inline float absCosTheta(const vector3* v) {
-//    return fabs(v->z);
-//}
-//
-//static inline float sinTheta2(const vector3* v) {
-//    return fmax(1.0f - v->z * v->z, 0.0f);
-//}
-//
-//static inline float sinTheta(const vector3* v) {
-//    return sqrt(sinTheta2(v));
-//}
-//
-//static inline float cosPhi(const vector3* v) {
-//    float sinT = sinTheta(v);
-//    if (sinT == 0.0f) return 1.0f;
-//    return clamp(v->x / sinT, -1.0f, 1.0f);
-//}
-//
-//static inline float sinPhi(const vector3* v) {
-//    float sinT = sinTheta(v);
-//    if (sinT == 0.0f) return 0.0f;
-//    return clamp(v->y / sinT, -1.0f, 1.0f);
-//}
 
 void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
     EDFHead* LeHead = (EDFHead*)EDF;
     const global uchar* lightsData_p = scene->materialsData + offset;
+    const global LightPropertyInfo* lpInfo = (const global LightPropertyInfo*)lightsData_p;
     
-    LeHead->numEEDFs = *(lightsData_p++);
+    LeHead->numEEDFs = lpInfo->numEEDFs;
     LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =
     LeHead->offsetsEEDFs[2] = LeHead->offsetsEEDFs[3] = 0;
     
@@ -195,20 +195,24 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
     LeHead->ng = lpos->gNormal;
     
     uchar* EDFp = EDF + sizeof(EDFHead);
-    EEDFType FType;
+    lightsData_p += sizeof(LightPropertyInfo);
     for (int i = 0; i < LeHead->numEEDFs; ++i) {
-        AlignPtr(&EDFp, 16);
-        LeHead->offsetsEEDFs[i] = (ushort)((uintptr_t)EDFp - (uintptr_t)EDF);
-        uchar EEDFID = *(lightsData_p++);
-        *(EDFp++) = EEDFID;
+        AlignPtrG(&lightsData_p, 4);
+        uchar EEDFID = *lightsData_p;
         switch (EEDFID) {
             case EEDFID_DiffuseEmission: {
-                FType = EEDF_Diffuse;
-                memcpy(AlignPtrAdd(&EDFp, sizeof(EEDFType)), &FType, sizeof(EEDFType));
+                AlignPtr(&EDFp, 16);
+                LeHead->offsetsEEDFs[i] = (ushort)((uintptr_t)EDFp - (uintptr_t)EDF);
                 
-                // Emittance
-                color M = evaluateColorTexture(scene->texturesData + *(global uint*)AlignPtrAddG(&lightsData_p, sizeof(uint)), lpos->uv);
-                memcpy(AlignPtrAdd(&EDFp, sizeof(color)), &M, sizeof(color));
+                DiffuseEmission* diffuse = (DiffuseEmission*)EDFp;
+                const global DiffuseEDFInfo* diffuseInfo = (const global DiffuseEDFInfo*)lightsData_p;
+                
+                diffuse->head.id = EEDFID;
+                diffuse->head.eLeType = EEDF_Diffuse;
+                diffuse->M = evaluateColorTexture(scene->texturesData + diffuseInfo->idx_M, lpos->uv);
+                
+                EDFp += sizeof(DiffuseEmission);
+                lightsData_p += sizeof(DiffuseEDFInfo);
                 break;
             }
             default: {
@@ -217,6 +221,7 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
         }
     }
 }
+
 
 static color eLe(const EEDFHead* EEDF, const vector3* vout) {
     switch (EEDF->id) {
@@ -230,6 +235,7 @@ static color eLe(const EEDFHead* EEDF, const vector3* vout) {
     }
     return colorZero;
 }
+
 
 color Le(const uchar* EDF, const vector3* vout) {
     const EDFHead* head = (const EDFHead*)EDF;
@@ -245,6 +251,10 @@ color Le(const uchar* EDF, const vector3* vout) {
         Le += eLe((EEDFHead*)(EDF + idxEEDF), &voutLocal);
     }
     return Le;
+}
+
+inline float absCosNsEDF(const uchar* EDF, const vector3* v) {
+    return fabs(dot(((const EDFHead*)EDF)->n, *v));
 }
 
 #endif

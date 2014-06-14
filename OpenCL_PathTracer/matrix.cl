@@ -1,5 +1,5 @@
-#ifndef matrix_cl
-#define matrix_cl
+#ifndef device_matrix_cl
+#define device_matrix_cl
 
 #include "global.cl"
 

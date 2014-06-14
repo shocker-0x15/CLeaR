@@ -1,5 +1,5 @@
-#ifndef rng_cl
-#define rng_cl
+#ifndef device_rng_cl
+#define device_rng_cl
 
 #include "global.cl"
 
@@ -22,9 +22,7 @@ uint getUInt(global uint* randState) {
 }
 
 inline float getFloat0cTo1o(global uint* randState) {
-//    return (getUInt(randState) & 0xffffff) / (float)(1 << 24);
-    uint rand23bit = (getUInt(randState) >> 9) | 0x3f800000;
-    return as_float(rand23bit) - 1.0f;
+    return as_float((getUInt(randState) >> 9) | 0x3f800000) - 1.0f;
 }
 
 inline uint randUInt(float u, uint maxv) {

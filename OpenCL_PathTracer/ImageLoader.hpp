@@ -10,7 +10,7 @@
 #define __OpenCL_TEST__ImageLoader__
 
 #include <vector>
-#include <stdint.h>
+#include <cstdint>
 
 bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, bool gammaCorrection);
 bool loadEnvMap(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height);

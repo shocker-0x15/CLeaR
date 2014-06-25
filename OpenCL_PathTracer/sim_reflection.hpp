@@ -165,13 +165,13 @@ namespace sim {
     static float cosPhi(const vector3* v) {
         float sinT = sinTheta(v);
         if (sinT == 0.0f) return 1.0f;
-        return clamp(v->x / sinT, -1.0f, 1.0f);
+            return clamp(v->x / sinT, -1.0f, 1.0f);
     }
     
     static float sinPhi(const vector3* v) {
         float sinT = sinTheta(v);
         if (sinT == 0.0f) return 0.0f;
-        return clamp(v->y / sinT, -1.0f, 1.0f);
+            return clamp(v->y / sinT, -1.0f, 1.0f);
     }
     
     
@@ -189,7 +189,7 @@ namespace sim {
         for (int i = 0; i < fsHead->numBxDFs; ++i) {
             const BxDFHead* bxdf = (const BxDFHead*)(BSDF + fsHead->offsetsBxDFs[i]);
             if((bool)(bxdf->fxType & BxDF_Non_Singular))
-            return true;
+                return true;
         }
         return false;
     }
@@ -206,20 +206,19 @@ namespace sim {
         
         fsHead->n = isect->sNormal;
         if (isect->hasTangent)
-        fsHead->s = isect->sTangent;
+            fsHead->s = isect->sTangent;
         else
-        makeTangent(&isect->sNormal, &fsHead->s);
+            makeTangent(&isect->sNormal, &fsHead->s);
         
         if ((bool)matInfo->hasBump) {
-            vector3 nBump = 2.0f * evaluateColorTexture(scene->texturesData + matInfo->idx_bump, isect->uv) - 1.0f;
+            vector3 nBump = normalize(2.0f * evaluateColorTexture(scene->texturesData + matInfo->idx_bump, isect->uv) - 1.0f);
             vector3 vDir = cross(isect->uDir, isect->sNormal);
             fsHead->n = vector3(dot(vector3(isect->uDir.x, vDir.x, isect->sNormal.x), nBump),
                                 dot(vector3(isect->uDir.y, vDir.y, isect->sNormal.y), nBump),
                                 dot(vector3(isect->uDir.z, vDir.z, isect->sNormal.z), nBump));
             vector3 ax = cross(isect->sNormal, fsHead->n);
-            float sinTH = length(ax);
+            float sinTH = fminf(length(ax), 1.0f);
             if (sinTH > 0.0001f) {
-                ax = normalize(ax);
                 float cosTH = cosf(asinf(sinTH));
                 float oneMcosTH = 1 - cosTH;
                 fsHead->s = vector3(dot(vector3(ax.x * ax.x * oneMcosTH + cosTH,
@@ -248,7 +247,7 @@ namespace sim {
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     Diffuse* diffuse = (Diffuse*)BSDFp;
-                    DiffuseBRDFInfo* diffuseInfo = (DiffuseBRDFInfo*)matsData_p;
+                    const DiffuseBRDFInfo* diffuseInfo = (const DiffuseBRDFInfo*)matsData_p;
                     
                     diffuse->head.id = BxDFID;
                     diffuse->head.fxType = BxDFType(BxDF_Reflection | BxDF_Diffuse);
@@ -267,7 +266,7 @@ namespace sim {
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     SpecularReflection* speR = (SpecularReflection*)BSDFp;
-                    SpecularBRDFInfo* speRInfo = (SpecularBRDFInfo*)matsData_p;
+                    const SpecularBRDFInfo* speRInfo = (const SpecularBRDFInfo*)matsData_p;
                     
                     speR->head.id = BxDFID;
                     speR->head.fxType = BxDFType(BxDF_Reflection | BxDF_Specular);
@@ -283,7 +282,7 @@ namespace sim {
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     SpecularTransmission* speT = (SpecularTransmission*)BSDFp;
-                    SpecularBTDFInfo* speTInfo = (SpecularBTDFInfo*)matsData_p;
+                    const SpecularBTDFInfo* speTInfo = (const SpecularBTDFInfo*)matsData_p;
                     
                     speT->head.id = BxDFID;
                     speT->head.fxType = BxDFType(BxDF_Transmission | BxDF_Specular);
@@ -301,7 +300,7 @@ namespace sim {
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     NewWard* ward = (NewWard*)BSDFp;
-                    NewWardBRDFInfo* wardInfo = (NewWardBRDFInfo*)matsData_p;
+                    const NewWardBRDFInfo* wardInfo = (const NewWardBRDFInfo*)matsData_p;
                     
                     ward->head.id = BxDFID;
                     ward->head.fxType = BxDFType(BxDF_Reflection | BxDF_Glossy);
@@ -318,7 +317,7 @@ namespace sim {
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     AshikhminS* ashS = (AshikhminS*)BSDFp;
-                    AshikhminSBRDFInfo* ashSInfo = (AshikhminSBRDFInfo*)matsData_p;
+                    const AshikhminSBRDFInfo* ashSInfo = (const AshikhminSBRDFInfo*)matsData_p;
                     
                     ashS->head.id = BxDFID;
                     ashS->head.fxType = BxDFType(BxDF_Reflection | BxDF_Glossy);
@@ -335,7 +334,7 @@ namespace sim {
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     AshikhminD* ashD = (AshikhminD*)BSDFp;
-                    AshikhminDBRDFInfo* ashDInfo = (AshikhminDBRDFInfo*)matsData_p;
+                    const AshikhminDBRDFInfo* ashDInfo = (const AshikhminDBRDFInfo*)matsData_p;
                     
                     ashD->head.id = BxDFID;
                     ashD->head.fxType = BxDFType(BxDF_Reflection | BxDF_Diffuse);
@@ -397,7 +396,7 @@ namespace sim {
                 }
             }
             default:
-            return colorZero;
+                return colorZero;
         }
     }
     
@@ -437,10 +436,10 @@ namespace sim {
                 float sint2 = eta * eta * sini2;
                 
                 if (sint2 >= 1.0f)
-                return colorZero;
+                    return colorZero;
                 float cost = sqrtf(fmaxf(0.0f, 1.0f - sint2));
                 if (entering)
-                cost = -cost;
+                    cost = -cost;
                 float sintOverSini = eta;
                 *vin = vector3(sintOverSini * -vout->x, sintOverSini * -vout->y, cost);
                 *dirPDF = 1.0f;
@@ -457,7 +456,7 @@ namespace sim {
                 float sinphi_ay = sinf(phi_h) / ward->ay;
                 float theta_h = atanf(sqrtf(-logf(1 - sample->uDir[0]) / (cosphi_ax * cosphi_ax + sinphi_ay * sinphi_ay)));
                 if (vout->z < 0)
-                theta_h = M_PI_F - theta_h;
+                    theta_h = M_PI_F - theta_h;
                 vector3 halfv = vector3(sinf(theta_h) * cosf(phi_h), sinf(theta_h) * sinf(phi_h), cosf(theta_h));
                 *vin = 2 * dot(*vout, halfv) * halfv - *vout;
                 if (vin->z * vout->z <= 0) {
@@ -484,7 +483,7 @@ namespace sim {
                 float sinphi = sinf(phi_h);
                 float theta_h = acosf(powf(1 - sample->uDir[0], 1.0f / (ashS->nu * cosphi * cosphi + ashS->nv * sinphi * sinphi + 1)));
                 if (vin->z < 0)
-                theta_h = M_PI_F - theta_h;
+                    theta_h = M_PI_F - theta_h;
                 vector3 halfv = vector3(sinf(theta_h) * cosf(phi_h), sinf(theta_h) * sinf(phi_h), cosf(theta_h));
                 *vin = 2 * dot(*vout, halfv) * halfv - *vout;
                 if (vout->z * vin->z <= 0) {
@@ -497,7 +496,7 @@ namespace sim {
             case BxDFID_AshikhminD: {
                 *vin = cosineSampleHemisphere(sample->uDir[0], sample->uDir[1]);
                 if (vout->z < 0.0f)
-                vin->z *= -1;
+                    vin->z *= -1;
                 *dirPDF = absCosTheta(vin) / M_PI_F;
                 
                 return fx(BxDF, vout, vin);
@@ -548,10 +547,10 @@ namespace sim {
                 return colorZero;
             }
             case BxDFID_NewWard: {
-                const NewWard* ward = (const NewWard*)BxDF;
-                
                 if (vin->z * vout->z <= 0)
-                return colorZero;
+                    return colorZero;
+                
+                const NewWard* ward = (const NewWard*)BxDF;
                 
                 vector3 halfv = halfvec(vout, vin);
                 float hx_ax = halfv.x / ward->ax;
@@ -564,7 +563,7 @@ namespace sim {
             }
             case BxDFID_AshikhminS: {
                 if (vin->z * vout->z <= 0.0f)
-                return colorZero;
+                    return colorZero;
                 
                 const AshikhminS* ashS = (const AshikhminS*)BxDF;
                 
@@ -577,7 +576,7 @@ namespace sim {
             }
             case BxDFID_AshikhminD: {
                 if (vin->z * vout->z <= 0.0f)
-                return colorZero;
+                    return colorZero;
                 
                 const AshikhminD* ashD = (const AshikhminD*)BxDF;
                 
@@ -594,14 +593,14 @@ namespace sim {
     static float fx_pdf(const BxDFHead* BxDF, const vector3* vout, const vector3* vin) {
         switch (BxDF->id) {
             case BxDFID_Diffuse:
-            return absCosTheta(vin) / M_PI_F;
+                return absCosTheta(vin) / M_PI_F;
             case BxDFID_SpecularReflection:
-            return 0.0f;
+                return 0.0f;
             case BxDFID_SpecularTransmission:
-            return 0.0f;
+                return 0.0f;
             case BxDFID_NewWard: {
                 if (vin->z * vout->z <= 0)
-                return 0.0f;
+                    return 0.0f;
                 
                 const NewWard* ward = (const NewWard*)BxDF;
                 
@@ -617,7 +616,7 @@ namespace sim {
             }
             case BxDFID_AshikhminS: {
                 if (vout->z * vin->z <= 0)
-                return 0.0f;
+                    return 0.0f;
                 
                 const AshikhminS* ashS = (const AshikhminS*)BxDF;
                 
@@ -626,7 +625,7 @@ namespace sim {
                 return sqrtf((ashS->nu + 1) * (ashS->nv + 1)) / (2 * M_PI_F) * powf(fabsf(halfv.z), exp) / (4 * dot(*vout, halfv));
             }
             case BxDFID_AshikhminD:
-            return absCosTheta(vin) / M_PI_F;
+                return absCosTheta(vin) / M_PI_F;
             default: {
                 break;
             }
@@ -664,7 +663,7 @@ namespace sim {
             for (uint i = 0; i < head->numBxDFs; ++i) {
                 const BxDFHead* ifx = (const BxDFHead*)(BSDF + head->offsetsBxDFs[i]);
                 if (i != which && matchType(ifx, flags))
-                *dirPDF += fx_pdf(ifx, &voutLocal, &vinLocal);
+                    *dirPDF += fx_pdf(ifx, &voutLocal, &vinLocal);
             }
         }
         *dirPDF /= (float)numMatches;
@@ -672,13 +671,13 @@ namespace sim {
         if (!(BxDF->fxType & BxDF_Specular)) {
             ret = colorZero;
             if (dot(*vin, *ng) * dot(*vout, *ng) > 0)
-            flags = BxDFType(flags & ~BxDF_Transmission);
+                flags = BxDFType(flags & ~BxDF_Transmission);
             else
-            flags = BxDFType(flags & ~BxDF_Reflection);
+                flags = BxDFType(flags & ~BxDF_Reflection);
             for (uint i = 0; i < head->numBxDFs; ++i) {
                 const BxDFHead* ifx = (const BxDFHead*)(BSDF + head->offsetsBxDFs[i]);
                 if (matchType(ifx, flags))
-                ret += fx(ifx, &voutLocal, &vinLocal);
+                    ret += fx(ifx, &voutLocal, &vinLocal);
             }
         }
         
@@ -698,14 +697,15 @@ namespace sim {
         
         color ret = colorZero;
         if (dot(*vin, *ng) * dot(*vout, *ng) > 0)
-        flags = BxDFType(flags & ~BxDF_Transmission);
+            flags = BxDFType(flags & ~BxDF_Transmission);
         else
-        flags = BxDFType(flags & ~BxDF_Reflection);
+            flags = BxDFType(flags & ~BxDF_Reflection);
         for (uint i = 0; i < head->numBxDFs; ++i) {
             const BxDFHead* ifx = (const BxDFHead*)(BSDF + head->offsetsBxDFs[i]);
             if (matchType(ifx, flags))
-            ret += fx(ifx, &voutLocal, &vinLocal);
+                ret += fx(ifx, &voutLocal, &vinLocal);
         }
+        
         return ret;
     }
     
@@ -726,6 +726,7 @@ namespace sim {
             if (matchType(ifx, flags))
             dirPDF += fx_pdf(ifx, &voutLocal, &vinLocal);
         }
+        
         return dirPDF / numMatches;
     }
     

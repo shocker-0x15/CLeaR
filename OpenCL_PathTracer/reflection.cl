@@ -210,13 +210,13 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
         makeTangent(&isect->sNormal, &fsHead->s);
     
     if ((bool)matInfo->hasBump) {
-        vector3 nBump = 2.0f * evaluateColorTexture(scene->texturesData + matInfo->idx_bump, isect->uv) - 1.0f;
+        vector3 nBump = normalize(2.0f * evaluateColorTexture(scene->texturesData + matInfo->idx_bump, isect->uv) - 1.0f);
         vector3 vDir = cross(isect->uDir, isect->sNormal);
         fsHead->n = (vector3)(dot((vector3)(isect->uDir.x, vDir.x, isect->sNormal.x), nBump),
                               dot((vector3)(isect->uDir.y, vDir.y, isect->sNormal.y), nBump),
                               dot((vector3)(isect->uDir.z, vDir.z, isect->sNormal.z), nBump));
         vector3 ax = cross(isect->sNormal, fsHead->n);
-        float sinTH = length(ax);
+        float sinTH = fmin(length(ax), 1.0f);
         if (sinTH > 0.0001f) {
             ax = normalize(ax);
             float cosTH = cos(asin(sinTH));
@@ -547,10 +547,10 @@ static color fx(const BxDFHead* BxDF, const vector3* vout, const vector3* vin) {
             return colorZero;
         }
         case BxDFID_NewWard: {
-            const NewWard* ward = (const NewWard*)BxDF;
-            
             if (vin->z * vout->z <= 0.0f)
                 return colorZero;
+            
+            const NewWard* ward = (const NewWard*)BxDF;
             
             vector3 halfv = halfvec(vout, vin);
             float hx_ax = halfv.x / ward->ax;
@@ -671,9 +671,9 @@ color sample_fs(const uchar* BSDF, const vector3* vout, const BSDFSample* sample
     if (!(BxDF->fxType & BxDF_Specular)) {
         ret = colorZero;
         if (dot(*vin, *ng) * dot(*vout, *ng) > 0)
-            flags = BxDFType(flags & ~BxDF_Transmission);
+            flags = (BxDFType)(flags & ~BxDF_Transmission);
         else
-            flags = BxDFType(flags & ~BxDF_Reflection);
+            flags = (BxDFType)(flags & ~BxDF_Reflection);
         for (uint i = 0; i < head->numBxDFs; ++i) {
             const BxDFHead* ifx = (const BxDFHead*)(BSDF + head->offsetsBxDFs[i]);
             if (matchType(ifx, flags))
@@ -697,14 +697,15 @@ color fs(const uchar* BSDF, const vector3* vout, const vector3* vin) {
     
     color ret = colorZero;
     if (dot(*vin, *ng) * dot(*vout, *ng) > 0)
-        flags = BxDFType(flags & ~BxDF_Transmission);
+        flags = (BxDFType)(flags & ~BxDF_Transmission);
     else
-        flags = BxDFType(flags & ~BxDF_Reflection);
+        flags = (BxDFType)(flags & ~BxDF_Reflection);
     for (uint i = 0; i < head->numBxDFs; ++i) {
         const BxDFHead* ifx = (const BxDFHead*)(BSDF + head->offsetsBxDFs[i]);
         if (matchType(ifx, flags))
             ret += fx(ifx, &voutLocal, &vinLocal);
     }
+    
     return ret;
 }
 
@@ -725,6 +726,7 @@ float fs_pdf(const uchar* BSDF, const vector3* vout, const vector3* vin) {
         if (matchType(ifx, flags))
             dirPDF += fx_pdf(ifx, &voutLocal, &vinLocal);
     }
+    
     return dirPDF / numMatches;
 }
 

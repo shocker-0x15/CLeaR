@@ -33,9 +33,9 @@ typedef struct __attribute__((aligned(16))) {
     const global PerspectiveInfo* info;
 } PerspectiveIDF;
 
-//64bytes
+//16bytes
 typedef struct __attribute__((aligned(16))) {
-    vector3 n, s, t, ng;
+    vector3 dir;
 } IDFHead;
 
 //------------------------
@@ -56,7 +56,7 @@ void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition*
     concentricSampleDisk(sample->uLens[0], sample->uLens[1], &ux, &uy);
     
     vector3 lCamDir = (vector3)(0.0f, 0.0f, 1.0f);
-    mulMat4x4G_V3(&head->localToWorld, &lCamDir, &lpos->n);
+    mulMat4x4G_V3(&head->localToWorld, &lCamDir, &lpos->dir);
     
     const global PerspectiveInfo* info = (const global PerspectiveInfo*)head;
     
@@ -71,10 +71,7 @@ void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition*
 void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF) {
     IDFHead* WeHead = (IDFHead*)IDF;
     
-    WeHead->n = lpos->n;
-    makeTangent(&WeHead->n, &WeHead->s);
-    WeHead->t = cross(WeHead->n, WeHead->s);
-    WeHead->ng = WeHead->n;
+    WeHead->dir = lpos->dir;
     
     PerspectiveIDF* perspective = (PerspectiveIDF*)(IDF + sizeof(IDFHead));
     perspective->localOrigin = (point3)(lpos->uv, 0.0f);
@@ -84,10 +81,6 @@ void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF) {
 
 color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* dirPDF) {
     const IDFHead* head = (const IDFHead*)IDF;
-    const vector3* s = &head->s;
-    const vector3* t = &head->t;
-    const vector3* n = &head->n;
-    const vector3* ng = &head->ng;
     
     const PerspectiveIDF* pIDF = (const PerspectiveIDF*)(head + 1);
     const global PerspectiveInfo* info = pIDF->info;
@@ -115,7 +108,7 @@ color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* 
 //}
 
 inline float absCosNsIDF(const uchar* IDF, const vector3* v) {
-    return fabs(dot(((IDFHead*)IDF)->n, *v));
+    return fabs(dot(((IDFHead*)IDF)->dir, *v));
 }
 
 #endif

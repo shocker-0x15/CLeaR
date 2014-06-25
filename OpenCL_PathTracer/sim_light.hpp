@@ -20,6 +20,10 @@ namespace sim {
         EEDF_All_Types        = EEDF_Diffuse | EEDF_Varying | EEDF_Directional,
     } EEDFType;
     
+    typedef enum {
+        EnvID_LatitudeLongitude = 0,
+    } EnvID;
+    
     //12bytes
     typedef struct {
         float uLight;
@@ -32,6 +36,14 @@ namespace sim {
         float uDir[2];
     } EDFSample;
     
+    
+    //80bytes
+    typedef struct {
+        vector3 n, s, t, ng;
+        uchar numEEDFs; uchar dum0[1];
+        ushort offsetsEEDFs[4]; uchar dum1[6];
+    } EDFHead;
+    
     //8bytes
     typedef struct {
         uchar id; uchar dum[3];
@@ -43,13 +55,6 @@ namespace sim {
         EEDFHead head; uchar dum[8];
         color M;
     } DiffuseEmission;
-    
-    //80bytes
-    typedef struct {
-        vector3 n, s, t, ng;
-        uchar numEEDFs; uchar dum0[1];
-        ushort offsetsEEDFs[4]; uchar dum1[6];
-    } EDFHead;
     
     //------------------------
     
@@ -129,17 +134,17 @@ namespace sim {
             
             bool hasVNormal = face->vn0 != UINT_MAX && face->vn1 != UINT_MAX && face->vn2 != UINT_MAX;
             if (hasVNormal)
-            lpos->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
-                                      b1 * *(scene->normals + face->vn1) +
-                                      b2 * *(scene->normals + face->vn2));
+                lpos->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
+                                          b1 * *(scene->normals + face->vn1) +
+                                          b2 * *(scene->normals + face->vn2));
             else
-            lpos->sNormal = lpos->gNormal;
+                lpos->sNormal = lpos->gNormal;
             
             lpos->hasTangent = face->vt0 != UINT_MAX && face->vt1 != UINT_MAX && face->vt2 != UINT_MAX;
             if (lpos->hasTangent)
-            lpos->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
-                                       b1 * *(scene->tangents + face->vt1) +
-                                       b2 * *(scene->tangents + face->vt2));
+                lpos->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
+                                           b1 * *(scene->tangents + face->vt1) +
+                                           b2 * *(scene->tangents + face->vt2));
             
             bool hasUV = face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX;
             if (hasUV) {
@@ -157,9 +162,9 @@ namespace sim {
                                                 dUV1m2.y * dP0m2.y - dUV0m2.y * dP1m2.y,
                                                 dUV1m2.y * dP0m2.z - dUV0m2.y * dP1m2.z);
                 if (hasVNormal)
-                lpos->uDir = normalize(cross(cross(lpos->sNormal, uDir), lpos->sNormal));
+                    lpos->uDir = normalize(cross(cross(lpos->sNormal, uDir), lpos->sNormal));
                 else
-                lpos->uDir = normalize(uDir);
+                    lpos->uDir = normalize(uDir);
             }
         }
     }

@@ -14,6 +14,14 @@ namespace sim {
     
     //------------------------
     
+    uint getUInt(uint* randState) {
+        uint t = randState[0] ^ (randState[0] << 11);
+        randState[0] = randState[1];
+        randState[1] = randState[2];
+        randState[2] = randState[3];
+        return randState[3] = (randState[3] ^ (randState[3] >> 19)) ^ (t ^ (t >> 8));
+    }
+    
     inline float getFloat0cTo1o(uint* randState) {
         uint rand23bit = (getUInt(randState) >> 9) | 0x3f800000;
         return *(float*)&rand23bit - 1.0f;
@@ -21,14 +29,6 @@ namespace sim {
     
     inline uint randUInt(float u, uint maxv) {
         return std::min((uint)(maxv * u), maxv - 1);
-    }
-    
-    uint getUInt(uint* randState) {
-        uint t = randState[0] ^ (randState[0] << 11);
-        randState[0] = randState[1];
-        randState[1] = randState[2];
-        randState[2] = randState[3];
-        return randState[3] = (randState[3] ^ (randState[3] >> 19)) ^ (t ^ (t >> 8));
     }
     
     //"A Low Distortion Map Between Disk and Square"
@@ -80,10 +80,10 @@ namespace sim {
     }
     
     uint sampleDiscrete1D(const uchar* CDF1D, float u, float* prob) {
-        uint numElems = *(uint*)AlignPtrAddG(&CDF1D, sizeof(uint));
+        uint numElems = *(const uint*)AlignPtrAddG(&CDF1D, sizeof(uint));
         for (uint i = 0; i < numElems; ++i) {
-            if (*((float*)CDF1D + i) > u) {
-                *prob = *((float*)CDF1D + i + numElems);
+            if (*((const float*)CDF1D + i) > u) {
+                *prob = *((const float*)CDF1D + i + numElems);
                 return i;
             }
         }

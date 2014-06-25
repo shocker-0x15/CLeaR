@@ -78,19 +78,19 @@ void buildScene() {
     std::vector<uint8_t>* refOthers = &scene.others;
     
     //128bytes
-    typedef struct {
+    struct CameraHead {
         uint width, height; uint8_t dum0[56];
         cl_float16 localToWorld;
-    } CameraHead;
+    };
     //256bytes
-    typedef struct {
+    struct PerspectiveInfo {
         CameraHead head;
         uint8_t id; uint8_t dum0[3];
         float virtualPlaneArea;
         float lensRadius;
         float objPDistance; uint8_t dum1[48];
         cl_float16 rasterToCamera;
-    } PerspectiveInfo;
+    };
     PerspectiveInfo perspectiveCamera;
     perspectiveCamera.head.width = g_width;
     perspectiveCamera.head.height = g_height;
@@ -123,18 +123,42 @@ void buildScene() {
     f16Val.s2 = rasterToCamera.m20; f16Val.s6 = rasterToCamera.m21; f16Val.sa = rasterToCamera.m22; f16Val.se = rasterToCamera.m23;
     f16Val.s3 = rasterToCamera.m30; f16Val.s7 = rasterToCamera.m31; f16Val.sb = rasterToCamera.m32; f16Val.sf = rasterToCamera.m33;
     perspectiveCamera.rasterToCamera = f16Val;
-    *scene.cameraIdx() = (cl_uint)addDataAligned<PerspectiveInfo>(refOthers, perspectiveCamera, 128);
+    *scene.cameraIdx() = (cl_uint)addDataAligned<PerspectiveInfo>(refOthers, perspectiveCamera, 64);
     
-    enum {
-        LatitudeLongitude = 0,
-    };
-    uint64_t envHead = addDataAligned<cl_uchar>(refOthers, LatitudeLongitude, 128);
-    uint32_t width, height;
-    addDataAligned<cl_uint>(refOthers, 0);// width
-    addDataAligned<cl_uint>(refOthers, 0);// height
-    uint64_t imgHead = align(&scene.others, sizeof(cl_half) * 4);
-    loadEnvMap("images/LA_Downtown_Afternoon_Fishing_3k.exr", refOthers, &width, &height);
-    *scene.environementIdx() = (cl_uint)envHead;
+    
+    uint64_t idxEnvHead = *scene.environementIdx() = (cl_uint)align(refOthers, 4);
+//    //20bytes
+//    struct EnvironmentHead {
+//        uint8_t numEnvLights; uint8_t dum0[3];
+//        uint32_t offsetEnvLights[4];
+//    };
+//    refOthers->insert(refOthers->end(), sizeof(EnvironmentHead), 0);
+//    
+//    enum EnvID {
+//        LatitudeLongitude = 0,
+//    };
+//    //28bytes
+//    struct LatitudeLongitudeIBLHead {
+//        uint8_t envID; uint8_t dum0[3];
+//        uint32_t width, height;
+//        uint32_t idxImage;
+//        uint32_t idxPDF, idxCDF2D, idxCDF1D;
+//    };
+//    uint64_t idxEnvLight0 = align(refOthers, 4);
+//    refOthers->insert(refOthers->end(), sizeof(LatitudeLongitudeIBLHead), 0);
+//    uint64_t idxEnvLight0Image = align(refOthers, sizeof(cl_half) * 4);
+//    uint32_t width, height;
+//    loadEnvMap("images/LA_Downtown_Afternoon_Fishing_3k.exr", refOthers, &width, &height);
+//    LatitudeLongitudeIBLHead* LLIBLHead = (LatitudeLongitudeIBLHead*)&(*refOthers)[idxEnvLight0];
+//    LLIBLHead->envID = EnvID::LatitudeLongitude;
+//    LLIBLHead->width = width;
+//    LLIBLHead->height = height;
+//    LLIBLHead->idxImage = (cl_uint)(idxEnvLight0Image - idxEnvHead);
+//    
+//    EnvironmentHead* environmentHead = (EnvironmentHead*)&(*refOthers)[idxEnvHead];
+//    environmentHead->numEnvLights = 1;
+//    environmentHead->offsetEnvLights[0] = (cl_uint)(idxEnvLight0 - idxEnvHead);
+    
     
     g_randStates.resize(g_width * g_height * 4);
     g_pixels.resize(g_width * g_height);
@@ -150,6 +174,7 @@ void buildScene() {
             }
         }
     }
+    
     
     MaterialCreator &mc = MaterialCreator::sharedInstance();
     mc.setScene(&scene);
@@ -178,10 +203,16 @@ void buildScene() {
     mc.createFloat3ConstantTexture("R_otherWalls", 0.75f, 0.75f, 0.75f);
     mc.createFloatConstantTexture("sigma_lambert", 0.0f);
     mc.createFloat3CheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
-//    mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
-    mc.createNormalMapTexture("bump_floor", "images/tiny_bump.png");
+    mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
     mc.createNormalMapTexture("bump_backWall", "images/paper_bump.png");
     mc.createImageTexture("R_backWall", "images/Kirby.png");
+    
+//    mc.createImageTexture("R_floor", "images/stone_wall__.png");
+//    mc.createNormalMapTexture("bump_floor", "images/stone_wall_normal_map__.png");
+//    mc.createFloat3ConstantTexture("Rs_floor", 0.15f, 0.15f, 0.15f);
+//    mc.createFloatConstantTexture("nu_floor", 150);
+//    mc.createFloatConstantTexture("nv_floor", 150);
+//    mc.createAshikhminMaterial("mat_floor", "bump_floor", "Rs_floor", "R_floor", "nu_floor", "nv_floor");
     
     mc.createMatteMaterial("mat_leftWall", nullptr, "R_leftWall", "sigma_lambert");
     mc.createMatteMaterial("mat_rightWall", nullptr, "R_rightWall", "sigma_lambert");
@@ -225,7 +256,7 @@ void buildScene() {
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t iterations = 1;
+    const uint32_t iterations = 32;
     
     buildScene();
     

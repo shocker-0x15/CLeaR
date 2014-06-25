@@ -27,24 +27,24 @@ namespace sim {
         float3 p = cross(*dir, edge02);
         float det = dot(edge01, p);
         if (det > -0.000001f && det < 0.000001f)
-        return false;
+            return false;
         float invDet = 1.0f / det;
         
         float3 d = *org - *p0;
         
         float b1 = dot(d, p) * invDet;
         if (b1 < 0.0f || b1 > 1.0f)
-        return false;
+            return false;
         
         float3 q = cross(d, edge01);
         
         float b2 = dot(*dir, q) * invDet;
         if (b2 < 0.0f || b1 + b2 > 1.0f)
-        return false;
+            return false;
         
         *t = dot(edge02, q) * invDet;
         if (*t < 0.0f)
-        return false;
+            return false;
         isect->p = *org + *dir * *t;
         isect->gNormal = normalize(cross(edge01, edge02));
         
@@ -52,17 +52,17 @@ namespace sim {
         
         bool hasVNormal = face->vn0 != UINT_MAX && face->vn1 != UINT_MAX && face->vn2 != UINT_MAX;
         if (hasVNormal)
-        isect->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
-                                   b1 * *(scene->normals + face->vn1) +
-                                   b2 * *(scene->normals + face->vn2));
+            isect->sNormal = normalize(b0 * *(scene->normals + face->vn0) +
+                                       b1 * *(scene->normals + face->vn1) +
+                                       b2 * *(scene->normals + face->vn2));
         else
-        isect->sNormal = isect->gNormal;
+            isect->sNormal = isect->gNormal;
         
         isect->hasTangent = face->vt0 != UINT_MAX && face->vt1 != UINT_MAX && face->vt2 != UINT_MAX;
         if (isect->hasTangent)
-        isect->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
-                                    b1 * *(scene->tangents + face->vt1) +
-                                    b2 * *(scene->tangents + face->vt2));
+            isect->sTangent = normalize(b0 * *(scene->tangents + face->vt0) +
+                                        b1 * *(scene->tangents + face->vt1) +
+                                        b2 * *(scene->tangents + face->vt2));
         
         bool hasUV = face->uv0 != UINT_MAX && face->uv1 != UINT_MAX && face->uv2 != UINT_MAX;
         if (hasUV) {
@@ -80,9 +80,9 @@ namespace sim {
                                             dUV1m2.y * dP0m2.y - dUV0m2.y * dP1m2.y,
                                             dUV1m2.y * dP0m2.z - dUV0m2.y * dP1m2.z);
             if (hasVNormal)
-            isect->uDir = normalize(cross(cross(isect->sNormal, uDir), isect->sNormal));
+                isect->uDir = normalize(cross(cross(isect->sNormal, uDir), isect->sNormal));
             else
-            isect->uDir = normalize(uDir);
+                isect->uDir = normalize(uDir);
         }
         
         return true;
@@ -114,26 +114,26 @@ namespace sim {
             float maxt[3];
             for (int i = 0; i < 3; ++i) {
                 if (LowMidUp[i] != 0 && a_dir[i] != 0)
-                maxt[i] = (candidatePlane[i] - a_org[i]) / a_dir[i];
+                    maxt[i] = (candidatePlane[i] - a_org[i]) / a_dir[i];
                 else
-                maxt[i] = -1;
+                    maxt[i] = -1;
             }
             
             int whichPlane = 0;
             if (maxt[whichPlane] < maxt[1])
-            whichPlane = 1;
+                whichPlane = 1;
             if (maxt[whichPlane] < maxt[2])
-            whichPlane = 2;
+                whichPlane = 2;
             
             if (maxt[whichPlane] < 0)
-            return false;
+                return false;
             
             float coord;
             for (int i = 0; i < 3; ++i) {
                 if (i != whichPlane) {
                     coord = a_org[i] + maxt[whichPlane] * a_dir[i];
                     if (coord < bbmin[i] || coord > bbmax[i])
-                    return false;
+                        return false;
                 }
             }
         }

@@ -367,6 +367,11 @@ namespace sim {
         float3 operator-() const {
             return float3(-x, -y, -z);
         }
+        
+        bool hasNanInf() const {
+            return (std::isnan(x) || std::isnan(y) || std::isnan(z) ||
+                    std::isinf(x) || std::isinf(y) || std::isinf(z));
+        }
     };
     
     inline float dot(const float3 &a, const float3 &b) {

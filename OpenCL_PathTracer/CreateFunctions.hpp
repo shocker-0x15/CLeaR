@@ -32,11 +32,15 @@ public:
         this->scene = scene;
     }
     
-    void beginMaterial(const char* name) {
+    void beginMaterial(const char* name, const char* bump = nullptr) {
         strcpy(matName, name);
         numBxDFs = 0;
-        matHead = addDataAligned<cl_uchar>(&scene->materialsData, 0);
+        std::vector<uint8_t>* matData = &scene->materialsData;
+        matHead = addDataAligned<cl_uchar>(matData, 0);
         scene->addMaterial(matHead, name);
+        bool hasBump = bump != nullptr;
+        addDataAligned<cl_uchar>(matData, hasBump);
+        addDataAligned<cl_uint>(matData, hasBump ? (cl_uint)scene->idxOfTex(bump) : 0);
     }
     
     void endMaterial() {
@@ -68,12 +72,12 @@ public:
     void createFresnelDielectric(const char* name, float eta, float k);
     
     
-    void createDiffuseBRDF(size_t reflectanceIdx, size_t sigmaIdx);
-    void createSpecularBRDF(size_t reflectanceIdx, size_t fresnelIdx);
-    void createSpecularBTDF(size_t transmissionIdx, float etaExt, float etaInt);
-    void createNewWardBRDF(size_t reflectanceIdx, size_t anisoXIdx, size_t anisoYIdx);
-    void createAshikhminSBRDF(size_t RsIdx, size_t nuIdx, size_t nvIdx);
-    void createAshikhminDBRDF(size_t RdIdx, size_t RsIdx);
+    void createDiffuseBRDF(const char* reflectance, const char* sigma);
+    void createSpecularBRDF(const char* reflectance, const char* fresnel);
+    void createSpecularBTDF(const char* transmittance, float etaExt, float etaInt);
+    void createNewWardBRDF(const char* reflectance, const char* anisoX, const char* anisoY);
+    void createAshikhminSBRDF(const char* Rs, const char* nu, const char* nv);
+    void createAshikhminDBRDF(const char* Rd, const char* Rs);
     
     
     void createMatteMaterial(const char* name, const char* bump, const char* reflectance, const char* sigma);

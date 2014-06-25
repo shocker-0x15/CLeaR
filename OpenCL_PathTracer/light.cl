@@ -19,6 +19,10 @@ typedef enum {
     EEDF_All_Types        = EEDF_Diffuse | EEDF_Varying | EEDF_Directional,
 } EEDFType;
 
+typedef enum {
+    EnvID_LatitudeLongitude = 0,
+} EnvID;
+
 //12bytes
 typedef struct __attribute__((aligned(4))) {
     float uLight;
@@ -31,6 +35,14 @@ typedef struct __attribute__((aligned(4))) {
     float uDir[2];
 } EDFSample;
 
+
+//80bytes
+typedef struct __attribute__((aligned(16))) {
+    vector3 n, s, t, ng;
+    uchar numEEDFs;
+    ushort offsetsEEDFs[4] __attribute__((aligned(2)));
+} EDFHead;
+
 //8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
@@ -42,13 +54,6 @@ typedef struct __attribute__((aligned(16))) {
     EEDFHead head;
     color M __attribute__((aligned(16)));
 } DiffuseEmission;
-
-//80bytes
-typedef struct __attribute__((aligned(16))) {
-    vector3 n, s, t, ng;
-    uchar numEEDFs;
-    ushort offsetsEEDFs[4] __attribute__((aligned(2)));
-} EDFHead;
 
 //------------------------
 
@@ -77,15 +82,15 @@ static inline float l_cosTheta(const vector3* v) {
 }
 
 static inline float l_absCosTheta(const vector3* v) {
-    return fabsf(v->z);
+    return fabs(v->z);
 }
 
 static inline float l_sinTheta2(const vector3* v) {
-    return fmaxf(1.0f - v->z * v->z, 0.0f);
+    return fmax(1.0f - v->z * v->z, 0.0f);
 }
 
 static inline float l_sinTheta(const vector3* v) {
-    return sqrtf(l_sinTheta2(v));
+    return sqrt(l_sinTheta2(v));
 }
 
 static float l_cosPhi(const vector3* v) {
@@ -248,7 +253,7 @@ color Le(const uchar* EDF, const vector3* vout) {
     color Le = colorZero;
     for (int i = 0; i < head->numEEDFs; ++i) {
         ushort idxEEDF = head->offsetsEEDFs[i];
-        Le += eLe((EEDFHead*)(EDF + idxEEDF), &voutLocal);
+        Le += eLe((const EEDFHead*)(EDF + idxEEDF), &voutLocal);
     }
     return Le;
 }

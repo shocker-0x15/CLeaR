@@ -33,21 +33,21 @@ namespace sim {
         uchar textureType = *(textureData++);
         switch (textureType) {
             case TextureType_ColorConstant: {
-                return *(color*)AlignPtrAddG(&textureData, sizeof(color));
+                return *(const color*)AlignPtrAddG(&textureData, sizeof(color));
             }
             case TextureType_ColorImage: {
-                uint width = *(uint*)AlignPtrAddG(&textureData, sizeof(uint));
-                uint height = *(uint*)AlignPtrAddG(&textureData, sizeof(uint));
+                uint width = *(const uint*)AlignPtrAddG(&textureData, sizeof(uint));
+                uint height = *(const uint*)AlignPtrAddG(&textureData, sizeof(uint));
                 uint x = clamp((uint)fmodf(width * uv.s0, width), 0u, width - 1);
                 uint y = clamp((uint)fmodf(height * uv.s1, height), 0u, height - 1);
-                uchar3 value = *((uchar3*)textureData + y * width + x);
+                uchar3 value = *((const uchar3*)textureData + y * width + x);
                 return convert_float3(value) / 255.0f;
             }
             case TextureType_ColorProcedural: {
                 return proceduralColorTexture(textureData, uv);
             }
             default:
-            break;
+                break;
         }
         
         return colorZero;
@@ -57,20 +57,20 @@ namespace sim {
         uchar textureType = *(textureData++);
         switch (textureType) {
             case TextureType_FloatConstant: {
-                return *(float*)AlignPtrAddG(&textureData, sizeof(float));
+                return *(const float*)AlignPtrAddG(&textureData, sizeof(float));
             }
             case TextureType_FloatImage: {
-                uint width = *(uint*)AlignPtrAddG(&textureData, sizeof(uint));
-                uint height = *(uint*)AlignPtrAddG(&textureData, sizeof(uint));
+                uint width = *(const uint*)AlignPtrAddG(&textureData, sizeof(uint));
+                uint height = *(const uint*)AlignPtrAddG(&textureData, sizeof(uint));
                 uint x = clamp((uint)fmodf(width * uv.s0, width), 0u, width - 1);
                 uint y = clamp((uint)fmodf(height * uv.s1, height), 0u, height - 1);
-                return *((float*)textureData + y * width + x);
+                return *((const float*)textureData + y * width + x);
             }
             case TextureType_FloatProcedural: {
                 return proceduralFloatTexture(textureData, uv);
             }
             default:
-            break;
+                break;
         }
         
         return 0.0f;
@@ -96,21 +96,21 @@ namespace sim {
                 float uComp = 0.0f;
                 float absWrapU = fmodf(fabsf(uv.s0), 1.0f);
                 if (absWrapU < halfWidth * 0.5f || absWrapU > 1.0f - halfWidth * 0.5f)
-                uComp = 1.0f;
+                    uComp = 1.0f;
                 else if (absWrapU > 0.5f - halfWidth * 0.5f && absWrapU < 0.5f + halfWidth * 0.5f)
-                uComp = -1.0f;
+                    uComp = -1.0f;
                 
                 float vComp = 0.0f;
                 float absWrapV = fmodf(fabsf(uv.s1), 1.0f);
                 if (absWrapV < halfWidth * 0.5f || absWrapV > 1.0f - halfWidth * 0.5f)
-                vComp = 1.0f;
+                    vComp = 1.0f;
                 else if (absWrapV > 0.5f - halfWidth * 0.5f && absWrapV < 0.5f + halfWidth * 0.5f)
-                vComp = -1.0f;
+                    vComp = -1.0f;
                 
                 if (absWrapV > 0.5f)
-                uComp *= -1;
+                    uComp *= -1;
                 if (absWrapU > 0.5f)
-                vComp *= -1;
+                    vComp *= -1;
                 if (reverse) {
                     uComp *= -1;
                     vComp *= -1;
@@ -119,7 +119,7 @@ namespace sim {
                 return 0.5f * normalize(vector3(uComp, vComp, 1.0f)) + 0.5f;
             }
             default:
-            return colorZero;
+                return colorZero;
         }
     }
     
@@ -134,7 +134,7 @@ namespace sim {
                 return v[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
             }
             default:
-            return 0.0f;
+                return 0.0f;
         }
     }
 }

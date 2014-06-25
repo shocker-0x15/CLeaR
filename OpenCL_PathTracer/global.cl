@@ -40,8 +40,8 @@ typedef struct __attribute__((aligned(4))) {
 
 //8bytes
 typedef struct __attribute__((aligned(4))) {
-    uchar atInfinity __attribute__((aligned(4)));
-    uint reference;
+    uchar atInfinity;
+    uint reference __attribute__((aligned(4)));
 } LightInfo;
 
 //32bytes
@@ -78,12 +78,13 @@ typedef struct __attribute__((aligned(16))) {
     float2 uv;
     uint faceID;
     bool hasTangent;
+    bool atInfinity;
 } LightPosition;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
     point3 p;
-    vector3 n;
+    vector3 dir;
     float2 uv;
 } LensPosition;
 
@@ -93,8 +94,10 @@ typedef struct __attribute__((aligned(64))) {
     mat4x4 localToWorld;
 } CameraHead;
 
+//20bytes
 typedef struct __attribute__((aligned(4))) {
-    uint dummy;
+    uchar numEnvLights;
+    uint offsetEnvLights[4] __attribute__((aligned(4)));
 } EnvironmentHead;
 
 typedef struct {
@@ -118,7 +121,7 @@ typedef struct {
 inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes);
 inline void AlignPtr(uchar** ptr, uintptr_t bytes);
 inline void AlignPtrG(const global uchar** ptr, uintptr_t bytes);
-uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
+const uchar* AlignPtrAdd(const uchar** ptr, uintptr_t bytes);
 const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes);
 inline bool zeroVec(const float3* v);
 inline float maxComp(const float3* v);
@@ -144,8 +147,8 @@ inline void AlignPtrG(const global uchar** ptr, uintptr_t bytes) {
     *ptr = (const global uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
 }
 
-uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
-    uchar* ptrAligned = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
+const uchar* AlignPtrAdd(const uchar** ptr, uintptr_t bytes) {
+    const uchar* ptrAligned = (const uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     *ptr = ptrAligned + bytes;
     return ptrAligned;
 }
@@ -202,6 +205,7 @@ inline void LightPositionFromIntersection(const Intersection* isect, LightPositi
     lpos->uv = isect->uv;
     lpos->faceID = isect->faceID;
     lpos->hasTangent = isect->hasTangent;
+    lpos->atInfinity = false;
 }
 
 #endif

@@ -81,13 +81,14 @@ namespace sim {
         vector3 uDir;
         float2 uv;
         uint faceID;
-        bool hasTangent; uchar dum[3];
+        bool hasTangent;
+        bool atInfinity; uchar dum0[2];
     } LightPosition;
     
     //48bytes
     typedef struct {
         point3 p;
-        vector3 n;
+        vector3 dir;
         float2 uv; uchar dum[8];
     } LensPosition;
     
@@ -97,8 +98,10 @@ namespace sim {
         mat4x4 localToWorld;
     } CameraHead;
     
+    //20bytes
     typedef struct {
-        uint dummy;
+        uchar numEnvLights; uchar dum0[3];
+        uint offsetEnvLights[4];
     } EnvironmentHead;
     
     typedef struct {
@@ -122,7 +125,7 @@ namespace sim {
     inline void memcpyG2P(uchar* dst, const uchar* src, uint numBytes);
     inline void AlignPtr(uchar** ptr, uintptr_t bytes);
     inline void AlignPtrG(const uchar** ptr, uintptr_t bytes);
-    uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes);
+    const uchar* AlignPtrAdd(const uchar** ptr, uintptr_t bytes);
     const uchar* AlignPtrAddG(const uchar** ptr, uintptr_t bytes);
     inline bool zeroVec(const float3* v);
     inline float maxComp(const float3* v);
@@ -148,8 +151,8 @@ namespace sim {
         *ptr = (const uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     }
     
-    uchar* AlignPtrAdd(uchar** ptr, uintptr_t bytes) {
-        uchar* ptrAligned = (uchar*)(((ulong)*ptr + (bytes - 1)) & ~(bytes - 1));
+    const uchar* AlignPtrAdd(const uchar** ptr, uintptr_t bytes) {
+        const uchar* ptrAligned = (const uchar*)(((ulong)*ptr + (bytes - 1)) & ~(bytes - 1));
         *ptr = ptrAligned + bytes;
         return ptrAligned;
     }
@@ -206,6 +209,7 @@ namespace sim {
         lpos->uv = isect->uv;
         lpos->faceID = isect->faceID;
         lpos->hasTangent = isect->hasTangent;
+        lpos->atInfinity = false;
     }
 }
 

@@ -78,10 +78,10 @@ void uniformSampleTriangle(float u1, float u2, float* b0, float* b1) {
 }
 
 uint sampleDiscrete1D(const global uchar* CDF1D, float u, float* prob) {
-    uint numElems = *(global uint*)AlignPtrAddG(&CDF1D, sizeof(uint));
+    uint numElems = *(const global uint*)AlignPtrAddG(&CDF1D, sizeof(uint));
     for (uint i = 0; i < numElems; ++i) {
-        if (*((global float*)CDF1D + i) > u) {
-            *prob = *((global float*)CDF1D + i + numElems);
+        if (*((const global float*)CDF1D + i) > u) {
+            *prob = *((const global float*)CDF1D + i + numElems);
             return i;
         }
     }

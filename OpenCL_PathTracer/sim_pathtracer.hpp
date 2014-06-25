@@ -36,7 +36,7 @@ namespace sim {
         ray.depth = 0;
         float lensPDF;
         float dirPDF;
-        uchar IDF[128] __attribute__((aligned(16)));
+        uchar IDF[64] __attribute__((aligned(16)));
         LensPosition lensPos;
         CameraSample c_sample = {{getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
         sampleLensPos(&scene, &c_sample, &lensPos, &lensPDF);
@@ -57,7 +57,7 @@ namespace sim {
         //        if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
         //        if (gid0 == 512 && gid1 == 600) {
         if (!rayIntersection(&scene, &ray.org, &ray.dir, &isect))
-        return;
+            return;
         
         const Face* face = &scene.faces[isect.faceID];
         vout = -ray.dir;

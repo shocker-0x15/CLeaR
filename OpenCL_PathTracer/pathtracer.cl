@@ -37,7 +37,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     ray.depth = 0;
     float lensPDF;
     float dirPDF;
-    uchar IDF[128] __attribute__((aligned(16)));
+    uchar IDF[64] __attribute__((aligned(16)));
     LensPosition lensPos;
     CameraSample c_sample = {{getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
     sampleLensPos(&scene, &c_sample, &lensPos, &lensPDF);
@@ -155,6 +155,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         }
     }
 //    }
+    
 //    if (gid0 == 0 && gid1 == 0) {
 //        printf("uchar %u\t ushort %u\t uint %u\t ulong %u\n", sizeof(uchar), sizeof(ushort), sizeof(uint), sizeof(ulong));
 //        printf("uchar %u\t uchar2 %u\t uchar3 %u\t uchar4 %u\n", sizeof(uchar), sizeof(uchar2), sizeof(uchar3), sizeof(uchar4));

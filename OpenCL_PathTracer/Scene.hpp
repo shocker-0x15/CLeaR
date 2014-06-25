@@ -210,23 +210,24 @@ public:
     }
     
     uint32_t* cameraIdx() {
-        PtrsOthers &ptrsOthers = *(PtrsOthers*)&others[idxPtrOthers];
-        return &ptrsOthers.camera;
+        PtrsOthers* ptrsOthers = (PtrsOthers*)&others[idxPtrOthers];
+        return &ptrsOthers->camera;
     }
     
     uint32_t* environementIdx() {
-        PtrsOthers &ptrsOthers = *(PtrsOthers*)&others[idxPtrOthers];
-        return &ptrsOthers.environment;
+        PtrsOthers* ptrsOthers = (PtrsOthers*)&others[idxPtrOthers];
+        return &ptrsOthers->environment;
     }
     
     uint32_t* lightPowerCDFIdx() {
-        PtrsOthers &ptrsOthers = *(PtrsOthers*)&others[idxPtrOthers];
-        return &ptrsOthers.lightPowerCDF;
+        PtrsOthers* ptrsOthers = (PtrsOthers*)&others[idxPtrOthers];
+        return &ptrsOthers->lightPowerCDF;
     }
     
     void calcLightPowerCDF() {
         auto refOthers = &others;
-        *lightPowerCDFIdx() = (uint32_t)addDataAligned<cl_uint>(refOthers, (cl_uint)lightPowers.size());
+        uint64_t lpCDFHead = addDataAligned<cl_uint>(refOthers, (cl_uint)lightPowers.size());
+        *lightPowerCDFIdx() = (uint32_t)lpCDFHead;
         
         std::vector<float> PMF(lightPowers.size());
         std::vector<float> CDF(lightPowers.size());

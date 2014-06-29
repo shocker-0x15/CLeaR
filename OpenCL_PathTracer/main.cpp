@@ -19,6 +19,7 @@
 #include "BVH.hpp"
 #include "Scene.hpp"
 #include "ImageLoader.hpp"
+#include <chrono>
 
 #include "sim_pathtracer.hpp"
 
@@ -256,9 +257,21 @@ void buildScene() {
 }
 
 int main(int argc, const char * argv[]) {
-    const uint32_t iterations = 32;
+    using namespace std::chrono;
+    
+    system_clock::time_point programStartTimePoint, startTimePoint, endTimePoint;
+    system_clock::duration overallTime, buildTime, renderingKernelSetupTime, postProcessKernelSetupTime, renderingTime, postProcessTime;
+    
+    programStartTimePoint = system_clock::now();
+    std::time_t ctimeLaunch = system_clock::to_time_t(programStartTimePoint);
+    printf("%s\n", std::ctime(&ctimeLaunch));
+    
+    const uint32_t iterations = 256;
     
     buildScene();
+    
+    buildTime = system_clock::now() - programStartTimePoint;
+    printf("build time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(buildTime).count());
     
     cl_int ret = CL_SUCCESS;
     try {
@@ -271,10 +284,16 @@ int main(int argc, const char * argv[]) {
         cl::Device device = devices[1];
         std::string deviceName;
         device.getInfo(CL_DEVICE_NAME, &deviceName);
-        printf("%s\n", deviceName.c_str());
+        printf("--------------------------------\n");
+        printf("%s\n\n", deviceName.c_str());
         
         cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0};
         cl::Context context{device, ctx_props};
+        
+        
+        //------------------------------------------------
+        //レンダリングカーネルの生成
+        startTimePoint = system_clock::now();
         
         ifs.open("pathtracer.cl");
         ifs.clear();
@@ -287,7 +306,9 @@ int main(int argc, const char * argv[]) {
         programRendering.build();
         std::string buildLog;
         programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
+        printf("Build Log: \n");
         printf("%s\n", buildLog.c_str());
+        printf("--------------------------------\n");
         
         cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
         cl::Buffer buf_normals;
@@ -338,46 +359,16 @@ int main(int argc, const char * argv[]) {
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{32, 32};
-#define SIMULATION 0
-#if SIMULATION
-        sim::global_sizes[0] = (sim::uint)*tile;
-        sim::global_sizes[1] = (sim::uint)*(tile + 1);
-        for (int i = 0; i < iterations; ++i) {
-            printf("[ %d ]", i);
-            for (int j = 0; j < numTiles; ++j) {
-                sim::global_offsets[0] = (sim::uint)*tile * (j % numTilesX);
-                sim::global_offsets[1] = (sim::uint)*(tile + 1) * (j / numTilesX);
-                for (int ty = 0; ty < *(tile + 1); ++ty) {
-                    for (int tx = 0; tx < *tile; ++tx) {
-                        sim::global_ids[0] = sim::global_offsets[0] + tx;
-                        sim::global_ids[1] = sim::global_offsets[1] + ty;
-                        sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
-                                         (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLightInfos(), (sim::uint)scene.numLights(),
-                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(),
-                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawOthers(), g_randStates.data(), (sim::float3*)g_pixels.data());
-                    }
-                }
-                printf("*");
-            }
-            printf("\n");
-        }
-        buf_pixels = {context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
-#else
-        for (int i = 0; i < iterations; ++i) {
-            printf("[ %d ]", i);
-            for (int j = 0; j < numTiles; ++j) {
-                cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
-                cl::Event ev;
-                queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
-//                ev.setCallback(CL_COMPLETE, completeTile);
-            }
-            queue.finish();
-            printf("\n");
-        }
-#endif
         
-        printf("rendering done!\n");
+        renderingKernelSetupTime =
+        system_clock::now() - startTimePoint;
+        printf("rendering kernel setup time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(renderingKernelSetupTime).count());
+        //------------------------------------------------
         
+        
+        //------------------------------------------------
+        //ポストプロセスカーネルの生成
+        startTimePoint = system_clock::now();
         
         ifs.open("tonemapping.cl");
         ifs.clear();
@@ -401,9 +392,86 @@ int main(int argc, const char * argv[]) {
         kernelToneMapping.setArg(4, buf_pixels);
         kernelToneMapping.setArg(5, buf_image);
         
+        postProcessKernelSetupTime = system_clock::now() - startTimePoint;
+        printf("post-process kernel setup time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(postProcessKernelSetupTime).count());
+        //------------------------------------------------
+        
+        
+        //------------------------------------------------
+        //レンダリング開始
+        system_clock::time_point renderingStartTimePoint;
+        renderingStartTimePoint = std::chrono::system_clock::now();
+        uint32_t k10mins = 1;
+#define SIMULATION 0
+#if SIMULATION
+        sim::global_sizes[0] = (sim::uint)*tile;
+        sim::global_sizes[1] = (sim::uint)*(tile + 1);
+        for (int i = 0; i < iterations; ++i) {
+            printf("[ %d ]", i);
+            
+            startTimePoint = std::chrono::system_clock::now();
+            for (int j = 0; j < numTiles; ++j) {
+                sim::global_offsets[0] = (sim::uint)*tile * (j % numTilesX);
+                sim::global_offsets[1] = (sim::uint)*(tile + 1) * (j / numTilesX);
+                for (int ty = 0; ty < *(tile + 1); ++ty) {
+                    for (int tx = 0; tx < *tile; ++tx) {
+                        sim::global_ids[0] = sim::global_offsets[0] + tx;
+                        sim::global_ids[1] = sim::global_offsets[1] + ty;
+                        sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
+                                         (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLightInfos(), (sim::uint)scene.numLights(),
+                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(),
+                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawOthers(), g_randStates.data(), (sim::float3*)g_pixels.data());
+                    }
+                }
+                printf("*");
+            }
+            std::chrono::system_clock::duration passTime = std::chrono::system_clock::now() - startTimePoint;
+            printf(" %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(passTime).count() * 0.001f);
+        }
+        buf_pixels = {context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
+#else
+        for (int i = 0; i < iterations; ++i) {
+            printf("[ %d ]", i);
+            
+            startTimePoint = std::chrono::system_clock::now();
+            for (int j = 0; j < numTiles; ++j) {
+                cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
+                cl::Event ev;
+                queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
+//                ev.setCallback(CL_COMPLETE, completeTile);
+            }
+            queue.finish();
+            
+            std::chrono::system_clock::duration passTime = std::chrono::system_clock::now() - startTimePoint;
+            printf(" %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(passTime).count() * 0.001f);
+            
+            overallTime = system_clock::now() - programStartTimePoint;
+            int64_t runtime = std::chrono::duration_cast<std::chrono::seconds>(overallTime).count();
+            if (runtime > 60 * 10 * k10mins) {
+                std::time_t cTimeElapsed = system_clock::to_time_t(system_clock::now());
+                printf("%u x 10 minutes.\n", k10mins);
+                printf("%s", std::ctime(&cTimeElapsed));
+                ++k10mins;
+            }
+        }
+#endif
+        renderingTime = std::chrono::system_clock::now() - renderingStartTimePoint;
+        printf("rendering done! ... time: %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(renderingTime).count() * 0.001f);
+        //------------------------------------------------
+        
+        
+        //------------------------------------------------
+        //ポストプロセッシング開始
+        startTimePoint = std::chrono::system_clock::now();
+        
         queue.enqueueNDRangeKernel(kernelToneMapping, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
         queue.finish();
         queue.enqueueReadBuffer(buf_image, CL_TRUE, 0, byteWidth * g_height, LDRPixels, nullptr, nullptr);
+        
+        postProcessTime = std::chrono::system_clock::now() - startTimePoint;
+        printf("post-process done! ... time: %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(postProcessTime).count() * 0.001f);
+        //------------------------------------------------
+        
         saveBMP("output.bmp", LDRPixels, g_width, g_height);
         free(LDRPixels);
     } catch (cl::Error error) {

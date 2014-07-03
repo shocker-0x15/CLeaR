@@ -26,6 +26,13 @@ namespace sim {
     
 #define ALIGN(ad, w) ((ad) + ((w) - 1)) & ~((w) - 1)
     
+    typedef enum {
+        DDFType_BSDF = 0,
+        DDFType_EDF,
+        DDFType_EnvEDF,
+        DDFType_PerspectiveIDF
+    } DDFType;
+    
     //48bytes
     typedef struct {
         point3 org;
@@ -33,12 +40,13 @@ namespace sim {
         uint depth; uchar dum[12];
     } Ray;
     
-    //52bytes
+    //56bytes
     typedef struct {
         uint p0, p1, p2;
         uint vn0, vn1, vn2;
         uint vt0, vt1, vt2;
         uint uv0, uv1, uv2;
+        uint alphaTexPtr;
         ushort matPtr, lightPtr;
     } Face;
     
@@ -58,6 +66,11 @@ namespace sim {
         BBox bbox;
         uint children[2]; uchar dum[8];
     } BVHNode;
+    
+    //1byte
+    typedef struct {
+        uchar _type;
+    } DDFHead;
     
     //112bytes
     typedef struct {

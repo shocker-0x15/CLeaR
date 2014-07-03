@@ -22,6 +22,13 @@ typedef float16 mat4x4;
 
 #define ALIGN(ad, w) ((ad) + ((w) - 1)) & ~((w) - 1)
 
+typedef enum {
+    DDFType_BSDF = 0,
+    DDFType_EDF,
+    DDFType_EnvEDF,
+    DDFType_PerspectiveIDF
+} DDFType;
+
 //48bytes
 typedef struct __attribute__((aligned(16))) {
     point3 org;
@@ -29,12 +36,13 @@ typedef struct __attribute__((aligned(16))) {
     uint depth;
 } Ray;
 
-//52bytes
+//56bytes
 typedef struct __attribute__((aligned(4))) {
     uint p0, p1, p2;
     uint vn0, vn1, vn2;
     uint vt0, vt1, vt2;
     uint uv0, uv1, uv2;
+    uint alphaTexPtr;
     ushort matPtr, lightPtr;
 } Face;
 
@@ -54,6 +62,11 @@ typedef struct __attribute__((aligned(16))) {
     BBox bbox;
     uint children[2];
 } BVHNode;
+
+//1byte
+typedef struct __attribute__((aligned(1))) {
+    uchar _type;
+} DDFHead;
 
 //112bytes
 typedef struct __attribute__((aligned(16))) {

@@ -110,9 +110,10 @@ namespace sim {
     
     //80bytes
     typedef struct {
+        DDFHead ddfHead; uchar dum0;
+        uchar numBxDFs; uchar dum1;//EDFHeadが2バイトアラインにしないと何故か落ちるので一応合わせておく。
+        ushort offsetsBxDFs[4]; uchar dum2[4];
         vector3 n, s, t, ng;
-        uchar numBxDFs; uchar dum0[1];
-        ushort offsetsBxDFs[4]; uchar dum1[6];
     } BSDFHead;
     
     //------------------------
@@ -197,6 +198,7 @@ namespace sim {
     
     void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar* BSDF) {
         BSDFHead* fsHead = (BSDFHead*)BSDF;
+        fsHead->ddfHead._type = DDFType_BSDF;
         const uchar* matsData_p = scene->materialsData + offset;
         const MaterialInfo* matInfo = (const MaterialInfo*)matsData_p;
         

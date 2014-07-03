@@ -4,12 +4,22 @@
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
+		<key>Debug OpenCL_PathTracer.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>0</integer>
+		</dict>
 		<key>OpenCL_PathTracer debug.xcscheme</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>0</integer>
 		</dict>
 		<key>OpenCL_PathTracer release.xcscheme</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>1</integer>
+		</dict>
+		<key>Release OpenCL_PathTracer.xcscheme</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>1</integer>

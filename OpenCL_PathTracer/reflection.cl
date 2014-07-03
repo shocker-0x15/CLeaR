@@ -109,9 +109,10 @@ typedef struct __attribute__((aligned(16))) {
 
 //80bytes
 typedef struct __attribute__((aligned(16))) {
-    vector3 n, s, t, ng;
-    uchar numBxDFs;
+    DDFHead ddfHead;
+    uchar numBxDFs __attribute__((aligned(2)));//EDFHeadが2バイトアラインにしないと何故か落ちるので一応合わせておく。
     ushort offsetsBxDFs[4] __attribute__((aligned(2)));
+    vector3 n __attribute__((aligned(16))), s, t, ng;
 } BSDFHead;
 
 //------------------------
@@ -196,6 +197,7 @@ bool hasNonSpecular(const uchar* BSDF) {
 
 void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar* BSDF) {
     BSDFHead* fsHead = (BSDFHead*)BSDF;
+    fsHead->ddfHead._type = DDFType_BSDF;
     const global uchar* matsData_p = scene->materialsData + offset;
     const global MaterialInfo* matInfo = (const global MaterialInfo*)matsData_p;
     

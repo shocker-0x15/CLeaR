@@ -38,9 +38,10 @@ typedef struct __attribute__((aligned(4))) {
 
 //80bytes
 typedef struct __attribute__((aligned(16))) {
-    vector3 n, s, t, ng;
-    uchar numEEDFs;
+    DDFHead ddfHead;
+    uchar numEEDFs __attribute__((aligned(2)));//2バイトアラインしなかったら何故か死ぬ。
     ushort offsetsEEDFs[4] __attribute__((aligned(2)));
+    vector3 n __attribute__((aligned(16))), s, t, ng;
 } EDFHead;
 
 //8bytes
@@ -65,7 +66,7 @@ static float l_cosPhi(const vector3* v);
 static float l_sinPhi(const vector3* v);
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
-                    LightPosition* lpos, float* areaPDF);
+                    LightPosition* lpos, uchar* EDF, float* areaPDF);
 float getAreaPDF(const Scene* scene, uint faceID, float2 uv);
 
 void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF);
@@ -107,7 +108,7 @@ static float l_sinPhi(const vector3* v) {
 
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
-                    LightPosition* lpos, float* areaPDF) {
+                    LightPosition* lpos, uchar* EDF, float* areaPDF) {
     LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerCDF, l_sample->uLight, areaPDF)];
     if (lInfo.atInfinity) {
         
@@ -165,6 +166,8 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
             else
                 lpos->uDir = normalize(uDir);
         }
+        
+        EDFAlloc(scene, face->lightPtr, lpos, EDF);
     }
 }
 
@@ -183,6 +186,7 @@ float getAreaPDF(const Scene* scene, uint faceID, float2 uv) {
 
 void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
     EDFHead* LeHead = (EDFHead*)EDF;
+    LeHead->ddfHead._type = DDFType_EDF;
     const global uchar* lightsData_p = scene->materialsData + offset;
     const global LightPropertyInfo* lpInfo = (const global LightPropertyInfo*)lightsData_p;
     
@@ -195,8 +199,8 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
         LeHead->s = lpos->sTangent;
     else
         makeTangent(&lpos->sNormal, &LeHead->s);
-    LeHead->t = cross(LeHead->n, LeHead->s);
     
+    LeHead->t = cross(LeHead->n, LeHead->s);
     LeHead->ng = lpos->gNormal;
     
     uchar* EDFp = EDF + sizeof(EDFHead);
@@ -252,8 +256,8 @@ color Le(const uchar* EDF, const vector3* vout) {
     
     color Le = colorZero;
     for (int i = 0; i < head->numEEDFs; ++i) {
-        ushort idxEEDF = head->offsetsEEDFs[i];
-        Le += eLe((const EEDFHead*)(EDF + idxEEDF), &voutLocal);
+        const EEDFHead* iLe = (const EEDFHead*)(EDF + head->offsetsEEDFs[i]);
+        Le += eLe(iLe, &voutLocal);
     }
     return Le;
 }

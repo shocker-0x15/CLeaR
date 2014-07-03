@@ -12,7 +12,15 @@
 #include <vector>
 #include <cstdint>
 
-bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, bool gammaCorrection);
+namespace ColorChannel {
+    enum Value {
+        RGB888 = 0,
+        RGBA8888,
+        Gray8
+    };
+}
+
+bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height, ColorChannel::Value* color, bool gammaCorrection);
 bool loadEnvMap(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height);
 
 #endif /* defined(__OpenCL_TEST__ImageLoader__) */

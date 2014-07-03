@@ -33,14 +33,15 @@ typedef struct __attribute__((aligned(16))) {
     const global PerspectiveInfo* info;
 } PerspectiveIDF;
 
-//16bytes
+//32bytes
 typedef struct __attribute__((aligned(16))) {
-    vector3 dir;
+    DDFHead ddfHead;
+    vector3 dir __attribute__((aligned(16)));
 } IDFHead;
 
 //------------------------
 
-void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition* lpos, float* areaPDF);
+void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition* lpos, uchar* IDF, float* areaPDF);
 
 void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF);
 
@@ -49,7 +50,7 @@ inline float absCosNsIDF(const uchar* IDF, const vector3* v);
 
 //------------------------
 
-void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition* lpos, float* areaPDF) {
+void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition* lpos, uchar* IDF, float* areaPDF) {
     const global CameraHead* head = (const global CameraHead*)scene->camera;
     
     float ux, uy;
@@ -65,11 +66,14 @@ void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition*
     
     *areaPDF = 1.0f / (M_PI_F * info->lensRadius * info->lensRadius);
     lpos->uv = lensPosLocal.xy;
+    
+    IDFAlloc(scene, lpos, IDF);
 }
 
 
 void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF) {
     IDFHead* WeHead = (IDFHead*)IDF;
+    WeHead->ddfHead._type = DDFType_PerspectiveIDF;
     
     WeHead->dir = lpos->dir;
     

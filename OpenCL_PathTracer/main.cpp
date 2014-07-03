@@ -266,7 +266,7 @@ int main(int argc, const char * argv[]) {
     std::time_t ctimeLaunch = system_clock::to_time_t(programStartTimePoint);
     printf("%s\n", std::ctime(&ctimeLaunch));
     
-    const uint32_t iterations = 256;
+    const uint32_t iterations = 1;
     
     buildScene();
     
@@ -429,6 +429,7 @@ int main(int argc, const char * argv[]) {
             printf(" %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(passTime).count() * 0.001f);
         }
         buf_pixels = {context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
+        kernelToneMapping.setArg(4, buf_pixels);
 #else
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);

@@ -11,10 +11,12 @@
 #include "Materials.hpp"
 
 namespace TextureType {
-    enum Values {
+    enum Value {
         ColorConstant = 0,
-        ColorImage,
+        ColorImageRGB888,
+        ColorImageRGBA8888,
         ColorProcedural,
+        GrayImage8, 
         FloatConstant,
         FloatImage,
         FloatProcedural,
@@ -22,20 +24,20 @@ namespace TextureType {
 };
 
 namespace ColorProceduralType {
-    enum Values {
+    enum Value {
         CheckerBoard = 0,
         CheckerBoardBump
     };
 };
 
 namespace FloatProceduralType {
-    enum Values {
+    enum Value {
         CheckerBoard = 0,
     };
 };
 
 namespace BxDFID {
-    enum Values {
+    enum Value {
         Diffuse = 0,
         SpecularReflection,
         SpecularTransmission,
@@ -46,7 +48,7 @@ namespace BxDFID {
 };
 
 namespace FresnelID {
-    enum Values {
+    enum Value {
         NoOp = 0,
         Conductor,
         Dielectric,
@@ -54,7 +56,7 @@ namespace FresnelID {
 };
 
 namespace EEDFID {
-    enum Values {
+    enum Value {
         DiffuseEmission = 0,
     };
 };
@@ -80,12 +82,21 @@ void MaterialCreator::createFloatConstantTexture(const char* name, float val) {
 void MaterialCreator::createImageTexture(const char* name, const char* filename) {
     std::vector<uint8_t>* texData = &scene->texturesData;
     uint32_t w, h;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorImage, 4);
+    ColorChannel::Value colorType;
+    uint64_t texHead = addDataAligned<cl_uchar>(texData, 0, 4);
     addDataAligned<cl_uint>(texData, 0);// width
     addDataAligned<cl_uint>(texData, 0);// height
-    align(texData, sizeof(cl_uchar3));
-    bool ret = loadImage(filename, texData, &w, &h, false);
+    align(texData, sizeof(cl_uchar4));
+    bool ret = loadImage(filename, texData, &w, &h, &colorType, false);
     assert(ret);
+    TextureType::Value texType;
+    if (colorType == ColorChannel::RGB888)
+        texType = TextureType::ColorImageRGB888;
+    else if (colorType == ColorChannel::RGBA8888)
+        texType = TextureType::ColorImageRGBA8888;
+    else if (colorType == ColorChannel::Gray8)
+        texType = TextureType::GrayImage8;
+    *(cl_uchar*)(texData->data() + texHead) = (cl_uchar)texType;
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 1) = w;
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 2) = h;
     ret = scene->addTexture(texHead, name);
@@ -95,11 +106,12 @@ void MaterialCreator::createImageTexture(const char* name, const char* filename)
 void MaterialCreator::createNormalMapTexture(const char* name, const char* filename) {
     std::vector<uint8_t>* texData = &scene->texturesData;
     uint32_t w, h;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorImage, 4);
+    ColorChannel::Value colorType;
+    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorImageRGB888, 4);
     addDataAligned<cl_uint>(texData, 0);// width
     addDataAligned<cl_uint>(texData, 0);// height
     align(texData, sizeof(cl_uchar3));
-    bool ret = loadImage(filename, texData, &w, &h, true);
+    bool ret = loadImage(filename, texData, &w, &h, &colorType, true);
     assert(ret);
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 1) = w;
     *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 2) = h;

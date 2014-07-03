@@ -151,6 +151,133 @@ namespace sim {
     };
     
     
+    struct uchar4 {
+        union {
+            uchar x;
+            uchar s0;
+        };
+        union {
+            uchar y;
+            uchar s1;
+        };
+        union {
+            uchar z;
+            uchar s2;
+        };
+        union {
+            uchar w;
+            uchar s3;
+        };
+        
+        uchar4() : x(0), y(0), z(0) { };
+        uchar4(uchar xx, uchar yy, uchar zz, uchar ww) : x(xx), y(yy), z(zz), w(ww) { };
+        uchar4(const uchar4 &v) : x(v.x), y(v.y), z(v.z), w(v.w) { };
+        
+        uchar4 operator+(const uchar4 &r) const {
+            uchar4 ret{x, y, z, w};
+            ret.x += r.x;
+            ret.y += r.y;
+            ret.z += r.z;
+            ret.w += r.w;
+            return ret;
+        }
+        uchar4 &operator+=(const uchar4 &r) {
+            this->x += r.x;
+            this->y += r.y;
+            this->z += r.z;
+            this->w += r.w;
+            return *this;
+        }
+        uchar4 operator-(const uchar4 &r) const {
+            uchar4 ret{x, y, z, w};
+            ret.x -= r.x;
+            ret.y -= r.y;
+            ret.z -= r.z;
+            ret.w -= r.w;
+            return ret;
+        }
+        uchar4 &operator-=(const uchar4 &r) {
+            this->x -= r.x;
+            this->y -= r.y;
+            this->z -= r.z;
+            this->w -= r.w;
+            return *this;
+        }
+        uchar4 operator*(const uchar4 &r) const {
+            uchar4 ret{x, y, z, w};
+            ret.x *= r.x;
+            ret.y *= r.y;
+            ret.z *= r.z;
+            ret.w *= r.w;
+            return ret;
+        }
+        uchar4 &operator*=(const uchar4 &r) {
+            this->x *= r.x;
+            this->y *= r.y;
+            this->z *= r.z;
+            this->w *= r.w;
+            return *this;
+        }
+        uchar4 operator*(uchar s) const {
+            uchar4 ret{x, y, z, w};
+            ret.x *= s;
+            ret.y *= s;
+            ret.z *= s;
+            ret.w *= s;
+            return ret;
+        }
+        uchar4 &operator*=(uchar s) {
+            this->x *= s;
+            this->y *= s;
+            this->z *= s;
+            this->w *= s;
+            return *this;
+        }
+        friend uchar4 operator*(uchar s, const uchar4 &r) {
+            uchar4 ret(s * r.x, s * r.y, s * r.z, s * r.w);
+            return ret;
+        }
+        uchar4 operator/(const uchar4 &r) const {
+            uchar4 ret{x, y, z, w};
+            ret.x /= r.x;
+            ret.y /= r.y;
+            ret.z /= r.z;
+            ret.w /= r.w;
+            return ret;
+        }
+        uchar4 &operator/=(const uchar4 &r) {
+            this->x /= r.x;
+            this->y /= r.y;
+            this->z /= r.z;
+            this->w /= r.w;
+            return *this;
+        }
+        uchar4 operator/(uchar s) const {
+            uchar4 ret{x, y, z, w};
+            float rec = 1.0f / s;
+            ret.x *= rec;
+            ret.y *= rec;
+            ret.z *= rec;
+            ret.w *= rec;
+            return ret;
+        }
+        uchar4 &operator/=(uchar s) {
+            float rec = 1.0f / s;
+            this->x *= rec;
+            this->y *= rec;
+            this->z *= rec;
+            this->w *= rec;
+            return *this;
+        }
+        uchar4 operator+() const {
+            return *this;
+        }
+        uchar4 operator-() const {
+            return uchar4(-x, -y, -z, -w);
+        }
+    };
+    
+    
     struct float2 {
         union {
             float x;

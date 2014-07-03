@@ -39,9 +39,10 @@ namespace sim {
     
     //80bytes
     typedef struct {
+        DDFHead ddfHead; uchar dum0;
+        uchar numEEDFs; uchar dum1;//2バイトアラインしなかったら何故か死ぬ。
+        ushort offsetsEEDFs[4]; uchar dum2[4];
         vector3 n, s, t, ng;
-        uchar numEEDFs; uchar dum0[1];
-        ushort offsetsEEDFs[4]; uchar dum1[6];
     } EDFHead;
     
     //8bytes
@@ -66,7 +67,7 @@ namespace sim {
     static float l_sinPhi(const vector3* v);
     
     void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
-                        LightPosition* lpos, float* areaPDF);
+                        LightPosition* lpos, uchar* EDF, float* areaPDF);
     float getAreaPDF(const Scene* scene, uint faceID, float2 uv);
     
     void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF);
@@ -108,7 +109,7 @@ namespace sim {
     
     
     void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
-                        LightPosition* lpos, float* areaPDF) {
+                        LightPosition* lpos, uchar* EDF, float* areaPDF) {
         LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerCDF, l_sample->uLight, areaPDF)];
         if (lInfo.atInfinity) {
             
@@ -166,6 +167,8 @@ namespace sim {
                 else
                     lpos->uDir = normalize(uDir);
             }
+            
+            EDFAlloc(scene, face->lightPtr, lpos, EDF);
         }
     }
     
@@ -184,6 +187,7 @@ namespace sim {
     
     void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
         EDFHead* LeHead = (EDFHead*)EDF;
+        LeHead->ddfHead._type = DDFType_EDF;
         const uchar* lightsData_p = scene->materialsData + offset;
         const LightPropertyInfo* lpInfo = (const LightPropertyInfo*)lightsData_p;
         

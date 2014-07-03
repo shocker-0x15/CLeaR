@@ -5,8 +5,10 @@
 
 typedef enum {
     TextureType_ColorConstant = 0,
-    TextureType_ColorImage,
+    TextureType_ColorImageRGB888,
+    TextureType_ColorImageRGBA8888,
     TextureType_ColorProcedural,
+    TextureType_GrayImage8,
     TextureType_FloatConstant,
     TextureType_FloatImage,
     TextureType_FloatProcedural,
@@ -23,6 +25,7 @@ typedef enum {
 
 color evaluateColorTexture(const global uchar* textureData, float2 uv);
 float evaluateFloatTexture(const global uchar* textureData, float2 uv);
+float evaluateAlphaTexture(const global uchar* textureData, float2 uv);
 color proceduralColorTexture(const global uchar* textureData, float2 uv);
 float proceduralFloatTexture(const global uchar* textureData, float2 uv);
 
@@ -34,7 +37,9 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv) {
         case TextureType_ColorConstant: {
             return *(const global color*)AlignPtrAddG(&textureData, sizeof(color));
         }
-        case TextureType_ColorImage: {
+        case TextureType_ColorImageRGB888:
+        case TextureType_ColorImageRGBA8888:
+        {
             uint width = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
@@ -44,6 +49,14 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv) {
         }
         case TextureType_ColorProcedural: {
             return proceduralColorTexture(textureData, uv);
+        }
+        case TextureType_GrayImage8: {
+            uint width = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
+            uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            uchar value = *((const global uchar*)textureData + y * width + x);
+            return (float3)(value / 255.0f);
         }
         default:
             break;
@@ -73,6 +86,34 @@ float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
     }
     
     return 0.0f;
+}
+
+float evaluateAlphaTexture(const global uchar* textureData, float2 uv) {
+    uchar textureType = *(textureData++);
+    switch (textureType) {
+        case TextureType_ColorImageRGBA8888: {
+            uint width = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
+            uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            uchar value = *((const global uchar*)((const global uchar4*)textureData + y * width + x) + 3);
+            return value / 255.0f;
+        }
+        case TextureType_GrayImage8: {
+            uint width = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
+            uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            return *((const global uchar*)textureData + y * width + x) / 255.0f;
+        }
+        case TextureType_FloatProcedural: {
+            return proceduralFloatTexture(textureData, uv);
+        }
+        default:
+            break;
+    }
+    
+    return 1.0f;
 }
 
 color proceduralColorTexture(const global uchar* textureData, float2 uv) {

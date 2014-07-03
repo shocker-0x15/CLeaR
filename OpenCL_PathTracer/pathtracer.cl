@@ -40,9 +40,8 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     uchar BSDF_IDF[256] __attribute__((aligned(16)));
     LensPosition lensPos;
     CameraSample c_sample = {{getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
-    sampleLensPos(&scene, &c_sample, &lensPos, &lensPDF);
+    sampleLensPos(&scene, &c_sample, &lensPos, BSDF_IDF, &lensPDF);
     ray.org = lensPos.p;
-    IDFAlloc(&scene, &lensPos, BSDF_IDF);
     IDFSample pixSample = {{gid0 + getFloat0cTo1o(rds), gid1 + getFloat0cTo1o(rds)}};
     color alpha = sample_We(BSDF_IDF, &pixSample, &ray.dir, &dirPDF);
     alpha *= absCosNsIDF(BSDF_IDF, &ray.dir) / dirPDF;
@@ -81,8 +80,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
             //BSDFがスペキュラー成分しか持っていない場合は寄与が取れる確率がゼロであるため処理しない。
             if (hasNonSpecular(BSDF_IDF)) {
                 LightSample l_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
-                sampleLightPos(&scene, &l_sample, &isect.p, &lpos, &lightPDF);
-                EDFAlloc(&scene, scene.faces[lpos.faceID].lightPtr, &lpos, EDF);
+                sampleLightPos(&scene, &l_sample, &isect.p, &lpos, EDF, &lightPDF);
                 
                 vector3 vinL = lpos.p - isect.p;
                 dist2 = dot(vinL, vinL);

@@ -2,6 +2,7 @@
 #define sim_bvh_traversal_cl
 
 #include "sim_global.hpp"
+#include "sim_texture.hpp"
 
 namespace sim {
     bool rayTriangleIntersection(const Scene* scene,
@@ -84,6 +85,10 @@ namespace sim {
             else
                 isect->uDir = normalize(uDir);
         }
+        
+        if (hasUV && face->alphaTexPtr != UINT_MAX)
+            if (evaluateAlphaTexture(scene->texturesData + face->alphaTexPtr, isect->uv) == 0.0f)
+                return false;
         
         return true;
     }

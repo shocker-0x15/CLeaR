@@ -135,6 +135,8 @@ namespace sim {
                 }
             }
         }
+        if (traceContinue)
+            *pix += alpha * float3(12.0f, 12.0f, 12.0f);
 //        }
         
 //        if (gid0 == 0 && gid1 == 0) {

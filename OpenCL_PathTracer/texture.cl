@@ -89,6 +89,7 @@ float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
 }
 
 float evaluateAlphaTexture(const global uchar* textureData, float2 uv) {
+    printf("");//原因不明だがMacだとこのprintfがあると落ちない。
     uchar textureType = *(textureData++);
     switch (textureType) {
         case TextureType_ColorImageRGBA8888: {

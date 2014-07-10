@@ -185,7 +185,7 @@ namespace sim {
     }
     
     inline float luminance(const color* c) {
-        return 0.2126f * c->r + 0.7152f * c->g + 0.0722f * c->b;
+        return 0.2126f * c->s0 + 0.7152f * c->s1 + 0.0722f * c->s2;
     }
     
     void makeTangent(const vector3* n, vector3* tangent) {

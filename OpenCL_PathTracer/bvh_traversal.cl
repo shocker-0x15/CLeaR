@@ -2,6 +2,7 @@
 #define device_bvh_traversal_cl
 
 #include "global.cl"
+#include "texture.cl"
 
 bool rayTriangleIntersection(const Scene* scene,
                              const float3* org, const float3* dir, ushort faceIdx,
@@ -83,6 +84,10 @@ bool rayTriangleIntersection(const Scene* scene,
         else
             isect->uDir = normalize(uDir);
     }
+    
+    if (hasUV && face->alphaTexPtr != UINT_MAX)
+        if (evaluateAlphaTexture(scene->texturesData + face->alphaTexPtr, isect->uv) == 0.0f)
+            return false;
     
     return true;
 }

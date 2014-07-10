@@ -23,7 +23,7 @@
 
 #include "sim_pathtracer.hpp"
 
-CL_CALLBACK void completeTile(cl_event ev, cl_int exec_status, void* user_data) {
+void CL_CALLBACK completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
 }
 
@@ -128,37 +128,37 @@ void buildScene() {
     
     
     uint64_t idxEnvHead = *scene.environementIdx() = (cl_uint)align(refOthers, 4);
-//    //20bytes
-//    struct EnvironmentHead {
-//        uint8_t numEnvLights; uint8_t dum0[3];
-//        uint32_t offsetEnvLights[4];
-//    };
-//    refOthers->insert(refOthers->end(), sizeof(EnvironmentHead), 0);
-//    
-//    enum EnvID {
-//        LatitudeLongitude = 0,
-//    };
-//    //28bytes
-//    struct LatitudeLongitudeIBLHead {
-//        uint8_t envID; uint8_t dum0[3];
-//        uint32_t width, height;
-//        uint32_t idxImage;
-//        uint32_t idxPDF, idxCDF2D, idxCDF1D;
-//    };
-//    uint64_t idxEnvLight0 = align(refOthers, 4);
-//    refOthers->insert(refOthers->end(), sizeof(LatitudeLongitudeIBLHead), 0);
-//    uint64_t idxEnvLight0Image = align(refOthers, sizeof(cl_half) * 4);
-//    uint32_t width, height;
-//    loadEnvMap("images/LA_Downtown_Afternoon_Fishing_3k.exr", refOthers, &width, &height);
-//    LatitudeLongitudeIBLHead* LLIBLHead = (LatitudeLongitudeIBLHead*)&(*refOthers)[idxEnvLight0];
-//    LLIBLHead->envID = EnvID::LatitudeLongitude;
-//    LLIBLHead->width = width;
-//    LLIBLHead->height = height;
-//    LLIBLHead->idxImage = (cl_uint)(idxEnvLight0Image - idxEnvHead);
-//    
-//    EnvironmentHead* environmentHead = (EnvironmentHead*)&(*refOthers)[idxEnvHead];
-//    environmentHead->numEnvLights = 1;
-//    environmentHead->offsetEnvLights[0] = (cl_uint)(idxEnvLight0 - idxEnvHead);
+    //20bytes
+    struct EnvironmentHead {
+        uint8_t numEnvLights; uint8_t dum0[3];
+        uint32_t offsetEnvLights[4];
+    };
+    refOthers->insert(refOthers->end(), sizeof(EnvironmentHead), 0);
+    
+    enum EnvID {
+        LatitudeLongitude = 0,
+    };
+    //28bytes
+    struct LatitudeLongitudeIBLHead {
+        uint8_t envID; uint8_t dum0[3];
+        uint32_t width, height;
+        uint32_t idxImage;
+        uint32_t idxPDF, idxCDF2D, idxCDF1D;
+    };
+    uint64_t idxEnvLight0 = align(refOthers, 4);
+    refOthers->insert(refOthers->end(), sizeof(LatitudeLongitudeIBLHead), 0);
+    uint64_t idxEnvLight0Image = align(refOthers, sizeof(cl_half) * 4);
+    uint32_t width, height;
+    loadEnvMap("images/LA_Downtown_Afternoon_Fishing_3k.exr", refOthers, &width, &height);
+    LatitudeLongitudeIBLHead* LLIBLHead = (LatitudeLongitudeIBLHead*)&(*refOthers)[idxEnvLight0];
+    LLIBLHead->envID = EnvID::LatitudeLongitude;
+    LLIBLHead->width = width;
+    LLIBLHead->height = height;
+    LLIBLHead->idxImage = (cl_uint)(idxEnvLight0Image - idxEnvHead);
+    
+    EnvironmentHead* environmentHead = (EnvironmentHead*)&(*refOthers)[idxEnvHead];
+    environmentHead->numEnvLights = 1;
+    environmentHead->offsetEnvLights[0] = (cl_uint)(idxEnvLight0 - idxEnvHead);
     
     
     g_randStates.resize(g_width * g_height * 4);
@@ -221,8 +221,8 @@ void buildScene() {
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
     mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
-    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall")));
-    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall")));
+    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
     scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
     scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
     scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
@@ -303,7 +303,7 @@ int main(int argc, const char * argv[]) {
         ifs.close();
         
         cl::Program programRendering{context, srcRendering};
-        programRendering.build();
+        programRendering.build("");
         std::string buildLog;
         programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
         printf("Build Log: \n");

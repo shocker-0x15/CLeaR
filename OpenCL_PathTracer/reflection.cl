@@ -654,7 +654,7 @@ color sample_fs(const uchar* BSDF, const vector3* vout, const BSDFSample* sample
     vector3 vinLocal;
     color ret = sample_fx(BxDF, &voutLocal, sample, &vinLocal, dirPDF);
     if (*dirPDF == 0.0f) {
-        *sampledType = BxDFType(0);
+        *sampledType = (BxDFType)(0);
         return colorZero;
     }
     *sampledType = BxDF->fxType;

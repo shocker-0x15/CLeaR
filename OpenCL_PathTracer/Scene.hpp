@@ -31,20 +31,20 @@ class Scene {
     };
     
 public:
-    std::vector<cl_float3> vertices{};
-    std::vector<cl_float3> normals{};
-    std::vector<cl_float3> tangents{};
-    std::vector<cl_float2> uvs{};
-    std::vector<Face> faces{};
-    std::vector<LightInfo> lightInfos{};
-    std::vector<float> lightPowers{};
-    std::vector<uint8_t> materialsData{};
+    std::vector<cl_float3> vertices;
+    std::vector<cl_float3> normals;
+    std::vector<cl_float3> tangents;
+    std::vector<cl_float2> uvs;
+    std::vector<Face> faces;
+    std::vector<LightInfo> lightInfos;
+    std::vector<float> lightPowers;
+    std::vector<uint8_t> materialsData;
     std::map<std::string, size_t> materialsRef;
     std::map<std::string, size_t> lightPropsRef;
-    std::vector<uint8_t> texturesData{};
+    std::vector<uint8_t> texturesData;
     std::map<std::string, size_t> texturesRef;
     BVH bvh;
-    std::vector<uint8_t> others{};
+    std::vector<uint8_t> others;
     uint64_t idxPtrOthers;
     
     bool immediateMode;

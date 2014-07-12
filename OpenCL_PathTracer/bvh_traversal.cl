@@ -85,9 +85,16 @@ bool rayTriangleIntersection(const Scene* scene,
             isect->uDir = normalize(uDir);
     }
     
-    if (hasUV && face->alphaTexPtr != UINT_MAX)
+    if (hasUV && face->alphaTexPtr != UINT_MAX) {
+        //原因不明だがOS X (MBP Retina Late 2013 GT750M)だとこのprintfがあると落ちない。
+        //アルファテクスチャーが無いシーン、つまりこのif文に入り得ないシーンでもこの有無によって挙動が変わるので、
+        //コンパイラーがif文によるWARPの実行マスク更新に関して誤ったコードを出力しているのかもしれない。
+        //printf("")を入れることによって生成されるコードが変わり、結果的に正しくなっているのかも。
+        //そういった意味ではprintfである必要は無いかも。
+        printf("");
         if (evaluateAlphaTexture(scene->texturesData + face->alphaTexPtr, isect->uv) == 0.0f)
             return false;
+    }
     
     return true;
 }

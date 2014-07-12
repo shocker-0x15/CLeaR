@@ -11,7 +11,7 @@ namespace sim {
                                head->localToWorld.s1, head->localToWorld.s5, head->localToWorld.s9, head->localToWorld.sd,\
                                head->localToWorld.s2, head->localToWorld.s6, head->localToWorld.sa, head->localToWorld.se,\
                                head->localToWorld.s3, head->localToWorld.s7, head->localToWorld.sb, head->localToWorld.sf)
-#define printSize(t) printf("sizeof("#t"): %u\n", sizeof(t))
+#define printSize(t) printf("sizeof("#t"): %lu\n", sizeof(t))
     
     typedef float2 point2;
     typedef float3 vector3;
@@ -111,10 +111,9 @@ namespace sim {
         mat4x4 localToWorld;
     } CameraHead;
     
-    //20bytes
+    //4bytes
     typedef struct {
-        uchar numEnvLights; uchar dum0[3];
-        uint offsetEnvLights[4];
+        uint offsetEnvLightProperty;
     } EnvironmentHead;
     
     typedef struct {
@@ -146,6 +145,7 @@ namespace sim {
     void makeTangent(const vector3* n, vector3* tangent);
     inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
     inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
+    inline void dirToPolar(const vector3* dir, float* theta, float* phi);
     inline float distance2(const point3* p0, const point3* p1);
     inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos);
     
@@ -207,6 +207,13 @@ namespace sim {
         return vector3(s->x * v->x + t->x * v->y + n->x * v->z,
                        s->y * v->x + t->y * v->y + n->y * v->z,
                        s->z * v->x + t->z * v->y + n->z * v->z);
+    }
+    
+    inline void dirToPolarYTop(const vector3* dir, float* theta, float* phi) {
+        *theta = acosf(clamp(dir->y, -1.0f, 1.0f));
+        *phi = atan2f(dir->x, dir->z);
+        if (*phi < 0.0f)
+            *phi += 2.0f * M_PI_F;
     }
     
     inline float distance2(const point3* p0, const point3* p1) {

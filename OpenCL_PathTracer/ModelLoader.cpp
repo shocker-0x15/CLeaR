@@ -160,17 +160,17 @@ namespace OBJ {
 //        //Diffuse
 //        mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.85f, 0.85f, 0.15f);
 //        mc.createFloatConstantTexture("objfile_default_sigma", 0.0f);
-//        mc.createMatteMaterial("objfile_default_material",
-//                               scene->idxOfTex("objfile_default_reflectance"),
-//                               scene->idxOfTex("objfile_default_sigma"));
+//        mc.createMatteMaterial("objfile_default_material", nullptr,
+//                               "objfile_default_reflectance",
+//                               "objfile_default_sigma");
 //        //Ward
 //        mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.5f, 0.5f, 0.5f);
 //        mc.createFloatConstantTexture("objfile_default_roughX", 0.15f);
 //        mc.createFloatConstantTexture("objfile_default_roughY", 0.15f);
-//        mc.createWardMaterial("objfile_default_material",
-//                              scene->idxOfTex("objfile_default_reflectance"),
-//                              scene->idxOfTex("objfile_default_roughX"),
-//                          scene->idxOfTex("objfile_default_roughX"));
+//        mc.createNewWardMaterial("objfile_default_material", nullptr,
+//                                 "objfile_default_reflectance",
+//                                 "objfile_default_roughX",
+//                                 "objfile_default_roughY");
 //        //Ashikhmin
 //        mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rs", 0.1f, 0.1f, 0.1f);
 //        mc.createFloat3ConstantTexture("objfile_default_Ashikhmin_Rd", 0.85f, 0.85f, 0.15f);
@@ -187,25 +187,25 @@ namespace OBJ {
                                "objfile_default_transmittance", 1.0f, 1.333f);
 //        mc.createFloat3ConstantTexture("objfile_default_reflectance", 1.0f, 1.0f, 1.0f);
 //        //Gold
-//        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
 //                               0.16111f, 0.37457f, 1.58671f, 3.9521e+0f, 2.6371e+0f, 1.9205e+0f);
 //        //Silver
-//        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
 //                               0.14221f, 0.12643f, 0.15837f, 4.5230e+0f, 3.3071e+0f, 2.3359e+0f);
 //        //Copper
-//        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
 //                               0.21359f, 0.977984f, 1.17237f, 4.1618e+0f, 2.5929e+0f, 2.3244e+0f);
 //        //Chromium
-//        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
 //                               3.0568f, 3.15007f, 2.22288f, 3.3785e+0f, 3.3278e+0, 3.0647e+0f);
 //        //Aluminium
-//        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
 //                               1.92139f, 0.9986353f, 0.58738f, 8.1420e+0f, 6.5823e+0f, 5.2806e+0f);
 //        //Titanium
-//        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
 //                               2.40904f, 1.87618f, 1.65813f, 3.1459e+0f, 2.5920e+0f, 2.2321e+0f);
 //        //Platinum
-//        mc.createMetalMaterial("objfile_default_material", scene->idxOfTex("objfile_default_reflectance"),
+//        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
 //                               2.54319f, 2.1202f, 1.8117f, 4.4853e+0f, 3.6989e+0f, 3.0588e+0f);
         
         

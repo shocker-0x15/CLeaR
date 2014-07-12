@@ -124,9 +124,9 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     png_get_IHDR(pngStruct, pngInfo, width, height, &bitDepth, &colorType, &interlaceMethod, &compressionMethod, &filterMethod);
     assert(colorType != PNG_COLOR_TYPE_PALETTE && colorType != PNG_COLOR_TYPE_GA);
     if (colorType == PNG_COLOR_TYPE_RGB)
-        *color = ColorChannel::RGB888;
+        *color = ColorChannel::RGB8x3;
     else if (colorType == PNG_COLOR_TYPE_RGBA)
-        *color = ColorChannel::RGBA8888;
+        *color = ColorChannel::RGBA8x4;
     else if (colorType == PNG_COLOR_TYPE_GRAY)
         *color = ColorChannel::Gray8;
     size_t channels = png_get_channels(pngStruct, pngInfo);
@@ -216,17 +216,17 @@ bool loadImage(const char* fileName, std::vector<uint8_t>* storage, uint32_t* wi
     
     std::string sExt = sFileName.substr(extPos + 1);
     if (!sExt.compare("jpg") || !sExt.compare("jpeg")) {
-        *color = ColorChannel::RGB888;
+        *color = ColorChannel::RGB8x3;
         return loadJPEG(fileName, storage, width, height);
     }
     else if (!sExt.compare("png")) {
         return loadPNG(fileName, storage, width, height, color, gammaCorrection);
     }
+    else if (!sExt.compare("exr")) {
+        EXRType exrType;
+        *color = ColorChannel::RGBA16Fx4;
+        return loadEXR(fileName, storage, width, height, &exrType);
+    }
     
     return false;
-}
-
-bool loadEnvMap(const char* fileName, std::vector<uint8_t>* storage, uint32_t* width, uint32_t* height) {
-    EXRType exrtype;
-    return loadEXR(fileName, storage, width, height, &exrtype);
 }

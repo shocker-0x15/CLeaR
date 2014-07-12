@@ -24,12 +24,6 @@ typedef struct {
 } LightInfo;
 
 class Scene {
-    struct PtrsOthers {
-        uint32_t camera;
-        uint32_t environment;
-        uint32_t lightPowerCDF;
-    };
-    
 public:
     std::vector<cl_float3> vertices;
     std::vector<cl_float3> normals;
@@ -43,9 +37,9 @@ public:
     std::map<std::string, size_t> lightPropsRef;
     std::vector<uint8_t> texturesData;
     std::map<std::string, size_t> texturesRef;
+    std::vector<uint8_t> otherResouces;
+    std::map<std::string, size_t> othersRef;
     BVH bvh;
-    std::vector<uint8_t> others;
-    uint64_t idxPtrOthers;
     
     bool immediateMode;
     size_t idxBaseVertices;
@@ -55,8 +49,8 @@ public:
     
     Scene() {
         immediateMode = false;
-        PtrsOthers tempPtrOthers;
-        idxPtrOthers = addDataAligned<PtrsOthers>(&others, tempPtrOthers);
+        //idx of Camera, Environment, LightPowerCDF
+        otherResouces.insert(otherResouces.end(), sizeof(uint32_t) * 3, 0);
     }
     
     void addVertex(float x, float y, float z) {
@@ -122,6 +116,18 @@ public:
         std::pair<std::map<std::string, size_t>::iterator, bool> ret = texturesRef.insert(std::pair<std::string, size_t>(name, idx));
         return ret.second;
     }
+    bool addOtherResouce(size_t idx, const char* name) {
+        std::pair<std::map<std::string, size_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, size_t>(name, idx));
+        return ret.second;
+    }
+    bool setCamera(size_t idx) {
+        std::pair<std::map<std::string, size_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, size_t>("Camera", idx));
+        return ret.second;
+    }
+    bool setEnvironment(size_t idx) {
+        std::pair<std::map<std::string, size_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, size_t>("Environment", idx));
+        return ret.second;
+    }
     
     void beginObject() {
         immediateMode = true;
@@ -161,8 +167,8 @@ public:
     void* rawBVHNodes() {
         return bvh.nodes.data();
     }
-    void* rawOthers() {
-        return others.data();
+    void* rawOtherResources() {
+        return otherResouces.data();
     }
     
     size_t numVertices() const {
@@ -192,8 +198,8 @@ public:
     size_t sizeOfBVHNodes() const {
         return bvh.nodes.size() * sizeof(BVHNode);
     }
-    size_t sizeOfOthers() const {
-        return others.size();
+    size_t sizeOfOtherResouces() const {
+        return otherResouces.size();
     }
     
     size_t idxOfMat(const std::string &name) {
@@ -208,26 +214,14 @@ public:
         assert(texturesRef.count(name) == 1);
         return texturesRef[name];
     }
-    
-    uint32_t* cameraIdx() {
-        PtrsOthers* ptrsOthers = (PtrsOthers*)&others[idxPtrOthers];
-        return &ptrsOthers->camera;
-    }
-    
-    uint32_t* environementIdx() {
-        PtrsOthers* ptrsOthers = (PtrsOthers*)&others[idxPtrOthers];
-        return &ptrsOthers->environment;
-    }
-    
-    uint32_t* lightPowerCDFIdx() {
-        PtrsOthers* ptrsOthers = (PtrsOthers*)&others[idxPtrOthers];
-        return &ptrsOthers->lightPowerCDF;
+    size_t idxOfOther(const std::string &name) {
+        assert(othersRef.count(name) == 1);
+        return othersRef[name];
     }
     
     void calcLightPowerCDF() {
-        auto refOthers = &others;
+        auto refOthers = &otherResouces;
         uint64_t lpCDFHead = addDataAligned<cl_uint>(refOthers, (cl_uint)lightPowers.size());
-        *lightPowerCDFIdx() = (uint32_t)lpCDFHead;
         
         std::vector<float> PMF(lightPowers.size());
         std::vector<float> CDF(lightPowers.size());
@@ -241,9 +235,13 @@ public:
         }
         addDataAligned(refOthers, CDF.data(), sizeof(float) * CDF.size(), sizeof(float));
         addDataAligned(refOthers, PMF.data(), sizeof(float) * PMF.size(), sizeof(float));
+        
+        addOtherResouce(lpCDFHead, "LightPowerCDF");
     }
     
     void build() {
+        calcLightPowerCDF();
+        
         for (int i = 0; i < faces.size(); ++i) {
             BBox bb{vertices[faces[i].p0]};
             bb.unionP(vertices[faces[i].p1]);
@@ -251,6 +249,10 @@ public:
             bvh.addLeaf(bb);
         }
         bvh.build();
+        
+        *(uint32_t*)&otherResouces[0] = (uint32_t)idxOfOther("Camera");
+        *(uint32_t*)&otherResouces[4] = (uint32_t)idxOfOther("Environment");
+        *(uint32_t*)&otherResouces[8] = (uint32_t)idxOfOther("LightPowerCDF");
     }
 };
 

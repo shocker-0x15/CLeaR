@@ -86,9 +86,10 @@ namespace sim {
                 isect->uDir = normalize(uDir);
         }
         
-        if (hasUV && face->alphaTexPtr != UINT_MAX)
+        if (hasUV && face->alphaTexPtr != UINT_MAX) {
             if (evaluateAlphaTexture(scene->texturesData + face->alphaTexPtr, isect->uv) == 0.0f)
                 return false;
+        }
         
         return true;
     }

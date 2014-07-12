@@ -11,7 +11,7 @@
 #include "Matrix4f.hpp"
 #include "XORShift.hpp"
 #include <fstream>
-#define __CL_ENABLE_EXCEPTIONS
+//#define __CL_ENABLE_EXCEPTIONS
 #include "cl12.hpp"
 #include "clUtility.hpp"
 #include "CreateFunctions.hpp"
@@ -76,7 +76,7 @@ std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
 void buildScene() {
-    std::vector<uint8_t>* refOthers = &scene.others;
+    std::vector<uint8_t>* refOthers = &scene.otherResouces;
     
     //128bytes
     struct CameraHead {
@@ -124,41 +124,7 @@ void buildScene() {
     f16Val.s2 = rasterToCamera.m20; f16Val.s6 = rasterToCamera.m21; f16Val.sa = rasterToCamera.m22; f16Val.se = rasterToCamera.m23;
     f16Val.s3 = rasterToCamera.m30; f16Val.s7 = rasterToCamera.m31; f16Val.sb = rasterToCamera.m32; f16Val.sf = rasterToCamera.m33;
     perspectiveCamera.rasterToCamera = f16Val;
-    *scene.cameraIdx() = (cl_uint)addDataAligned<PerspectiveInfo>(refOthers, perspectiveCamera, 64);
-    
-    
-    uint64_t idxEnvHead = *scene.environementIdx() = (cl_uint)align(refOthers, 4);
-    //20bytes
-    struct EnvironmentHead {
-        uint8_t numEnvLights; uint8_t dum0[3];
-        uint32_t offsetEnvLights[4];
-    };
-    refOthers->insert(refOthers->end(), sizeof(EnvironmentHead), 0);
-    
-    enum EnvID {
-        LatitudeLongitude = 0,
-    };
-    //28bytes
-    struct LatitudeLongitudeIBLHead {
-        uint8_t envID; uint8_t dum0[3];
-        uint32_t width, height;
-        uint32_t idxImage;
-        uint32_t idxPDF, idxCDF2D, idxCDF1D;
-    };
-    uint64_t idxEnvLight0 = align(refOthers, 4);
-    refOthers->insert(refOthers->end(), sizeof(LatitudeLongitudeIBLHead), 0);
-    uint64_t idxEnvLight0Image = align(refOthers, sizeof(cl_half) * 4);
-    uint32_t width, height;
-    loadEnvMap("images/LA_Downtown_Afternoon_Fishing_3k.exr", refOthers, &width, &height);
-    LatitudeLongitudeIBLHead* LLIBLHead = (LatitudeLongitudeIBLHead*)&(*refOthers)[idxEnvLight0];
-    LLIBLHead->envID = EnvID::LatitudeLongitude;
-    LLIBLHead->width = width;
-    LLIBLHead->height = height;
-    LLIBLHead->idxImage = (cl_uint)(idxEnvLight0Image - idxEnvHead);
-    
-    EnvironmentHead* environmentHead = (EnvironmentHead*)&(*refOthers)[idxEnvHead];
-    environmentHead->numEnvLights = 1;
-    environmentHead->offsetEnvLights[0] = (cl_uint)(idxEnvLight0 - idxEnvHead);
+    scene.setCamera(addDataAligned(refOthers, perspectiveCamera, 64));
     
     
     g_randStates.resize(g_width * g_height * 4);
@@ -179,6 +145,15 @@ void buildScene() {
     
     MaterialCreator &mc = MaterialCreator::sharedInstance();
     mc.setScene(&scene);
+    
+    mc.createImageTexture("IBLSource", "images/Milkyway_small.exr");
+    mc.createImageBasedEnvLightPropety("IBL", "IBLSource");
+    struct EnvironmentHead {
+        uint32_t offsetEnvLightProperty;
+    };
+    EnvironmentHead envHead;
+    envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
+    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
     
     //部屋
     scene.beginObject();
@@ -206,7 +181,7 @@ void buildScene() {
     mc.createFloat3CheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
     mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
     mc.createNormalMapTexture("bump_backWall", "images/paper_bump.png");
-    mc.createImageTexture("R_backWall", "images/Kirby.png");
+    mc.createImageTexture("R_backWall", "images/pikachu.png");
     
 //    mc.createImageTexture("R_floor", "images/stone_wall__.png");
 //    mc.createNormalMapTexture("bump_floor", "images/stone_wall_normal_map__.png");
@@ -221,16 +196,16 @@ void buildScene() {
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
     mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
-    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
     scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
     scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
     //光源
@@ -252,7 +227,6 @@ void buildScene() {
     
     loadModel("models/Pikachu_corrected_subdivided.obj", &scene);
     
-    scene.calcLightPowerCDF();
     scene.build();
 }
 
@@ -266,7 +240,7 @@ int main(int argc, const char * argv[]) {
     std::time_t ctimeLaunch = system_clock::to_time_t(programStartTimePoint);
     printf("%s\n", std::ctime(&ctimeLaunch));
     
-    const uint32_t iterations = 1;
+    const uint32_t iterations = 16;
     
     buildScene();
     
@@ -274,7 +248,7 @@ int main(int argc, const char * argv[]) {
     printf("build time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(buildTime).count());
     
     cl_int ret = CL_SUCCESS;
-    try {
+//    try {
         std::ifstream ifs;
         cl::Platform platform;
         cl::Platform::get(&platform);
@@ -331,7 +305,7 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
         cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
-        cl::Buffer buf_Others{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOthers(), scene.rawOthers(), nullptr};
+        cl::Buffer buf_Others{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
@@ -358,7 +332,7 @@ int main(int argc, const char * argv[]) {
         const int numTilesX = 16, numTilesY = 16;
         const int numTiles = numTilesX * numTilesY;
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
-        cl::NDRange localSize{32, 32};
+        cl::NDRange localSize{8, 8};
         
         renderingKernelSetupTime =
         system_clock::now() - startTimePoint;
@@ -404,6 +378,7 @@ int main(int argc, const char * argv[]) {
         uint32_t k10mins = 1;
 #define SIMULATION 0
 #if SIMULATION
+        printf("CPU equivalent code:\n");
         sim::global_sizes[0] = (sim::uint)*tile;
         sim::global_sizes[1] = (sim::uint)*(tile + 1);
         for (int i = 0; i < iterations; ++i) {
@@ -420,7 +395,7 @@ int main(int argc, const char * argv[]) {
                         sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
                                          (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLightInfos(), (sim::uint)scene.numLights(),
                                          (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(),
-                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawOthers(), g_randStates.data(), (sim::float3*)g_pixels.data());
+                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawOtherResources(), g_randStates.data(), (sim::float3*)g_pixels.data());
                     }
                 }
                 printf("*");
@@ -475,12 +450,12 @@ int main(int argc, const char * argv[]) {
         
         saveBMP("output.bmp", LDRPixels, g_width, g_height);
         free(LDRPixels);
-    } catch (cl::Error error) {
-        char err_str[64];
-        printErrorFromCode(error.err(), err_str);
-        fprintf(stderr, "ERROR: %s @ ", err_str);
-        fprintf(stderr, "%s\n", error.what());
-    }
+//    } catch (cl::Error error) {
+//        char err_str[64];
+//        printErrorFromCode(error.err(), err_str);
+//        fprintf(stderr, "ERROR: %s @ ", err_str);
+//        fprintf(stderr, "%s\n", error.what());
+//    }
     
     return 0;
 }

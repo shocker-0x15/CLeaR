@@ -111,7 +111,7 @@ namespace sim {
     //80bytes
     typedef struct {
         DDFHead ddfHead; uchar dum0;
-        uchar numBxDFs; uchar dum1;//EDFHeadが2バイトアラインにしないと何故か落ちるので一応合わせておく。
+        uchar numBxDFs; uchar dum1;
         ushort offsetsBxDFs[4]; uchar dum2[4];
         vector3 n, s, t, ng;
     } BSDFHead;
@@ -242,109 +242,109 @@ namespace sim {
         matsData_p += sizeof(MaterialInfo);
         for (int i = 0; i < fsHead->numBxDFs; ++i) {
             AlignPtrG(&matsData_p, 4);
-            uchar BxDFID = *matsData_p;
-            switch (BxDFID) {
-                case BxDFID_Diffuse: {
+            uchar matElemID = *matsData_p;
+            switch (matElemID) {
+                case MatElem_Diffuse: {
                     AlignPtr(&BSDFp, 16);
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     Diffuse* diffuse = (Diffuse*)BSDFp;
-                    const DiffuseBRDFInfo* diffuseInfo = (const DiffuseBRDFInfo*)matsData_p;
+                    const DiffuseRElem* diffuseElem = (const DiffuseRElem*)matsData_p;
                     
-                    diffuse->head.id = BxDFID;
+                    diffuse->head.id = BxDFID_Diffuse;
                     diffuse->head.fxType = BxDFType(BxDF_Reflection | BxDF_Diffuse);
-                    diffuse->R = evaluateColorTexture(scene->texturesData + diffuseInfo->idx_R, isect->uv);
-                    float sigma2 = evaluateFloatTexture(scene->texturesData + diffuseInfo->idx_sigma, isect->uv);
+                    diffuse->R = evaluateColorTexture(scene->texturesData + diffuseElem->idx_R, isect->uv);
+                    float sigma2 = evaluateFloatTexture(scene->texturesData + diffuseElem->idx_sigma, isect->uv);
                     sigma2 *= sigma2;
                     diffuse->A = 1.0f - (sigma2 / (2.0f * (sigma2 + 0.33f)));
                     diffuse->B = 0.45f * sigma2 / (sigma2 + 0.09f);
                     
                     BSDFp += sizeof(Diffuse);
-                    matsData_p += sizeof(DiffuseBRDFInfo);
+                    matsData_p += sizeof(DiffuseRElem);
                     break;
                 }
-                case BxDFID_SpecularReflection: {
+                case MatElem_SpecularReflection: {
                     AlignPtr(&BSDFp, 16);
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     SpecularReflection* speR = (SpecularReflection*)BSDFp;
-                    const SpecularBRDFInfo* speRInfo = (const SpecularBRDFInfo*)matsData_p;
+                    const SpecularRElem* speRElem = (const SpecularRElem*)matsData_p;
                     
-                    speR->head.id = BxDFID;
+                    speR->head.id = BxDFID_SpecularReflection;
                     speR->head.fxType = BxDFType(BxDF_Reflection | BxDF_Specular);
-                    speR->R = evaluateColorTexture(scene->texturesData + speRInfo->idx_R, isect->uv);
-                    speR->fresnel = scene->texturesData + speRInfo->idx_Fresnel;
+                    speR->R = evaluateColorTexture(scene->texturesData + speRElem->idx_R, isect->uv);
+                    speR->fresnel = scene->texturesData + speRElem->idx_Fresnel;
                     
                     BSDFp += sizeof(SpecularReflection);
-                    matsData_p += sizeof(SpecularBRDFInfo);
+                    matsData_p += sizeof(SpecularRElem);
                     break;
                 }
-                case BxDFID_SpecularTransmission: {
+                case MatElem_SpecularTransmission: {
                     AlignPtr(&BSDFp, 16);
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     SpecularTransmission* speT = (SpecularTransmission*)BSDFp;
-                    const SpecularBTDFInfo* speTInfo = (const SpecularBTDFInfo*)matsData_p;
+                    const SpecularTElem* speTElem = (const SpecularTElem*)matsData_p;
                     
-                    speT->head.id = BxDFID;
+                    speT->head.id = BxDFID_SpecularTransmission;
                     speT->head.fxType = BxDFType(BxDF_Transmission | BxDF_Specular);
-                    speT->T = evaluateColorTexture(scene->texturesData + speTInfo->idx_T, isect->uv);
-                    speT->etaExt = speTInfo->etaExt;
-                    speT->etaInt = speTInfo->etaInt;
-                    speT->fresnel = scene->texturesData + speTInfo->idx_Fresnel;
+                    speT->T = evaluateColorTexture(scene->texturesData + speTElem->idx_T, isect->uv);
+                    speT->etaExt = speTElem->etaExt;
+                    speT->etaInt = speTElem->etaInt;
+                    speT->fresnel = scene->texturesData + speTElem->idx_Fresnel;
                     
                     BSDFp += sizeof(SpecularTransmission);
-                    matsData_p += sizeof(SpecularBTDFInfo);
+                    matsData_p += sizeof(SpecularTElem);
                     break;
                 }
-                case BxDFID_NewWard: {
+                case MatElem_NewWard: {
                     AlignPtr(&BSDFp, 16);
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     NewWard* ward = (NewWard*)BSDFp;
-                    const NewWardBRDFInfo* wardInfo = (const NewWardBRDFInfo*)matsData_p;
+                    const NewWardElem* wardElem = (const NewWardElem*)matsData_p;
                     
-                    ward->head.id = BxDFID;
+                    ward->head.id = BxDFID_NewWard;
                     ward->head.fxType = BxDFType(BxDF_Reflection | BxDF_Glossy);
-                    ward->R = evaluateColorTexture(scene->texturesData + wardInfo->idx_R, isect->uv);
-                    ward->ax = evaluateFloatTexture(scene->texturesData + wardInfo->idx_anisoX, isect->uv);
-                    ward->ay = evaluateFloatTexture(scene->texturesData + wardInfo->idx_anisoY, isect->uv);
+                    ward->R = evaluateColorTexture(scene->texturesData + wardElem->idx_R, isect->uv);
+                    ward->ax = evaluateFloatTexture(scene->texturesData + wardElem->idx_anisoX, isect->uv);
+                    ward->ay = evaluateFloatTexture(scene->texturesData + wardElem->idx_anisoY, isect->uv);
                     
                     BSDFp += sizeof(NewWard);
-                    matsData_p += sizeof(NewWardBRDFInfo);
+                    matsData_p += sizeof(NewWardElem);
                     break;
                 }
-                case BxDFID_AshikhminS: {
+                case MatElem_AshikhminS: {
                     AlignPtr(&BSDFp, 16);
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     AshikhminS* ashS = (AshikhminS*)BSDFp;
-                    const AshikhminSBRDFInfo* ashSInfo = (const AshikhminSBRDFInfo*)matsData_p;
+                    const AshikhminSElem* ashSElem = (const AshikhminSElem*)matsData_p;
                     
-                    ashS->head.id = BxDFID;
+                    ashS->head.id = BxDFID_AshikhminS;
                     ashS->head.fxType = BxDFType(BxDF_Reflection | BxDF_Glossy);
-                    ashS->Rs = evaluateColorTexture(scene->texturesData + ashSInfo->idx_Rs, isect->uv);
-                    ashS->nu = evaluateFloatTexture(scene->texturesData + ashSInfo->idx_nu, isect->uv);
-                    ashS->nv = evaluateFloatTexture(scene->texturesData + ashSInfo->idx_nv, isect->uv);
+                    ashS->Rs = evaluateColorTexture(scene->texturesData + ashSElem->idx_Rs, isect->uv);
+                    ashS->nu = evaluateFloatTexture(scene->texturesData + ashSElem->idx_nu, isect->uv);
+                    ashS->nv = evaluateFloatTexture(scene->texturesData + ashSElem->idx_nv, isect->uv);
                     
                     BSDFp += sizeof(AshikhminS);
-                    matsData_p += sizeof(AshikhminSBRDFInfo);
+                    matsData_p += sizeof(AshikhminSElem);
                     break;
                 }
-                case BxDFID_AshikhminD: {
+                case MatElem_AshikhminD: {
                     AlignPtr(&BSDFp, 16);
                     fsHead->offsetsBxDFs[i] = (ushort)((uintptr_t)BSDFp - (uintptr_t)BSDF);
                     
                     AshikhminD* ashD = (AshikhminD*)BSDFp;
-                    const AshikhminDBRDFInfo* ashDInfo = (const AshikhminDBRDFInfo*)matsData_p;
+                    const AshikhminDElem* ashDElem = (const AshikhminDElem*)matsData_p;
                     
-                    ashD->head.id = BxDFID;
+                    ashD->head.id = BxDFID_AshikhminD;
                     ashD->head.fxType = BxDFType(BxDF_Reflection | BxDF_Diffuse);
-                    ashD->Rd = evaluateColorTexture(scene->texturesData + ashDInfo->idx_Rd, isect->uv);
-                    ashD->Rs = evaluateColorTexture(scene->texturesData + ashDInfo->idx_Rs, isect->uv);
+                    ashD->Rd = evaluateColorTexture(scene->texturesData + ashDElem->idx_Rd, isect->uv);
+                    ashD->Rs = evaluateColorTexture(scene->texturesData + ashDElem->idx_Rs, isect->uv);
                     
                     BSDFp += sizeof(AshikhminD);
-                    matsData_p += sizeof(AshikhminDBRDFInfo);
+                    matsData_p += sizeof(AshikhminDElem);
                     break;
                 }
                 default: {
@@ -409,7 +409,7 @@ namespace sim {
             case BxDFID_Diffuse: {
                 *vin = cosineSampleHemisphere(sample->uDir[0], sample->uDir[1]);
                 if (vout->z < 0.0f)
-                vin->z *= -1;
+                    vin->z *= -1;
                 *dirPDF = absCosTheta(vin) / M_PI_F;
                 
                 return fx(BxDF, vout, vin);

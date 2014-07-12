@@ -1,3 +1,4 @@
+#pragma OPENCL EXTENSION cl_khr_fp16 : enable
 #ifndef device_texture_cl
 #define device_texture_cl
 
@@ -5,8 +6,9 @@
 
 typedef enum {
     TextureType_ColorConstant = 0,
-    TextureType_ColorImageRGB888,
-    TextureType_ColorImageRGBA8888,
+    TextureType_ColorImageRGB8x3,
+    TextureType_ColorImageRGBA8x4,
+    TextureType_ColorImageRGBA16Fx4,
     TextureType_ColorProcedural,
     TextureType_GrayImage8,
     TextureType_FloatConstant,
@@ -37,15 +39,24 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv) {
         case TextureType_ColorConstant: {
             return *(const global color*)AlignPtrAddG(&textureData, sizeof(color));
         }
-        case TextureType_ColorImageRGB888:
-        case TextureType_ColorImageRGBA8888:
+        case TextureType_ColorImageRGB8x3:
+        case TextureType_ColorImageRGBA8x4:
         {
             uint width = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
             uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            AlignPtrG(&textureData, 128);
             uchar3 value = *((const global uchar3*)textureData + y * width + x);
             return convert_float3(value) / 255.0f;
+        }
+        case TextureType_ColorImageRGBA16Fx4: {
+            uint width = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
+            uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
+            uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            AlignPtrG(&textureData, 128);
+            return vload_half4(y * width + x, (const global half*)textureData).xyz;
         }
         case TextureType_ColorProcedural: {
             return proceduralColorTexture(textureData, uv);
@@ -55,6 +66,7 @@ color evaluateColorTexture(const global uchar* textureData, float2 uv) {
             uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
             uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            AlignPtrG(&textureData, 128);
             uchar value = *((const global uchar*)textureData + y * width + x);
             return (float3)(value / 255.0f);
         }
@@ -76,6 +88,7 @@ float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
             uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
             uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            AlignPtrG(&textureData, 128);
             return *((const global float*)textureData + y * width + x);
         }
         case TextureType_FloatProcedural: {
@@ -89,14 +102,14 @@ float evaluateFloatTexture(const global uchar* textureData, float2 uv) {
 }
 
 float evaluateAlphaTexture(const global uchar* textureData, float2 uv) {
-    printf("");//原因不明だがMacだとこのprintfがあると落ちない。
     uchar textureType = *(textureData++);
     switch (textureType) {
-        case TextureType_ColorImageRGBA8888: {
+        case TextureType_ColorImageRGBA8x4: {
             uint width = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
             uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            AlignPtrG(&textureData, 128);
             uchar value = *((const global uchar*)((const global uchar4*)textureData + y * width + x) + 3);
             return value / 255.0f;
         }
@@ -105,6 +118,7 @@ float evaluateAlphaTexture(const global uchar* textureData, float2 uv) {
             uint height = *(const global uint*)AlignPtrAddG(&textureData, sizeof(uint));
             uint x = clamp((uint)fmod(width * uv.s0, width), 0u, width - 1);
             uint y = clamp((uint)fmod(height * uv.s1, height), 0u, height - 1);
+            AlignPtrG(&textureData, 128);
             return *((const global uchar*)textureData + y * width + x) / 255.0f;
         }
         case TextureType_FloatProcedural: {

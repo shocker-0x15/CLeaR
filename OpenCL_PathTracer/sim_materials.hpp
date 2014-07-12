@@ -4,6 +4,24 @@
 #include "sim_global.hpp"
 
 namespace sim {
+    typedef enum {
+        MatElem_Diffuse = 0,
+        MatElem_SpecularReflection,
+        MatElem_SpecularTransmission,
+        MatElem_NewWard,
+        MatElem_AshikhminS,
+        MatElem_AshikhminD,
+    } MatElem;
+    
+    typedef enum {
+        LPElem_DiffuseEmission = 0,
+    } LPElem;
+    
+    typedef enum {
+        EnvLPElem_ImageBased = 0,
+    } EnvLPElem;
+    
+    
     //8bytes
     typedef struct {
         uchar numBxDFs;
@@ -16,14 +34,14 @@ namespace sim {
         uchar id; uchar dum0[3];
         uint idx_R;
         uint idx_sigma;
-    } DiffuseBRDFInfo;
+    } DiffuseRElem;
     
     //12bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_R;
         uint idx_Fresnel;
-    } SpecularBRDFInfo;
+    } SpecularRElem;
     
     //20bytes
     typedef struct {
@@ -32,7 +50,7 @@ namespace sim {
         float etaExt;
         float etaInt;
         uint idx_Fresnel;
-    } SpecularBTDFInfo;
+    } SpecularTElem;
     
     //16bytes
     typedef struct {
@@ -40,7 +58,7 @@ namespace sim {
         uint idx_R;
         uint idx_anisoX;
         uint idx_anisoY;
-    } NewWardBRDFInfo;
+    } NewWardElem;
     
     //16bytes
     typedef struct {
@@ -48,14 +66,14 @@ namespace sim {
         uint idx_Rs;
         uint idx_nu;
         uint idx_nv;
-    } AshikhminSBRDFInfo;
+    } AshikhminSElem;
     
     //12bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_Rs;
         uint idx_Rd;
-    } AshikhminDBRDFInfo;
+    } AshikhminDElem;
     
     
     //1bytes
@@ -67,7 +85,14 @@ namespace sim {
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_M;
-    } DiffuseEDFInfo;
+    } DiffuseLElem;
+    
+    //12bytes
+    typedef struct {
+        uchar id; uchar dum0[3];
+        uint idx_Le;
+        uint idx_Dist2D;
+    } ImageBasedEnvLElem;
 }
 
 #endif

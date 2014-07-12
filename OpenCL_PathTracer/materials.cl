@@ -3,6 +3,24 @@
 
 #include "global.cl"
 
+typedef enum {
+    MatElem_Diffuse = 0,
+    MatElem_SpecularReflection,
+    MatElem_SpecularTransmission,
+    MatElem_NewWard,
+    MatElem_AshikhminS,
+    MatElem_AshikhminD,
+} MatElem;
+
+typedef enum {
+    LPElem_DiffuseEmission = 0,
+} LPElem;
+
+typedef enum {
+    EnvLPElem_ImageBased = 0,
+} EnvLPElem;
+
+
 //8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar numBxDFs;
@@ -15,14 +33,14 @@ typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_R __attribute__((aligned(4)));
     uint idx_sigma;
-} DiffuseBRDFInfo;
+} DiffuseRElem;
 
 //12bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_R __attribute__((aligned(4)));
     uint idx_Fresnel;
-} SpecularBRDFInfo;
+} SpecularRElem;
 
 //20bytes
 typedef struct __attribute__((aligned(4))) {
@@ -31,7 +49,7 @@ typedef struct __attribute__((aligned(4))) {
     float etaExt;
     float etaInt;
     uint idx_Fresnel;
-} SpecularBTDFInfo;
+} SpecularTElem;
 
 //16bytes
 typedef struct __attribute__((aligned(4))) {
@@ -39,7 +57,7 @@ typedef struct __attribute__((aligned(4))) {
     uint idx_R __attribute__((aligned(4)));
     uint idx_anisoX;
     uint idx_anisoY;
-} NewWardBRDFInfo;
+} NewWardElem;
 
 //16bytes
 typedef struct __attribute__((aligned(4))) {
@@ -47,14 +65,14 @@ typedef struct __attribute__((aligned(4))) {
     uint idx_Rs __attribute__((aligned(4)));
     uint idx_nu;
     uint idx_nv;
-} AshikhminSBRDFInfo;
+} AshikhminSElem;
 
 //12bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_Rs __attribute__((aligned(4)));
     uint idx_Rd;
-} AshikhminDBRDFInfo;
+} AshikhminDElem;
 
 
 //1bytes
@@ -66,6 +84,13 @@ typedef struct __attribute__((aligned(1))) {
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_M __attribute__((aligned(4)));
-} DiffuseEDFInfo;
+} DiffuseLElem;
+
+//12bytes
+typedef struct __attribute__((aligned(4))) {
+    uchar id;
+    uint idx_Le __attribute__((aligned(4)));
+    uint idx_Dist2D;
+} ImageBasedEnvLElem;
 
 #endif

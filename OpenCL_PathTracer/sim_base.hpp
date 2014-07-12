@@ -12,6 +12,7 @@
 #include <stdint.h>
 #include <cmath>
 #include <algorithm>
+#include <half.h>
 
 #define M_PI_F ((float)M_PI)
 #define sw2(m, s0, s1) float2((m).s0, (m).s1)
@@ -712,6 +713,17 @@ namespace sim {
         s8(v.s8), s9(v.s9), sa(v.sa), sb(v.sb),
         sc(v.sc), sd(v.sd), se(v.se), sf(v.sf) { };
     };
+    
+    
+    float4 vload_half4(size_t offset, const half* p) {
+        float4 ret;
+        const half* base = p + offset * 4;
+        ret.s0 = float(*(base + 0));
+        ret.s1 = float(*(base + 1));
+        ret.s2 = float(*(base + 2));
+        ret.s3 = float(*(base + 3));
+        return ret;
+    }
     
     
     template <typename T>

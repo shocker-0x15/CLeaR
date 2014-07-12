@@ -8,10 +8,6 @@
 
 namespace sim {
     typedef enum {
-        EEDFID_DiffuseEmission = 0,
-    } EEDFID;
-    
-    typedef enum {
         EEDF_Diffuse      = 1 << 0,
         EEDF_Varying      = 1 << 1,
         EEDF_Directional  = 1 << 2,
@@ -21,8 +17,13 @@ namespace sim {
     } EEDFType;
     
     typedef enum {
-        EnvID_LatitudeLongitude = 0,
-    } EnvID;
+        EEDFID_DiffuseEmission = 0,
+    } EEDFID;
+    
+    typedef enum {
+        EnvEEDFID_EntireSceneEmission = 0,
+    } EnvEEDFID;
+    
     
     //12bytes
     typedef struct {
@@ -40,7 +41,7 @@ namespace sim {
     //80bytes
     typedef struct {
         DDFHead ddfHead; uchar dum0;
-        uchar numEEDFs; uchar dum1;//2バイトアラインしなかったら何故か死ぬ。
+        uchar numEEDFs; uchar dum1;
         ushort offsetsEEDFs[4]; uchar dum2[4];
         vector3 n, s, t, ng;
     } EDFHead;
@@ -56,6 +57,26 @@ namespace sim {
         EEDFHead head; uchar dum[8];
         color M;
     } DiffuseEmission;
+    
+    
+    //12bytes
+    typedef struct {
+        DDFHead ddfHead; uchar dum0;
+        uchar numEnvEEDFs; uchar dum1;
+        ushort offsetsEnvEEDFs[4];
+    } EnvEDFHead;
+    
+    //8bytes
+    typedef struct {
+        uchar id; uchar dum0[3];
+        EEDFType eLeType;
+    } EnvEEDFHead;
+    
+    //32bytes
+    typedef struct {
+        EnvEEDFHead head; uchar dum0[8];
+        color Le;
+    } EntireSceneEmission;
     
     //------------------------
     
@@ -73,6 +94,7 @@ namespace sim {
     void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF);
     
     static color eLe(const EEDFHead* EEDF, const vector3* vout);
+    static color env_eLe(const EnvEEDFHead* envEEDF, const vector3* vout);
     
     color Le(const uchar* EDF, const vector3* vout);
     inline float absCosNsEDF(const uchar* EDF, const vector3* v);
@@ -112,9 +134,13 @@ namespace sim {
                         LightPosition* lpos, uchar* EDF, float* areaPDF) {
         LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerCDF, l_sample->uLight, areaPDF)];
         if (lInfo.atInfinity) {
+            lpos->atInfinity = true;
             
+            EDFAlloc(scene, USHRT_MAX, lpos, EDF);
         }
         else {
+            lpos->atInfinity = false;
+            
             lpos->faceID = lInfo.reference;
             const Face* face = scene->faces + lpos->faceID;
             const point3* p0 = scene->vertices + face->p0;
@@ -186,47 +212,86 @@ namespace sim {
     
     
     void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
-        EDFHead* LeHead = (EDFHead*)EDF;
-        LeHead->ddfHead._type = DDFType_EDF;
-        const uchar* lightsData_p = scene->materialsData + offset;
-        const LightPropertyInfo* lpInfo = (const LightPropertyInfo*)lightsData_p;
-        
-        LeHead->numEEDFs = lpInfo->numEEDFs;
-        LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =
-        LeHead->offsetsEEDFs[2] = LeHead->offsetsEEDFs[3] = 0;
-        
-        LeHead->n = lpos->sNormal;
-        if (lpos->hasTangent)
-        LeHead->s = lpos->sTangent;
-        else
-        makeTangent(&lpos->sNormal, &LeHead->s);
-        LeHead->t = cross(LeHead->n, LeHead->s);
-        
-        LeHead->ng = lpos->gNormal;
-        
-        uchar* EDFp = EDF + sizeof(EDFHead);
-        lightsData_p += sizeof(LightPropertyInfo);
-        for (int i = 0; i < LeHead->numEEDFs; ++i) {
-            AlignPtrG(&lightsData_p, 4);
-            uchar EEDFID = *lightsData_p;
-            switch (EEDFID) {
-                case EEDFID_DiffuseEmission: {
-                    AlignPtr(&EDFp, 16);
-                    LeHead->offsetsEEDFs[i] = (ushort)((uintptr_t)EDFp - (uintptr_t)EDF);
-                    
-                    DiffuseEmission* diffuse = (DiffuseEmission*)EDFp;
-                    DiffuseEDFInfo* diffuseInfo = (DiffuseEDFInfo*)lightsData_p;
-                    
-                    diffuse->head.id = EEDFID;
-                    diffuse->head.eLeType = EEDF_Diffuse;
-                    diffuse->M = evaluateColorTexture(scene->texturesData + diffuseInfo->idx_M, lpos->uv);
-                    
-                    EDFp += sizeof(DiffuseEmission);
-                    lightsData_p += sizeof(DiffuseEDFInfo);
-                    break;
+        if (lpos->atInfinity) {
+            EnvEDFHead* envEDFHead = (EnvEDFHead*)EDF;
+            envEDFHead->ddfHead._type = DDFType_EnvEDF;
+            const uchar* lightsData_p = scene->materialsData + scene->environment->offsetEnvLightProperty;
+            const LightPropertyInfo* lpInfo = (const LightPropertyInfo*)lightsData_p;
+            
+            envEDFHead->numEnvEEDFs = lpInfo->numEEDFs;
+            envEDFHead->offsetsEnvEEDFs[0] = envEDFHead->offsetsEnvEEDFs[1] =
+            envEDFHead->offsetsEnvEEDFs[2] = envEDFHead->offsetsEnvEEDFs[3] = 0;
+            
+            uchar* EDFp = EDF + sizeof(EnvEDFHead);
+            lightsData_p += sizeof(LightPropertyInfo);
+            for (int i = 0; i < envEDFHead->numEnvEEDFs; ++i) {
+                AlignPtrG(&lightsData_p, 4);
+                uchar EnvLPElemID = *lightsData_p;
+                switch (EnvLPElemID) {
+                    case EnvLPElem_ImageBased: {
+                        AlignPtr(&EDFp, 16);
+                        envEDFHead->offsetsEnvEEDFs[i] = (ushort)((uintptr_t)EDFp - (uintptr_t)EDF);
+                        
+                        EntireSceneEmission* entire = (EntireSceneEmission*)EDFp;
+                        const ImageBasedEnvLElem* llIBEnvElem = (const ImageBasedEnvLElem*)lightsData_p;
+                        
+                        entire->head.id = EnvEEDFID_EntireSceneEmission;
+                        entire->head.eLeType = EEDF_Diffuse;
+                        entire->Le = evaluateColorTexture(scene->texturesData + llIBEnvElem->idx_Le, lpos->uv);
+                        
+                        EDFp += sizeof(EntireSceneEmission);
+                        lightsData_p += sizeof(ImageBasedEnvLElem);
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
                 }
-                default: {
-                    break;
+            }
+        }
+        else {
+            EDFHead* LeHead = (EDFHead*)EDF;
+            LeHead->ddfHead._type = DDFType_EDF;
+            const uchar* lightsData_p = scene->materialsData + offset;
+            const LightPropertyInfo* lpInfo = (const LightPropertyInfo*)lightsData_p;
+            
+            LeHead->numEEDFs = lpInfo->numEEDFs;
+            LeHead->offsetsEEDFs[0] = LeHead->offsetsEEDFs[1] =
+            LeHead->offsetsEEDFs[2] = LeHead->offsetsEEDFs[3] = 0;
+            
+            LeHead->n = lpos->sNormal;
+            if (lpos->hasTangent)
+                LeHead->s = lpos->sTangent;
+            else
+                makeTangent(&lpos->sNormal, &LeHead->s);
+            
+            LeHead->t = cross(LeHead->n, LeHead->s);
+            LeHead->ng = lpos->gNormal;
+            
+            uchar* EDFp = EDF + sizeof(EDFHead);
+            lightsData_p += sizeof(LightPropertyInfo);
+            for (int i = 0; i < LeHead->numEEDFs; ++i) {
+                AlignPtrG(&lightsData_p, 4);
+                uchar EEDFID = *lightsData_p;
+                switch (EEDFID) {
+                    case EEDFID_DiffuseEmission: {
+                        AlignPtr(&EDFp, 16);
+                        LeHead->offsetsEEDFs[i] = (ushort)((uintptr_t)EDFp - (uintptr_t)EDF);
+                        
+                        DiffuseEmission* diffuse = (DiffuseEmission*)EDFp;
+                        DiffuseLElem* diffuseElem = (DiffuseLElem*)lightsData_p;
+                        
+                        diffuse->head.id = EEDFID_DiffuseEmission;
+                        diffuse->head.eLeType = EEDF_Diffuse;
+                        diffuse->M = evaluateColorTexture(scene->texturesData + diffuseElem->idx_M, lpos->uv);
+                        
+                        EDFp += sizeof(DiffuseEmission);
+                        lightsData_p += sizeof(DiffuseLElem);
+                        break;
+                    }
+                    default: {
+                        break;
+                    }
                 }
             }
         }
@@ -246,21 +311,47 @@ namespace sim {
         return colorZero;
     }
     
+    static color env_eLe(const EnvEEDFHead* envEEDF, const vector3* vout) {
+        switch (envEEDF->id) {
+            case EnvEEDFID_EntireSceneEmission: {
+                const EntireSceneEmission* entire = (const EntireSceneEmission*)envEEDF;
+                return entire->Le;
+            }
+            default: {
+                break;
+            }
+        }
+        return colorZero;
+    }
+    
     
     color Le(const uchar* EDF, const vector3* vout) {
-        const EDFHead* head = (const EDFHead*)EDF;
-        const vector3* s = &head->s;
-        const vector3* t = &head->t;
-        const vector3* n = &head->n;
-        const vector3* ng = &head->ng;
-        vector3 voutLocal = worldToLocal(s, t, n, vout);
-        
-        color Le = colorZero;
-        for (int i = 0; i < head->numEEDFs; ++i) {
-            ushort idxEEDF = head->offsetsEEDFs[i];
-            Le += eLe((EEDFHead*)(EDF + idxEEDF), &voutLocal);
+        const DDFHead* ddfHead = (const DDFHead*)EDF;
+        if (ddfHead->_type == DDFType_EDF) {
+            const EDFHead* head = (const EDFHead*)EDF;
+            const vector3* s = &head->s;
+            const vector3* t = &head->t;
+            const vector3* n = &head->n;
+            const vector3* ng = &head->ng;
+            vector3 voutLocal = worldToLocal(s, t, n, vout);
+            
+            color Le = colorZero;
+            for (int i = 0; i < head->numEEDFs; ++i) {
+                const EEDFHead* iLe = (const EEDFHead*)(EDF + head->offsetsEEDFs[i]);
+                Le += eLe(iLe, &voutLocal);
+            }
+            return Le;
         }
-        return Le;
+        else {
+            const EnvEDFHead* head = (const EnvEDFHead*)EDF;
+            
+            color Le = colorZero;
+            for (int i = 0; i < head->numEnvEEDFs; ++i) {
+                const EnvEEDFHead* iLe = (const EnvEEDFHead*)(EDF + head->offsetsEnvEEDFs[i]);
+                Le += env_eLe(iLe, vout);
+            }
+            return Le;
+        }
     }
     
     inline float absCosNsEDF(const uchar* EDF, const vector3* v) {

@@ -71,14 +71,15 @@ public:
     void createFresnelConductor(const char* name, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b);
     void createFresnelDielectric(const char* name, float eta, float k);
     
+    void createDistribution2DFromImageTexture(const char* name, const char* image);
     
-    void createDiffuseBRDF(const char* reflectance, const char* sigma);
-    void createSpecularBRDF(const char* reflectance, const char* fresnel);
-    void createSpecularBTDF(const char* transmittance, float etaExt, float etaInt);
-    void createNewWardBRDF(const char* reflectance, const char* anisoX, const char* anisoY);
-    void createAshikhminSBRDF(const char* Rs, const char* nu, const char* nv);
-    void createAshikhminDBRDF(const char* Rd, const char* Rs);
     
+    void createDiffuseRElem(const char* reflectance, const char* sigma);
+    void createSpecularRElem(const char* reflectance, const char* fresnel);
+    void createSpecularTElem(const char* transmittance, float etaExt, float etaInt);
+    void createNewWardElem(const char* reflectance, const char* anisoX, const char* anisoY);
+    void createAshikhminSElem(const char* Rs, const char* nu, const char* nv);
+    void createAshikhminDElem(const char* Rd, const char* Rs);
     
     void createMatteMaterial(const char* name, const char* bump, const char* reflectance, const char* sigma);
     void createGlassMaterial(const char* name, const char* bump, const char* R, const char* T, float etaExt, float etaInt);
@@ -88,9 +89,14 @@ public:
     void createMixMaterial(const char* name, const char* mat0, const char* mat1, const char* ratio);
     
     
-    void createDiffuseEDF(size_t emittanceIdx);
+    void createDiffuseLElem(const char* emittance);
     
     void createDiffuseLightProperty(const char* name, const char* emittance);
+    
+    
+    void createImageBasedEnvLElem(const char* radiance);
+    
+    void createImageBasedEnvLightPropety(const char* name, const char* radiance);
 };
 
 #endif

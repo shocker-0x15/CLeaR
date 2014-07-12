@@ -11,6 +11,30 @@
 
 #include <cstdint>
 
+namespace MatElem {
+    enum Value {
+        Diffuse = 0,
+        SpecularReflection,
+        SpecularTransmission,
+        NewWard,
+        AshikhminS,
+        AshikhminD,
+    };
+};
+
+namespace LPElem {
+    enum Value {
+        DiffuseEmission = 0,
+    };
+};
+
+namespace EnvLPElem {
+    enum Value {
+        ImageBased = 0,
+    };
+};
+
+
 //8bytes
 typedef struct {
     uint8_t numBxDFs;
@@ -23,14 +47,14 @@ typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_R;
     uint32_t idx_sigma;
-} DiffuseBRDFInfo;
+} DiffuseRElem;
 
 //12bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_R;
     uint32_t idx_Fresnel;
-} SpecularBRDFInfo;
+} SpecularRElem;
 
 //20bytes
 typedef struct {
@@ -39,7 +63,7 @@ typedef struct {
     float etaExt;
     float etaInt;
     uint32_t idx_Fresnel;
-} SpecularBTDFInfo;
+} SpecularTElem;
 
 //16bytes
 typedef struct {
@@ -47,7 +71,7 @@ typedef struct {
     uint32_t idx_R;
     uint32_t idx_anisoX;
     uint32_t idx_anisoY;
-} NewWardBRDFInfo;
+} NewWardElem;
 
 //16bytes
 typedef struct {
@@ -55,14 +79,14 @@ typedef struct {
     uint32_t idx_Rs;
     uint32_t idx_nu;
     uint32_t idx_nv;
-} AshikhminSBRDFInfo;
+} AshikhminSElem;
 
 //12bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_Rs;
     uint32_t idx_Rd;
-} AshikhminDBRDFInfo;
+} AshikhminDElem;
 
 
 //1bytes
@@ -74,6 +98,13 @@ typedef struct {
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_M;
-} DiffuseEDFInfo;
+} DiffuseLElem;
+
+//12bytes
+typedef struct {
+    uint8_t id; uint8_t dum0[3];
+    uint32_t idx_Le;
+    uint32_t idx_Dist2D;
+} ImageBasedEnvLElem;
 
 #endif

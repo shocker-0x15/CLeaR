@@ -103,7 +103,7 @@ namespace sim {
                 ray.org = isect.p + ray.dir * EPSILON;
                 ++ray.depth;
                 if (!rayIntersection(&scene, &ray.org, &ray.dir, &isect))
-                break;
+                    break;
                 
                 face = &scene.faces[isect.faceID];
                 vout = -ray.dir;
@@ -135,26 +135,88 @@ namespace sim {
                 }
             }
         }
-        if (traceContinue)
-            *pix += alpha * float3(12.0f, 12.0f, 12.0f);
+        if (traceContinue) {
+            vout = -ray.dir;
+            lpos.atInfinity = true;
+            float theta, phi;
+            dirToPolarYTop(&ray.dir, &theta, &phi);
+            lpos.uv = float2(phi * (1.0f / (2.0f * M_PI_F)), theta * (1.0f / M_PI_F));
+            EDFAlloc(&scene, USHRT_MAX, &lpos, EDF);
+            *pix += alpha * Le(EDF, &vout) * 20;
+        }
 //        }
         
 //        if (gid0 == 0 && gid1 == 0) {
-//            printf("Ray %lu\t Face %lu\n", sizeof(Ray), sizeof(Face));
-//            printf("BBox %lu\t BVHNode %lu\n", sizeof(BBox), sizeof(BVHNode));
-//            printf("Intersection %lu\t LightPosition %lu\t LensPosition %lu\t CameraHead %lu\n", sizeof(Intersection), sizeof(LightPosition), sizeof(LensPosition), sizeof(CameraHead));
-//            printf("Scene %lu\n", sizeof(Scene));
+//            printSize(DDFType);
+//            printSize(Ray);
+//            printSize(Face);
+//            printSize(LightInfo);
+//            printSize(BBox);
+//            printSize(BVHNode);
+//            printSize(DDFHead);
+//            printSize(Intersection);
+//            printSize(LightPosition);
+//            printSize(LensPosition);
+//            printSize(CameraHead);
+//            printSize(EnvironmentHead);
+//            printSize(Scene);
+//            
 //            printf("\n");
-//            printf("BxDFType %lu\t BSDFSample %lu\t BxDFHead %lu\t BSDFHead %lu\n", sizeof(BxDFType), sizeof(BSDFSample), sizeof(BxDFHead), sizeof(BSDFHead));
-//            printf("Diffuse %lu\t SpecularReflection %lu\t SpecularTransmission %lu\n", sizeof(Diffuse), sizeof(SpecularReflection), sizeof(SpecularTransmission));
-//            printf("NewWard %lu\t AshikhminS %lu\t AshikhminD %lu\n", sizeof(NewWard), sizeof(AshikhminS), sizeof(AshikhminD));
-//            printf("Fresnel Head %lu\t Conductor %lu\t Dielectric %lu\n", sizeof(FresnelHead), sizeof(FresnelConductor), sizeof(FresnelDielectric));
+//            printSize(TextureType);
+//            printSize(ColorProceduralType);
+//            printSize(FloatProceduralType);
+//            
 //            printf("\n");
-//            printf("EEDFType %lu\t LightSample %lu\t EDFSample %lu\n", sizeof(EEDFType), sizeof(LightSample), sizeof(EDFSample));
-//            printf("EEDFHead %lu\t EDFHead %lu\n", sizeof(EEDFHead), sizeof(EDFHead));
-//            printf("DiffuseEmission %lu\n", sizeof(DiffuseEmission));
+//            printSize(MatElem);
+//            printSize(LPElem);
+//            printSize(EnvLPElem);
+//            printSize(MaterialInfo);
+//            printSize(DiffuseRElem);
+//            printSize(SpecularRElem);
+//            printSize(SpecularTElem);
+//            printSize(NewWardElem);
+//            printSize(AshikhminSElem);
+//            printSize(AshikhminDElem);
+//            printSize(LightPropertyInfo);
+//            printSize(DiffuseLElem);
+//            printSize(ImageBasedEnvLElem);
+//            
 //            printf("\n");
-//            printf("CameraSample %lu\t IDFSample %lu\n", sizeof(CameraSample), sizeof(IDFSample));
+//            printSize(BxDFID);
+//            printSize(FresnelID);
+//            printSize(BxDFType);
+//            printSize(BSDFSample);
+//            printSize(BxDFHead);
+//            printSize(Diffuse);
+//            printSize(FresnelHead);
+//            printSize(FresnelConductor);
+//            printSize(FresnelDielectric);
+//            printSize(SpecularReflection);
+//            printSize(SpecularTransmission);
+//            printSize(NewWard);
+//            printSize(AshikhminS);
+//            printSize(AshikhminD);
+//            printSize(BSDFHead);
+//            
+//            printf("\n");
+//            printSize(EEDFType);
+//            printSize(EEDFID);
+//            printSize(EnvEEDFID);
+//            printSize(LightSample);
+//            printSize(EDFSample);
+//            printSize(EDFHead);
+//            printSize(EEDFHead);
+//            printSize(DiffuseEmission);
+//            printSize(EnvEDFHead);
+//            printSize(EnvEEDFHead);
+//            printSize(EntireSceneEmission);
+//            
+//            printf("\n");
+//            printSize(CameraSample);
+//            printSize(IDFSample);
+//            printSize(PerspectiveInfo);
+//            printSize(PerspectiveIDF);
+//            printSize(IDFHead);
 //        }
     }
 }

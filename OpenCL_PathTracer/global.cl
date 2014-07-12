@@ -107,10 +107,9 @@ typedef struct __attribute__((aligned(64))) {
     mat4x4 localToWorld;
 } CameraHead;
 
-//20bytes
+//4bytes
 typedef struct __attribute__((aligned(4))) {
-    uchar numEnvLights;
-    uint offsetEnvLights[4] __attribute__((aligned(4)));
+    uint offsetEnvLightProperty;
 } EnvironmentHead;
 
 typedef struct {
@@ -142,6 +141,7 @@ inline float luminance(const color* c);
 void makeTangent(const vector3* n, vector3* tangent);
 inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
 inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
+inline void dirToPolar(const vector3* dir, float* theta, float* phi);
 inline float distance2(const point3* p0, const point3* p1);
 inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos);
 
@@ -203,6 +203,13 @@ inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n
     return (vector3)(s->x * v->x + t->x * v->y + n->x * v->z,
                      s->y * v->x + t->y * v->y + n->y * v->z,
                      s->z * v->x + t->z * v->y + n->z * v->z);
+}
+
+inline void dirToPolarYTop(const vector3* dir, float* theta, float* phi) {
+    *theta = acos(clamp(dir->y, -1.0f, 1.0f));
+    *phi = atan2(dir->x, dir->z);
+    if (*phi < 0.0f)
+        *phi += 2.0f * M_PI_F;
 }
 
 inline float distance2(const point3* p0, const point3* p1) {

@@ -20,8 +20,6 @@ typedef float16 mat4x4;
 #define colorOne (color)(1.0f, 1.0f, 1.0f)
 #define EPSILON 0.00001f;
 
-#define ALIGN(ad, w) ((ad) + ((w) - 1)) & ~((w) - 1)
-
 typedef enum {
     DDFType_BSDF = 0,
     DDFType_EDF,
@@ -125,7 +123,7 @@ typedef struct {
     global BVHNode* BVHNodes;
     global CameraHead* camera;
     global EnvironmentHead* environment;
-    global uchar* lightPowerCDF;
+    global uchar* lightPowerDistribution;
 } Scene;
 
 //------------------------

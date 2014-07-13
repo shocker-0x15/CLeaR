@@ -23,8 +23,7 @@ namespace sim {
     }
     
     inline float getFloat0cTo1o(uint* randState) {
-        uint rand23bit = (getUInt(randState) >> 9) | 0x3f800000;
-        return *(float*)&rand23bit - 1.0f;
+        return as_float((getUInt(randState) >> 9) | 0x3f800000) - 1.0f;
     }
     
     inline uint randUInt(float u, uint maxv) {

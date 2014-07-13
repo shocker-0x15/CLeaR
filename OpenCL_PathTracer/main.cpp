@@ -240,6 +240,7 @@ int main(int argc, const char * argv[]) {
     std::time_t ctimeLaunch = system_clock::to_time_t(programStartTimePoint);
     printf("%s\n", std::ctime(&ctimeLaunch));
     
+#define SIMULATION 0
     const uint32_t iterations = 16;
     
     buildScene();
@@ -376,7 +377,6 @@ int main(int argc, const char * argv[]) {
         system_clock::time_point renderingStartTimePoint;
         renderingStartTimePoint = std::chrono::system_clock::now();
         uint32_t k10mins = 1;
-#define SIMULATION 0
 #if SIMULATION
         printf("CPU equivalent code:\n");
         sim::global_sizes[0] = (sim::uint)*tile;

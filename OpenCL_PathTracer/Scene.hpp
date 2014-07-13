@@ -236,7 +236,7 @@ public:
         addDataAligned(refOthers, CDF.data(), sizeof(float) * CDF.size(), sizeof(float));
         addDataAligned(refOthers, PMF.data(), sizeof(float) * PMF.size(), sizeof(float));
         
-        addOtherResouce(lpCDFHead, "LightPowerCDF");
+        addOtherResouce(lpCDFHead, "LightPowerDistribution");
     }
     
     void build() {
@@ -252,7 +252,7 @@ public:
         
         *(uint32_t*)&otherResouces[0] = (uint32_t)idxOfOther("Camera");
         *(uint32_t*)&otherResouces[4] = (uint32_t)idxOfOther("Environment");
-        *(uint32_t*)&otherResouces[8] = (uint32_t)idxOfOther("LightPowerCDF");
+        *(uint32_t*)&otherResouces[8] = (uint32_t)idxOfOther("LightPowerDistribution");
     }
 };
 

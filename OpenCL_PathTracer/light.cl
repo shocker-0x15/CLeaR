@@ -131,7 +131,7 @@ static float l_sinPhi(const vector3* v) {
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, uchar* EDF, float* areaPDF) {
-    LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerCDF, l_sample->uLight, areaPDF)];
+    LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerDistribution, l_sample->uLight, areaPDF)];
     if (lInfo.atInfinity) {
         lpos->atInfinity = true;
         

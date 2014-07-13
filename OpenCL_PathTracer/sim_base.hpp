@@ -40,6 +40,11 @@ namespace sim {
     }
     
     
+    inline float as_float(uint bits) {
+        return *(float*)&bits;
+    }
+    
+    
     struct uchar3 {
         union {
             uchar x;

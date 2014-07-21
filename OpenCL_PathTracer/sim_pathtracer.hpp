@@ -143,11 +143,6 @@ namespace sim {
             lpos.uv = float2(phi * (1.0f / (2.0f * M_PI_F)), theta * (1.0f / M_PI_F));
             EDFAlloc(&scene, USHRT_MAX, &lpos, EDF);
             *pix += alpha * Le(EDF, &vout) * 50;
-            if (pix->hasNeg()) {
-                printf("");
-                EDFAlloc(&scene, USHRT_MAX, &lpos, EDF);
-                Le(EDF, &vout);
-            }
         }
 //        }
         

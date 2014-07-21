@@ -4,7 +4,7 @@
 #include "global.cl"
 #include "rng.cl"
 #include "texture.cl"
-#include "materials.cl"
+#include "material_structures.cl"
 
 typedef enum {
     EEDF_Diffuse      = 1 << 0,
@@ -331,7 +331,7 @@ color Le(const uchar* EDF, const vector3* vout) {
         const vector3* s = &head->s;
         const vector3* t = &head->t;
         const vector3* n = &head->n;
-        const vector3* ng = &head->ng;
+        //const vector3* ng = &head->ng;
         vector3 voutLocal = worldToLocal(s, t, n, vout);
         
         color Le = colorZero;

@@ -35,4 +35,6 @@ uint64_t addDataAligned(std::vector<uint8_t>* dest, const T &data, uint32_t alig
     return dest->size() - sizeof(T);
 }
 
+uint64_t fillZerosAligned(std::vector<uint8_t>* dest, uint32_t bytes, uint32_t alignment);
+
 #endif

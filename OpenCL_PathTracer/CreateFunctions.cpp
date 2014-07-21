@@ -7,164 +7,141 @@
 //
 
 #include "CreateFunctions.hpp"
-#include "ImageLoader.hpp"
-#include "Materials.hpp"
-
-namespace TextureType {
-    enum Value {
-        ColorConstant = 0,
-        ColorImageRGB8x3,
-        ColorImageRGBA8x4,
-        ColorImageRGBA16Fx4,
-        ColorProcedural,
-        GrayImage8, 
-        FloatConstant,
-        FloatImage,
-        FloatProcedural,
-    };
-};
-
-namespace ColorProceduralType {
-    enum Value {
-        CheckerBoard = 0,
-        CheckerBoardBump
-    };
-};
-
-namespace FloatProceduralType {
-    enum Value {
-        CheckerBoard = 0,
-    };
-};
-
-namespace FresnelID {
-    enum Value {
-        NoOp = 0,
-        Conductor,
-        Dielectric,
-    };
-};
-
+#include "ImageLoader.h"
+#include "MaterialStructures.hpp"
+#include "TextureStructures.hpp"
 
 void MaterialCreator::createFloat3ConstantTexture(const char* name, float s0, float s1, float s2) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    cl_float3 f3Val;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorConstant, 16);
-    f3Val.s0 = s0; f3Val.s1 = s1; f3Val.s2 = s2;
-    addDataAligned<cl_float3>(texData, f3Val);
-    bool ret = scene->addTexture(texHead, name);
+    Float3ConstantTexture f3Const;
+    f3Const.texType = TextureType::ColorConstant;
+    f3Const.value.s0 = s0;
+    f3Const.value.s1 = s1;
+    f3Const.value.s2 = s2;
+    bool ret = scene->addTexture(addDataAligned(texData, f3Const, 16), name);
     assert(ret);
 }
 
 void MaterialCreator::createFloatConstantTexture(const char* name, float val) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::FloatConstant, 4);
-    addDataAligned<cl_float>(texData, val);
-    bool ret = scene->addTexture(texHead, name);
+    FloatConstantTexture fConst;
+    fConst.texType = TextureType::FloatConstant;
+    fConst.value = val;
+    bool ret = scene->addTexture(addDataAligned(texData, fConst, 4), name);
     assert(ret);
 }
 
-void MaterialCreator::createImageTexture(const char* name, const char* filename) {
+void MaterialCreator::createImageTexture(const char* name, const char* filename, bool* hasAlpha) {
     std::vector<uint8_t>* texData = &scene->texturesData;
+    uint64_t texHead = fillZerosAligned(texData, sizeof(ImageTexture), 4);
+    uint64_t imageHead = align(texData, 128);
     uint32_t w, h;
     ColorChannel::Value colorType;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, 0, 4);
-    addDataAligned<cl_uint>(texData, 0);// width
-    addDataAligned<cl_uint>(texData, 0);// height
-    align(texData, 128);
     bool ret = loadImage(filename, texData, &w, &h, &colorType, false);
     assert(ret);
-    TextureType::Value texType;
+    ImageTexture* image = (ImageTexture*)&(*texData)[texHead];
+    image->width = w;
+    image->height = h;
     if (colorType == ColorChannel::RGB8x3)
-        texType = TextureType::ColorImageRGB8x3;
+        image->texType = TextureType::ColorImageRGB8x3;
     else if (colorType == ColorChannel::RGBA8x4)
-        texType = TextureType::ColorImageRGBA8x4;
+        image->texType = TextureType::ColorImageRGBA8x4;
     else if (colorType == ColorChannel::RGBA16Fx4)
-        texType = TextureType::ColorImageRGBA16Fx4;
+        image->texType = TextureType::ColorImageRGBA16Fx4;
     else if (colorType == ColorChannel::Gray8)
-        texType = TextureType::GrayImage8;
-    *(cl_uchar*)(texData->data() + texHead) = (cl_uchar)texType;
-    *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 1) = w;
-    *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 2) = h;
+        image->texType = TextureType::GrayImage8;
+    image->offsetData = (int32_t)imageHead - (int32_t)texHead;
     ret = scene->addTexture(texHead, name);
     assert(ret);
+    
+    if (hasAlpha != nullptr)
+        *hasAlpha = colorType == ColorChannel::RGBA8x4 || colorType == ColorChannel::RGBA16Fx4;
 }
 
 void MaterialCreator::createNormalMapTexture(const char* name, const char* filename) {
     std::vector<uint8_t>* texData = &scene->texturesData;
+    uint64_t texHead = fillZerosAligned(texData, sizeof(ImageTexture), 4);
+    uint64_t imageHead = align(texData, 128);
     uint32_t w, h;
     ColorChannel::Value colorType;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorImageRGB8x3, 4);
-    addDataAligned<cl_uint>(texData, 0);// width
-    addDataAligned<cl_uint>(texData, 0);// height
-    align(texData, sizeof(cl_uchar3));
-    bool ret = loadImage(filename, texData, &w, &h, &colorType, true);
+    bool ret = loadImage(filename, texData, &w, &h, &colorType, false);
     assert(ret);
-    *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 1) = w;
-    *(cl_uint*)(texData->data() + texHead + sizeof(cl_uint) * 2) = h;
+    ImageTexture* image = (ImageTexture*)&(*texData)[texHead];
+    image->texType = TextureType::ColorImageRGB8x3;
+    image->width = w;
+    image->height = h;
+    image->offsetData = (int32_t)imageHead - (int32_t)texHead;
     ret = scene->addTexture(texHead, name);
     assert(ret);
 }
 
 void MaterialCreator::createFloat3CheckerBoardTexture(const char* name, float c0r, float c0g, float c0b, float c1r, float c1g, float c1b) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorProcedural, 16);
-    addDataAligned<cl_uchar>(texData, ColorProceduralType::CheckerBoard);
-    cl_float3 f3Val;
-    f3Val.s0 = c0r; f3Val.s1 = c0g; f3Val.s2 = c0b;
-    addDataAligned<cl_float3>(texData, f3Val);
-    f3Val.s0 = c1r; f3Val.s1 = c1g; f3Val.s2 = c1b;
-    addDataAligned<cl_float3>(texData, f3Val);
-    bool ret = scene->addTexture(texHead, name);
+    Float3CheckerBoardTexture f3Checker;
+    f3Checker.head.texType = TextureType::ColorProcedural;
+    f3Checker.head.procedureType = ColorProcedureType::CheckerBoard;
+    f3Checker.c[0].s0 = c0r;
+    f3Checker.c[0].s1 = c0g;
+    f3Checker.c[0].s2 = c0b;
+    f3Checker.c[1].s0 = c1r;
+    f3Checker.c[1].s1 = c1g;
+    f3Checker.c[1].s2 = c1b;
+    bool ret = scene->addTexture(addDataAligned(texData, f3Checker, 16), name);
     assert(ret);
 }
 
 void MaterialCreator::createFloat3CheckerBoardBumpTexture(const char* name, float width, bool reverse) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::ColorProcedural, 4);
-    addDataAligned<cl_uchar>(texData, ColorProceduralType::CheckerBoardBump);
-    addDataAligned<cl_float>(texData, width);
-    addDataAligned<cl_uchar>(texData, reverse);
-    bool ret = scene->addTexture(texHead, name);
+    Float3CheckerBoardBumpTexture f3CheckerBump;
+    f3CheckerBump.head.texType = TextureType::ColorProcedural;
+    f3CheckerBump.head.procedureType = ColorProcedureType::CheckerBoardBump;
+    f3CheckerBump.width = width;
+    f3CheckerBump.reverse = (cl_uchar)reverse;
+    bool ret = scene->addTexture(addDataAligned(texData, f3CheckerBump, 4), name);
     assert(ret);
 }
 
-void MaterialCreator::createFloatCheckerBoardTexture(const char* name, float c0, float c1) {
+void MaterialCreator::createFloatCheckerBoardTexture(const char* name, float v0, float v1) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, TextureType::FloatProcedural, 4);
-    addDataAligned<cl_uchar>(texData, FloatProceduralType::CheckerBoard);
-    addDataAligned<cl_float>(texData, c0);
-    addDataAligned<cl_float>(texData, c1);
-    bool ret = scene->addTexture(texHead, name);
+    FloatCheckerBoardTexture fChecker;
+    fChecker.head.texType = TextureType::ColorProcedural;
+    fChecker.head.procedureType = ColorProcedureType::CheckerBoard;
+    fChecker.v[0] = v0;
+    fChecker.v[1] = v1;
+    bool ret = scene->addTexture(addDataAligned(texData, fChecker, 4), name);
     assert(ret);
 }
 
 
 void MaterialCreator::createFresnelNoOp(const char* name) {
-    std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, FresnelID::NoOp, 1);
-    bool ret = scene->addTexture(texHead, name);
+    std::vector<uint8_t>* otherResouces = &scene->otherResouces;
+    FresnelNoOp frNoOp;
+    frNoOp.head.fresnelType = FresnelID::NoOp;
+    bool ret = scene->addOtherResouce(addDataAligned(otherResouces, frNoOp, 1), name);
     assert(ret);
 }
 
 void MaterialCreator::createFresnelConductor(const char* name, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b) {
-    std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, FresnelID::Conductor, 16);
-    cl_float3 f3Val;
-    f3Val.s0 = eta_r; f3Val.s1 = eta_g; f3Val.s2 = eta_b;
-    addDataAligned<cl_float3>(texData, f3Val);
-    f3Val.s0 = k_r; f3Val.s1 = k_g; f3Val.s2 = k_b;
-    addDataAligned<cl_float3>(texData, f3Val);
-    bool ret = scene->addTexture(texHead, name);
+    std::vector<uint8_t>* otherResouces = &scene->otherResouces;
+    FresnelConductor frCond;
+    frCond.head.fresnelType = FresnelID::Conductor;
+    frCond.eta.s0 = eta_r;
+    frCond.eta.s1 = eta_g;
+    frCond.eta.s2 = eta_b;
+    frCond.k.s0 = k_r;
+    frCond.k.s1 = k_g;
+    frCond.k.s2 = k_b;
+    bool ret = scene->addOtherResouce(addDataAligned(otherResouces, frCond, 16), name);
     assert(ret);
 }
 
 void MaterialCreator::createFresnelDielectric(const char* name, float etaExt, float etaInt) {
-    std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = addDataAligned<cl_uchar>(texData, FresnelID::Dielectric, 4);
-    addDataAligned<float>(texData, etaExt);
-    addDataAligned<float>(texData, etaInt);
-    bool ret = scene->addTexture(texHead, name);
+    std::vector<uint8_t>* otherResouces = &scene->otherResouces;
+    FresnelDielectric frDiel;
+    frDiel.head.fresnelType = FresnelID::Dielectric;
+    frDiel.etaExt = etaExt;
+    frDiel.etaInt = etaInt;
+    bool ret = scene->addOtherResouce(addDataAligned(otherResouces, frDiel, 4), name);
     assert(ret);
 }
 
@@ -196,7 +173,7 @@ void MaterialCreator::createSpecularRElem(const char* reflectance, const char* f
     SpecularRElem* speRInfo = (SpecularRElem*)&(*matData)[head];
     speRInfo->id = MatElem::SpecularReflection;
     speRInfo->idx_R = (cl_uint)scene->idxOfTex(reflectance);
-    speRInfo->idx_Fresnel = (cl_uint)scene->idxOfTex(fresnel);
+    speRInfo->idx_Fresnel = (cl_uint)scene->idxOfOther(fresnel);
 }
 
 void MaterialCreator::createSpecularTElem(const char* transmittance, float etaExt, float etaInt) {
@@ -212,7 +189,7 @@ void MaterialCreator::createSpecularTElem(const char* transmittance, float etaEx
     char fresnelName[256] = "internalFresnelDielectric_";
     strcat(fresnelName, matName);
     createFresnelDielectric(fresnelName, etaExt, etaInt);
-    speTInfo->idx_Fresnel = (cl_uint)scene->idxOfTex(fresnelName);
+    speTInfo->idx_Fresnel = (cl_uint)scene->idxOfOther(fresnelName);
 }
 
 void MaterialCreator::createNewWardElem(const char* reflectance, const char* anisoX, const char* anisoY) {

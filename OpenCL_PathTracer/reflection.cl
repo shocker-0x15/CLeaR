@@ -4,7 +4,7 @@
 #include "global.cl"
 #include "rng.cl"
 #include "texture.cl"
-#include "materials.cl"
+#include "material_structures.cl"
 
 typedef enum {
     BxDFID_Diffuse = 0,
@@ -14,12 +14,6 @@ typedef enum {
     BxDFID_AshikhminS,
     BxDFID_AshikhminD,
 } BxDFID;
-
-typedef enum {
-    FresnelID_NoOp = 0,
-    FresnelID_Conductor,
-    FresnelID_Dielectric,
-} FresnelID;
 
 typedef enum {
     BxDF_Reflection   = 1 << 0,
@@ -54,23 +48,6 @@ typedef struct __attribute__((aligned(16))) {
     color R __attribute__((aligned(16)));
     float A, B;
 } Diffuse;
-
-//1bytes
-typedef struct __attribute__((aligned(1))) {
-    uchar ftype;
-} FresnelHead;
-
-//48bytes
-typedef struct __attribute__((aligned(16))) {
-    FresnelHead head;
-    color eta __attribute__((aligned(16))), k;
-} FresnelConductor;
-
-//12bytes
-typedef struct __attribute__((aligned(4))) {
-    FresnelHead head;
-    float etaExt __attribute__((aligned(4))), etaInt;
-} FresnelDielectric;
 
 //48bytes
 typedef struct __attribute__((aligned(16))) {
@@ -273,7 +250,7 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 speR->head.id = BxDFID_SpecularReflection;
                 speR->head.fxType = (BxDFType)(BxDF_Reflection | BxDF_Specular);
                 speR->R = evaluateColorTexture(scene->texturesData + speRElem->idx_R, isect->uv);
-                speR->fresnel = scene->texturesData + speRElem->idx_Fresnel;
+                speR->fresnel = scene->otherResoucesData + speRElem->idx_Fresnel;
                 
                 BSDFp += sizeof(SpecularReflection);
                 matsData_p += sizeof(SpecularRElem);
@@ -291,7 +268,7 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 speT->T = evaluateColorTexture(scene->texturesData + speTElem->idx_T, isect->uv);
                 speT->etaExt = speTElem->etaExt;
                 speT->etaInt = speTElem->etaInt;
-                speT->fresnel = scene->texturesData + speTElem->idx_Fresnel;
+                speT->fresnel = scene->otherResoucesData + speTElem->idx_Fresnel;
                 
                 BSDFp += sizeof(SpecularTransmission);
                 matsData_p += sizeof(SpecularTElem);
@@ -357,7 +334,7 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
 
 static color evaluateFresnel(const global uchar* fresnel, float cosi) {
     const global FresnelHead* head = (const global FresnelHead*)fresnel;
-    switch (head->ftype) {
+    switch (head->fresnelType) {
         case FresnelID_NoOp:
             return colorOne;
         case FresnelID_Conductor: {
@@ -689,7 +666,7 @@ color sample_fs(const uchar* BSDF, const vector3* vout, const BSDFSample* sample
 color fs(const uchar* BSDF, const vector3* vout, const vector3* vin) {
     const BSDFHead* head = (const BSDFHead*)BSDF;
     BxDFType flags = BxDF_All;
-    uint numMatches = head->numBxDFs;
+    //uint numMatches = head->numBxDFs;
     const vector3* s = &head->s;
     const vector3* t = &head->t;
     const vector3* n = &head->n;
@@ -718,7 +695,7 @@ float fs_pdf(const uchar* BSDF, const vector3* vout, const vector3* vin) {
     const vector3* s = &head->s;
     const vector3* t = &head->t;
     const vector3* n = &head->n;
-    const vector3* ng = &head->ng;
+    //const vector3* ng = &head->ng;
     vector3 voutLocal = worldToLocal(s, t, n, vout);
     vector3 vinLocal = worldToLocal(s, t, n, vin);
     

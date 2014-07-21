@@ -10,7 +10,7 @@
 #define __OpenCL_PathTracer__ModelLoader__
 
 #include <vector>
-#include "Scene.hpp"
+#include "Scene.h"
 
 bool loadModel(const char* fileName, Scene* scene);
 

@@ -229,3 +229,9 @@ uint64_t addDataAligned(std::vector<uint8_t>* dest, void* data, size_t bytes, ui
     memcpy(&dest->back() + 1 - bytes, data, bytes);
     return dest->size() - bytes;
 }
+
+uint64_t fillZerosAligned(std::vector<uint8_t>* dest, uint32_t bytes, uint32_t alignment) {
+    size_t numFill = ((dest->size() + (alignment - 1)) & ~(alignment - 1)) - dest->size();
+    dest->insert(dest->end(), numFill + bytes, 0);
+    return dest->size() - bytes;
+}

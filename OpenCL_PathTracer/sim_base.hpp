@@ -505,6 +505,9 @@ namespace sim {
             return (std::isnan(x) || std::isnan(y) || std::isnan(z) ||
                     std::isinf(x) || std::isinf(y) || std::isinf(z));
         }
+        bool hasNeg() const {
+            return x < 0.0f || y < 0.0f || z < 0.0f;
+        }
     };
     
     inline float dot(const float3 &a, const float3 &b) {

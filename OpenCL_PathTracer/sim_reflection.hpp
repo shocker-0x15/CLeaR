@@ -4,7 +4,7 @@
 #include "sim_global.hpp"
 #include "sim_rng.hpp"
 #include "sim_texture.hpp"
-#include "sim_materials.hpp"
+#include "sim_material_structures.hpp"
 
 namespace sim {
     typedef enum {
@@ -15,12 +15,6 @@ namespace sim {
         BxDFID_AshikhminS,
         BxDFID_AshikhminD,
     } BxDFID;
-    
-    typedef enum {
-        FresnelID_NoOp = 0,
-        FresnelID_Conductor,
-        FresnelID_Dielectric,
-    } FresnelID;
     
     typedef enum {
         BxDF_Reflection   = 1 << 0,
@@ -55,23 +49,6 @@ namespace sim {
         color R;
         float A, B; uchar dum1[8];
     } Diffuse;
-    
-    //1bytes
-    typedef struct {
-        uchar ftype;
-    } FresnelHead;
-    
-    //48bytes
-    typedef struct {
-        FresnelHead head; uchar dum0[12];
-        color eta, k;
-    } FresnelConductor;
-    
-    //12bytes
-    typedef struct {
-        FresnelHead head; uchar dum0[3];
-        float etaExt, etaInt;
-    } FresnelDielectric;
     
     //48bytes
     typedef struct {
@@ -273,7 +250,7 @@ namespace sim {
                     speR->head.id = BxDFID_SpecularReflection;
                     speR->head.fxType = BxDFType(BxDF_Reflection | BxDF_Specular);
                     speR->R = evaluateColorTexture(scene->texturesData + speRElem->idx_R, isect->uv);
-                    speR->fresnel = scene->texturesData + speRElem->idx_Fresnel;
+                    speR->fresnel = scene->otherResoucesData + speRElem->idx_Fresnel;
                     
                     BSDFp += sizeof(SpecularReflection);
                     matsData_p += sizeof(SpecularRElem);
@@ -291,7 +268,7 @@ namespace sim {
                     speT->T = evaluateColorTexture(scene->texturesData + speTElem->idx_T, isect->uv);
                     speT->etaExt = speTElem->etaExt;
                     speT->etaInt = speTElem->etaInt;
-                    speT->fresnel = scene->texturesData + speTElem->idx_Fresnel;
+                    speT->fresnel = scene->otherResoucesData + speTElem->idx_Fresnel;
                     
                     BSDFp += sizeof(SpecularTransmission);
                     matsData_p += sizeof(SpecularTElem);
@@ -357,7 +334,7 @@ namespace sim {
     
     static color evaluateFresnel(const uchar* fresnel, float cosi) {
         const FresnelHead* head = (const FresnelHead*)fresnel;
-        switch (head->ftype) {
+        switch (head->fresnelType) {
             case FresnelID_NoOp:
                 return colorOne;
             case FresnelID_Conductor: {
@@ -689,7 +666,7 @@ namespace sim {
     color fs(const uchar* BSDF, const vector3* vout, const vector3* vin) {
         const BSDFHead* head = (const BSDFHead*)BSDF;
         BxDFType flags = BxDF_All;
-        uint numMatches = head->numBxDFs;
+        //uint numMatches = head->numBxDFs;
         const vector3* s = &head->s;
         const vector3* t = &head->t;
         const vector3* n = &head->n;
@@ -718,7 +695,7 @@ namespace sim {
         const vector3* s = &head->s;
         const vector3* t = &head->t;
         const vector3* n = &head->n;
-        const vector3* ng = &head->ng;
+        //const vector3* ng = &head->ng;
         vector3 voutLocal = worldToLocal(s, t, n, vout);
         vector3 vinLocal = worldToLocal(s, t, n, vin);
         

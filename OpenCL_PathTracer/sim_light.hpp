@@ -4,7 +4,7 @@
 #include "sim_global.hpp"
 #include "sim_rng.hpp"
 #include "sim_texture.hpp"
-#include "sim_materials.hpp"
+#include "sim_material_structures.hpp"
 
 namespace sim {
     typedef enum {
@@ -332,7 +332,7 @@ namespace sim {
             const vector3* s = &head->s;
             const vector3* t = &head->t;
             const vector3* n = &head->n;
-            const vector3* ng = &head->ng;
+            //const vector3* ng = &head->ng;
             vector3 voutLocal = worldToLocal(s, t, n, vout);
             
             color Le = colorZero;

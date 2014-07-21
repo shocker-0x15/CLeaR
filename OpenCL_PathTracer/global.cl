@@ -120,6 +120,7 @@ typedef struct {
     uint numLights;
     global uchar* materialsData;
     global uchar* texturesData;
+    global uchar* otherResoucesData;
     global BVHNode* BVHNodes;
     global CameraHead* camera;
     global EnvironmentHead* environment;

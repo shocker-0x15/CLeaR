@@ -17,8 +17,7 @@
 #include "CreateFunctions.hpp"
 #include "ModelLoader.hpp"
 #include "BVH.hpp"
-#include "Scene.hpp"
-#include "ImageLoader.hpp"
+#include "Scene.h"
 #include <chrono>
 
 #include "sim_pathtracer.hpp"
@@ -108,7 +107,7 @@ void buildScene() {
     float near = 1;
     float far = 100;
     perspectiveCamera.virtualPlaneArea = aspect * powf(tanf(fovY / 2), 2);
-    perspectiveCamera.lensRadius = 0.05f;
+    perspectiveCamera.lensRadius = 0.005f;
     perspectiveCamera.objPDistance = 3.8f;
     Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
                                      Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
@@ -146,7 +145,7 @@ void buildScene() {
     MaterialCreator &mc = MaterialCreator::sharedInstance();
     mc.setScene(&scene);
     
-    mc.createImageTexture("IBLSource", "images/Milkyway_small.exr");
+    mc.createImageTexture("IBLSource", "images/Playa_Sunrise.exr");
     mc.createImageBasedEnvLightPropety("IBL", "IBLSource");
     struct EnvironmentHead {
         uint32_t offsetEnvLightProperty;
@@ -181,7 +180,7 @@ void buildScene() {
     mc.createFloat3CheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
     mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
     mc.createNormalMapTexture("bump_backWall", "images/paper_bump.png");
-    mc.createImageTexture("R_backWall", "images/pikachu.png");
+    mc.createImageTexture("R_backWall", "images/Kirby.png");
     
 //    mc.createImageTexture("R_floor", "images/stone_wall__.png");
 //    mc.createNormalMapTexture("bump_floor", "images/stone_wall_normal_map__.png");
@@ -210,13 +209,13 @@ void buildScene() {
     
     //光源
     scene.beginObject();
-    scene.addVertex(-0.25f, 0.9999f, -0.25f);
-    scene.addVertex(0.25f, 0.9999f, -0.25f);
-    scene.addVertex(0.25f, 0.9999f, 0.25f);
-    scene.addVertex(-0.25f, 0.9999f, 0.25f);
+    scene.addVertex(-0.25f, 10.9999f, -0.25f);
+    scene.addVertex(0.25f, 10.9999f, -0.25f);
+    scene.addVertex(0.25f, 10.9999f, 0.25f);
+    scene.addVertex(-0.25f, 10.9999f, 0.25f);
     
     mc.createFloat3ConstantTexture("R_light", 0.9f, 0.9f, 0.9f);
-    mc.createFloat3ConstantTexture("M_top", 1500.0f, 1500.0f, 1500.0f);
+    mc.createFloat3ConstantTexture("M_top", 0.1f, 0.1f, 0.1f);
     
     mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
     mc.createDiffuseLightProperty("light_top", "M_top");
@@ -241,7 +240,7 @@ int main(int argc, const char * argv[]) {
     printf("%s\n", std::ctime(&ctimeLaunch));
     
 #define SIMULATION 0
-    const uint32_t iterations = 16;
+    const uint32_t iterations = 64;
     
     buildScene();
     
@@ -281,9 +280,8 @@ int main(int argc, const char * argv[]) {
         programRendering.build("");
         std::string buildLog;
         programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
-        printf("Build Log: \n");
+        printf("rendering kernel build log: \n");
         printf("%s\n", buildLog.c_str());
-        printf("--------------------------------\n");
         
         cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
         cl::Buffer buf_normals;
@@ -338,6 +336,7 @@ int main(int argc, const char * argv[]) {
         renderingKernelSetupTime =
         system_clock::now() - startTimePoint;
         printf("rendering kernel setup time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(renderingKernelSetupTime).count());
+        printf("\n");
         //------------------------------------------------
         
         
@@ -345,30 +344,49 @@ int main(int argc, const char * argv[]) {
         //ポストプロセスカーネルの生成
         startTimePoint = system_clock::now();
         
-        ifs.open("tonemapping.cl");
+        ifs.open("post_processing.cl");
         ifs.clear();
         ifs.seekg(0, std::ios::beg);
-        std::string rawStrToneMapping{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
-        cl::Program::Sources srcToneMapping{1, std::make_pair(rawStrToneMapping.c_str(), rawStrToneMapping.length())};
+        std::string rawStrPostProcessing{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
+        cl::Program::Sources srcPostProcessing{1, std::make_pair(rawStrPostProcessing.c_str(), rawStrPostProcessing.length())};
         ifs.close();
         
-        cl::Program programToneMapping{context, srcToneMapping};
-        programToneMapping.build();
+        cl::Program programPostProcessing{context, srcPostProcessing};
+        programPostProcessing.build("");
+        programPostProcessing.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
+        printf("post-process kernel build log: \n");
+        printf("%s\n", buildLog.c_str());
+        
+        
+        cl::Buffer buf_intermediate0{context, CL_MEM_READ_WRITE, g_pixels.size() * sizeof(cl_float3)};
         
         uint32_t byteWidth = 3 * g_width + g_width % 4;
         uint8_t* LDRPixels = (uint8_t*)malloc(byteWidth * g_height);
         cl::Buffer buf_image{context, CL_MEM_WRITE_ONLY, (size_t)(byteWidth * g_height)};
         
-        cl::Kernel kernelToneMapping{programToneMapping, "tonemapping16B"};
-        kernelToneMapping.setArg(0, g_width);
-        kernelToneMapping.setArg(1, g_height);
-        kernelToneMapping.setArg(2, byteWidth);
-        kernelToneMapping.setArg(3, iterations);
-        kernelToneMapping.setArg(4, buf_pixels);
-        kernelToneMapping.setArg(5, buf_image);
+        
+        cl::Kernel kernelClear{programPostProcessing, "clear"};
+        kernelClear.setArg(0, g_width);
+        kernelClear.setArg(1, g_height);
+        kernelClear.setArg(2, buf_intermediate0);
+        
+        cl::Kernel kernelPostProcess0{programPostProcessing, "scaling"};
+        kernelPostProcess0.setArg(0, g_width);
+        kernelPostProcess0.setArg(1, g_height);
+        kernelPostProcess0.setArg(2, iterations);
+        kernelPostProcess0.setArg(3, buf_pixels);
+        kernelPostProcess0.setArg(4, buf_intermediate0);
+        
+        cl::Kernel kernelToneMappng{programPostProcessing, "toneMapping"};
+        kernelToneMappng.setArg(0, g_width);
+        kernelToneMappng.setArg(1, g_height);
+        kernelToneMappng.setArg(2, byteWidth);
+        kernelToneMappng.setArg(3, buf_intermediate0);
+        kernelToneMappng.setArg(4, buf_image);
         
         postProcessKernelSetupTime = system_clock::now() - startTimePoint;
         printf("post-process kernel setup time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(postProcessKernelSetupTime).count());
+        printf("--------------------------------\n");
         //------------------------------------------------
         
         
@@ -403,8 +421,8 @@ int main(int argc, const char * argv[]) {
             std::chrono::system_clock::duration passTime = std::chrono::system_clock::now() - startTimePoint;
             printf(" %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(passTime).count() * 0.001f);
         }
-        buf_pixels = {context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
-        kernelToneMapping.setArg(4, buf_pixels);
+        buf_pixels = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr);
+        kernelPostProcess0.setArg(3, buf_pixels);
 #else
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);
@@ -439,8 +457,12 @@ int main(int argc, const char * argv[]) {
         //------------------------------------------------
         //ポストプロセッシング開始
         startTimePoint = std::chrono::system_clock::now();
-        
-        queue.enqueueNDRangeKernel(kernelToneMapping, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
+    
+        queue.enqueueNDRangeKernel(kernelClear, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
+        queue.finish();
+        queue.enqueueNDRangeKernel(kernelPostProcess0, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
+        queue.finish();
+        queue.enqueueNDRangeKernel(kernelToneMappng, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
         queue.finish();
         queue.enqueueReadBuffer(buf_image, CL_TRUE, 0, byteWidth * g_height, LDRPixels, nullptr, nullptr);
         
@@ -456,7 +478,7 @@ int main(int argc, const char * argv[]) {
 //        fprintf(stderr, "ERROR: %s @ ", err_str);
 //        fprintf(stderr, "%s\n", error.what());
 //    }
-    
+
     return 0;
 }
 

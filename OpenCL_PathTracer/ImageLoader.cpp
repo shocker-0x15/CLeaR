@@ -6,7 +6,7 @@
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#include "ImageLoader.hpp"
+#include "ImageLoader.h"
 #include <libpng16/png.h>
 #include <ImfInputFile.h>
 #include <ImfRgbaFile.h>

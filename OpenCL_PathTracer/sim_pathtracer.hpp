@@ -16,7 +16,7 @@ namespace sim {
         const Scene scene = {
             vertices, normals, tangents, uvs, (Face*)faces,
             (LightInfo*)lights, numLights,
-            materialsData, texturesData,
+            materialsData, texturesData, others,
             (BVHNode*)BVHNodes,
             (CameraHead*)(others + *((uint*)others + 0)),
             (EnvironmentHead*)(others + *((uint*)others + 1)),
@@ -26,7 +26,7 @@ namespace sim {
         const uint gid0 = get_global_id(0);
         const uint gid1 = get_global_id(1);
         const uint gsize0 = get_global_size(0);
-        const uint gsize1 = get_global_size(1);
+        //const uint gsize1 = get_global_size(1);
         const uint tileX = gid0 - get_global_offset(0);
         const uint tileY = gid1 - get_global_offset(1);
         uint* rds = randStates + 4 * (gsize0 * tileY + tileX);
@@ -142,7 +142,12 @@ namespace sim {
             dirToPolarYTop(&ray.dir, &theta, &phi);
             lpos.uv = float2(phi * (1.0f / (2.0f * M_PI_F)), theta * (1.0f / M_PI_F));
             EDFAlloc(&scene, USHRT_MAX, &lpos, EDF);
-            *pix += alpha * Le(EDF, &vout) * 20;
+            *pix += alpha * Le(EDF, &vout) * 50;
+            if (pix->hasNeg()) {
+                printf("");
+                EDFAlloc(&scene, USHRT_MAX, &lpos, EDF);
+                Le(EDF, &vout);
+            }
         }
 //        }
         

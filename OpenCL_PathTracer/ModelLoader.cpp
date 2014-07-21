@@ -406,8 +406,9 @@ namespace OBJ {
                 Object::Group &g = obj.groups[j];
                 Material &mat = materials[matIdx[g.material]];
                 std::string diffuseTexName = g.name + "_" + mat.name + "_Kd";
+                bool hasAlpha = false;
                 if (mat.mapKd != "")
-                    mc.createImageTexture(diffuseTexName.c_str(), mat.mapKd.c_str());
+                    mc.createImageTexture(diffuseTexName.c_str(), mat.mapKd.c_str(), &hasAlpha);
                 else
                     mc.createFloat3ConstantTexture(diffuseTexName.c_str(), mat.Kd[0], mat.Kd[1], mat.Kd[2]);
                 
@@ -422,12 +423,12 @@ namespace OBJ {
                         scene->addFace(Face::make_P_N_UV(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                          g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
                                                          g.uvIndices[k * 3 + 0], g.uvIndices[k * 3 + 1], g.uvIndices[k * 3 + 2],
-                                                         scene->idxOfMat(matteMatName.c_str())));
+                                                         scene->idxOfMat(matteMatName.c_str()), UINT16_MAX, UINT32_MAX));
                     }
                     else if (g.format == Object::Group::Format::VN) {
                         scene->addFace(Face::make_P_N(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                       g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
-                                                      scene->idxOfMat(matteMatName.c_str())));
+                                                      scene->idxOfMat(matteMatName.c_str()), UINT16_MAX, UINT32_MAX));
                     }
                 }
             }

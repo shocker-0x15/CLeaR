@@ -15,7 +15,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     const Scene scene = {
         vertices, normals, tangents, uvs, (global Face*)faces,
         (global LightInfo*)lights, numLights,
-        materialsData, texturesData,
+        materialsData, texturesData, others, 
         (global BVHNode*)BVHNodes,
         (global CameraHead*)(others + *((global uint*)others + 0)),
         (global EnvironmentHead*)(others + *((global uint*)others + 1)),
@@ -25,7 +25,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     const uint gid0 = get_global_id(0);
     const uint gid1 = get_global_id(1);
     const uint gsize0 = get_global_size(0);
-    const uint gsize1 = get_global_size(1);
+    //const uint gsize1 = get_global_size(1);
     const uint tileX = gid0 - get_global_offset(0);
     const uint tileY = gid1 - get_global_offset(1);
     global uint* rds = randStates + 4 * (gsize0 * tileY + tileX);
@@ -157,7 +157,7 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         dirToPolarYTop(&ray.dir, &theta, &phi);
         lpos.uv = (float2)(phi * (1.0f / (2.0f * M_PI_F)), theta * (1.0f / M_PI_F));
         EDFAlloc(&scene, USHRT_MAX, &lpos, EDF);
-        *pix += alpha * Le(EDF, &vout) * 20;
+        *pix += alpha * Le(EDF, &vout) * 50;
     }
 //    }
     

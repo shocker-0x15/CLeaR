@@ -24,8 +24,6 @@ namespace sim {
 #define colorOne color(1.0f, 1.0f, 1.0f)
 #define EPSILON 0.00001f;
     
-#define ALIGN(ad, w) ((ad) + ((w) - 1)) & ~((w) - 1)
-    
     typedef enum {
         DDFType_BSDF = 0,
         DDFType_EDF,
@@ -126,6 +124,7 @@ namespace sim {
         uint numLights;
         uchar* materialsData;
         uchar* texturesData;
+        uchar* otherResoucesData;
         BVHNode* BVHNodes;
         CameraHead* camera;
         EnvironmentHead* environment;

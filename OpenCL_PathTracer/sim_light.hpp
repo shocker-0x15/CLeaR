@@ -2,6 +2,7 @@
 #define sim_light_cl
 
 #include "sim_global.hpp"
+#include "sim_scene.hpp"
 #include "sim_rng.hpp"
 #include "sim_texture.hpp"
 #include "sim_material_structures.hpp"
@@ -132,7 +133,7 @@ namespace sim {
     
     void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                         LightPosition* lpos, uchar* EDF, float* areaPDF) {
-        LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerCDF, l_sample->uLight, areaPDF)];
+        LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerDistribution, l_sample->uLight, areaPDF)];
         if (lInfo.atInfinity) {
             lpos->atInfinity = true;
             
@@ -154,7 +155,7 @@ namespace sim {
             vector3 ng = cross(*p1 - *p0, *p2 - *p0);
             
             float area = 0.5f * length(ng);
-            *areaPDF = 1.0f / (area * scene->numLights);
+            *areaPDF *= 1.0f / area;
             
             lpos->p = b0 * *p0 + b1 * *p1 + b2 * *p2;
             lpos->gNormal = normalize(ng);
@@ -206,8 +207,11 @@ namespace sim {
         
         vector3 ng = cross(*p1 - *p0, *p2 - *p0);
         
-        float area = 0.5f * length(ng);
-        return 1.0f / (area * scene->numLights);
+        float areaPDF = 1.0f / (0.5f * length(ng));
+        for (uint i = 0; i < scene->lightPowerDistribution->numItems; ++i)
+            if (scene->lights[i].reference == faceID)
+                return areaPDF * probDiscrete1D(scene->lightPowerDistribution, i);
+        return 0.0f;
     }
     
     

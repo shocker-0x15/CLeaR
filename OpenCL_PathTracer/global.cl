@@ -34,33 +34,6 @@ typedef struct __attribute__((aligned(16))) {
     uint depth;
 } Ray;
 
-//56bytes
-typedef struct __attribute__((aligned(4))) {
-    uint p0, p1, p2;
-    uint vn0, vn1, vn2;
-    uint vt0, vt1, vt2;
-    uint uv0, uv1, uv2;
-    uint alphaTexPtr;
-    ushort matPtr, lightPtr;
-} Face;
-
-//8bytes
-typedef struct __attribute__((aligned(4))) {
-    uchar atInfinity;
-    uint reference __attribute__((aligned(4)));
-} LightInfo;
-
-//32bytes
-typedef struct __attribute__((aligned(16))) {
-    point3 min, max;
-} BBox;
-
-//48bytes
-typedef struct __attribute__((aligned(16))) {
-    BBox bbox;
-    uint children[2];
-} BVHNode;
-
 //1byte
 typedef struct __attribute__((aligned(1))) {
     uchar _type;
@@ -99,34 +72,6 @@ typedef struct __attribute__((aligned(16))) {
     float2 uv;
 } LensPosition;
 
-//128bytes
-typedef struct __attribute__((aligned(64))) {
-    uint width, height;
-    mat4x4 localToWorld;
-} CameraHead;
-
-//4bytes
-typedef struct __attribute__((aligned(4))) {
-    uint offsetEnvLightProperty;
-} EnvironmentHead;
-
-typedef struct {
-    global point3* vertices;
-    global vector3* normals;
-    global vector3* tangents;
-    global float2* uvs;
-    global Face* faces;
-    global LightInfo* lights;
-    uint numLights;
-    global uchar* materialsData;
-    global uchar* texturesData;
-    global uchar* otherResoucesData;
-    global BVHNode* BVHNodes;
-    global CameraHead* camera;
-    global EnvironmentHead* environment;
-    global uchar* lightPowerDistribution;
-} Scene;
-
 //------------------------
 
 inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes);
@@ -140,7 +85,7 @@ inline float luminance(const color* c);
 void makeTangent(const vector3* n, vector3* tangent);
 inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
 inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
-inline void dirToPolar(const vector3* dir, float* theta, float* phi);
+inline void dirToPolarYTop(const vector3* dir, float* theta, float* phi);
 inline float distance2(const point3* p0, const point3* p1);
 inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos);
 

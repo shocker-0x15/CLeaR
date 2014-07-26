@@ -2,6 +2,7 @@
 #define sim_reflection_cl
 
 #include "sim_global.hpp"
+#include "sim_scene.hpp"
 #include "sim_rng.hpp"
 #include "sim_texture.hpp"
 #include "sim_material_structures.hpp"

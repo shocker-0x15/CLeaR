@@ -8,19 +8,18 @@
 
 namespace sim {
     void pathtracing(float3* vertices, float3* normals, float3* tangents, float2* uvs, uchar* faces,
-                     uint* lights, uint numLights,
-                     uchar* materialsData, uchar* texturesData,
+                     uint* lights,
+                     uchar* materialsData, uchar* texturesData, uchar* otherResources,
                      uchar* BVHNodes,
-                     uchar* others,
                      uint* randStates, float3* pixels) {
         const Scene scene = {
             vertices, normals, tangents, uvs, (Face*)faces,
-            (LightInfo*)lights, numLights,
-            materialsData, texturesData, others,
+            (LightInfo*)lights,
+            materialsData, texturesData, otherResources,
             (BVHNode*)BVHNodes,
-            (CameraHead*)(others + *((uint*)others + 0)),
-            (EnvironmentHead*)(others + *((uint*)others + 1)),
-            others + *((uint*)others + 2)
+            (CameraHead*)(otherResources + *((uint*)otherResources + 0)),
+            (EnvironmentHead*)(otherResources + *((uint*)otherResources + 1)),
+            (Discrete1D*)(otherResources + *((uint*)otherResources + 2))
         };
         
         const uint gid0 = get_global_id(0);

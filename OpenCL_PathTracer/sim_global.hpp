@@ -38,33 +38,6 @@ namespace sim {
         uint depth; uchar dum[12];
     } Ray;
     
-    //56bytes
-    typedef struct {
-        uint p0, p1, p2;
-        uint vn0, vn1, vn2;
-        uint vt0, vt1, vt2;
-        uint uv0, uv1, uv2;
-        uint alphaTexPtr;
-        ushort matPtr, lightPtr;
-    } Face;
-    
-    //8bytes
-    typedef struct {
-        uchar atInfinity; uchar dum0[3];
-        uint reference;
-    } LightInfo;
-    
-    //32bytes
-    typedef struct {
-        point3 min, max;
-    } BBox;
-    
-    //48bytes
-    typedef struct {
-        BBox bbox;
-        uint children[2]; uchar dum[8];
-    } BVHNode;
-    
     //1byte
     typedef struct {
         uchar _type;
@@ -103,34 +76,6 @@ namespace sim {
         float2 uv; uchar dum[8];
     } LensPosition;
     
-    //128bytes
-    typedef struct {
-        uint width, height; uchar dum0[56];
-        mat4x4 localToWorld;
-    } CameraHead;
-    
-    //4bytes
-    typedef struct {
-        uint offsetEnvLightProperty;
-    } EnvironmentHead;
-    
-    typedef struct {
-        point3* vertices;
-        vector3* normals;
-        vector3* tangents;
-        float2* uvs;
-        Face* faces;
-        LightInfo* lights;
-        uint numLights;
-        uchar* materialsData;
-        uchar* texturesData;
-        uchar* otherResoucesData;
-        BVHNode* BVHNodes;
-        CameraHead* camera;
-        EnvironmentHead* environment;
-        uchar* lightPowerCDF;
-    } Scene;
-    
     //------------------------
     
     inline void memcpyG2P(uchar* dst, const uchar* src, uint numBytes);
@@ -144,7 +89,7 @@ namespace sim {
     void makeTangent(const vector3* n, vector3* tangent);
     inline vector3 worldToLocal(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
     inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
-    inline void dirToPolar(const vector3* dir, float* theta, float* phi);
+    inline void dirToPolarYTop(const vector3* dir, float* theta, float* phi);
     inline float distance2(const point3* p0, const point3* p1);
     inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos);
     

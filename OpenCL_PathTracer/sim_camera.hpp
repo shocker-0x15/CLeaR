@@ -2,6 +2,7 @@
 #define sim_camera_h
 
 #include "sim_global.hpp"
+#include "sim_scene.hpp"
 #include "sim_rng.hpp"
 #include "sim_matrix.hpp"
 
@@ -82,6 +83,7 @@ namespace sim {
         perspective->localOrigin = point3(lpos->uv, 0.0f);
         perspective->info = (const PerspectiveInfo*)scene->camera;
     }
+    
     
     color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* dirPDF) {
         const IDFHead* head = (const IDFHead*)IDF;

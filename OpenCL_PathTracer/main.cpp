@@ -152,7 +152,7 @@ void buildScene() {
     };
     EnvironmentHead envHead;
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
-    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
+//    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
     
     //部屋
     scene.beginObject();
@@ -195,27 +195,27 @@ void buildScene() {
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
     mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
-//    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-//    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-//    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-//    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-//    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-//    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
     scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
     scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-//    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-//    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
     //光源
     scene.beginObject();
-    scene.addVertex(-0.25f, 10.9999f, -0.25f);
-    scene.addVertex(0.25f, 10.9999f, -0.25f);
-    scene.addVertex(0.25f, 10.9999f, 0.25f);
-    scene.addVertex(-0.25f, 10.9999f, 0.25f);
+    scene.addVertex(-0.25f, 0.9999f, -0.25f);
+    scene.addVertex(0.25f, 0.9999f, -0.25f);
+    scene.addVertex(0.25f, 0.9999f, 0.25f);
+    scene.addVertex(-0.25f, 0.9999f, 0.25f);
     
     mc.createFloat3ConstantTexture("R_light", 0.9f, 0.9f, 0.9f);
-    mc.createFloat3ConstantTexture("M_top", 0.1f, 0.1f, 0.1f);
+    mc.createFloat3ConstantTexture("M_top", 1500.0f, 1500.0f, 1500.0f);
     
     mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
     mc.createDiffuseLightProperty("light_top", "M_top");
@@ -240,7 +240,7 @@ int main(int argc, const char * argv[]) {
     printf("%s\n", std::ctime(&ctimeLaunch));
     
 #define SIMULATION 0
-    const uint32_t iterations = 64;
+    const uint32_t iterations = 4;
     
     buildScene();
     
@@ -303,8 +303,8 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_lightInfos{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numLights() * sizeof(LightInfo), scene.rawLightInfos(), nullptr};
         cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
+        cl::Buffer buf_otherResources{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
         cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
-        cl::Buffer buf_Others{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
@@ -315,13 +315,12 @@ int main(int argc, const char * argv[]) {
         kernelRendering.setArg(3, buf_uvs);
         kernelRendering.setArg(4, buf_faces);
         kernelRendering.setArg(5, buf_lightInfos);
-        kernelRendering.setArg(6, (uint32_t)scene.numLights());
-        kernelRendering.setArg(7, buf_materialsData);
-        kernelRendering.setArg(8, buf_texturesData);
+        kernelRendering.setArg(6, buf_materialsData);
+        kernelRendering.setArg(7, buf_texturesData);
+        kernelRendering.setArg(8, buf_otherResources);
         kernelRendering.setArg(9, buf_BVHnodes);
-        kernelRendering.setArg(10, buf_Others);
-        kernelRendering.setArg(11, buf_randStates);
-        kernelRendering.setArg(12, buf_pixels);
+        kernelRendering.setArg(10, buf_randStates);
+        kernelRendering.setArg(11, buf_pixels);
         
         std::vector<cl::Event> eventList;
         cl::Event computeEvent;
@@ -411,9 +410,9 @@ int main(int argc, const char * argv[]) {
                         sim::global_ids[0] = sim::global_offsets[0] + tx;
                         sim::global_ids[1] = sim::global_offsets[1] + ty;
                         sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
-                                         (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLightInfos(), (sim::uint)scene.numLights(),
-                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(),
-                                         (sim::uchar*)scene.rawBVHNodes(), (sim::uchar*)scene.rawOtherResources(), g_randStates.data(), (sim::float3*)g_pixels.data());
+                                         (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLightInfos(),
+                                         (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(), (sim::uchar*)scene.rawOtherResources(),
+                                         (sim::uchar*)scene.rawBVHNodes(), g_randStates.data(), (sim::float3*)g_pixels.data());
                     }
                 }
                 printf("*");

@@ -10,7 +10,6 @@ namespace sim {
     void concentricSampleDisk(float u1, float u2, float* dx, float* dy);
     vector3 cosineSampleHemisphere(float u1, float u2);
     void uniformSampleTriangle(float u1, float u2, float* b0, float* b1);
-    uint sampleDiscrete1D(const uchar* CDF1D, float u, float* prob);
     
     //------------------------
     
@@ -76,17 +75,6 @@ namespace sim {
         float su1 = sqrtf(u1);
         *b0 = 1.0f - su1;
         *b1 = u2 * su1;
-    }
-    
-    uint sampleDiscrete1D(const uchar* CDF1D, float u, float* prob) {
-        uint numElems = *(const uint*)AlignPtrAddG(&CDF1D, sizeof(uint));
-        for (uint i = 0; i < numElems; ++i) {
-            if (*((const float*)CDF1D + i) > u) {
-                *prob = *((const float*)CDF1D + i + numElems);
-                return i;
-            }
-        }
-        return UINT_MAX;
     }
 }
 

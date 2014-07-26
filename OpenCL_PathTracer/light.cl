@@ -2,7 +2,7 @@
 #define device_light_cl
 
 #include "global.cl"
-#include "rng.cl"
+#include "scene.cl"
 #include "texture.cl"
 #include "material_structures.cl"
 
@@ -153,7 +153,7 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
         vector3 ng = cross(*p1 - *p0, *p2 - *p0);
         
         float area = 0.5f * length(ng);
-        *areaPDF = 1.0f / (area * scene->numLights);
+        *areaPDF *= 1.0f / area;
         
         lpos->p = b0 * *p0 + b1 * *p1 + b2 * *p2;
         lpos->gNormal = normalize(ng);
@@ -205,8 +205,11 @@ float getAreaPDF(const Scene* scene, uint faceID, float2 uv) {
     
     vector3 ng = cross(*p1 - *p0, *p2 - *p0);
     
-    float area = 0.5f * length(ng);
-    return 1.0f / (area * scene->numLights);
+    float areaPDF = 1.0f / (0.5f * length(ng));
+    for (uint i = 0; i < scene->lightPowerDistribution->numItems; ++i)
+        if (scene->lights[i].reference == faceID)
+            return areaPDF * probDiscrete1D(scene->lightPowerDistribution, i);
+    return 0.0f;
 }
 
 

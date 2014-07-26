@@ -9,7 +9,6 @@ inline uint randUInt(float u, uint maxv);
 void concentricSampleDisk(float u1, float u2, float* dx, float* dy);
 vector3 cosineSampleHemisphere(float u1, float u2);
 void uniformSampleTriangle(float u1, float u2, float* b0, float* b1);
-uint sampleDiscrete1D(const global uchar* CDF1D, float u, float* prob);
 
 //------------------------
 
@@ -75,17 +74,6 @@ void uniformSampleTriangle(float u1, float u2, float* b0, float* b1) {
     float su1 = sqrt(u1);
     *b0 = 1.0f - su1;
     *b1 = u2 * su1;
-}
-
-uint sampleDiscrete1D(const global uchar* discrete1D, float u, float* prob) {
-    uint numElems = *(const global uint*)AlignPtrAddG(&discrete1D, sizeof(uint));
-    for (uint i = 0; i < numElems; ++i) {
-        if (*((const global float*)discrete1D + i) > u) {
-            *prob = *((const global float*)discrete1D + i + numElems);
-            return i;
-        }
-    }
-    return UINT_MAX;
 }
 
 #endif

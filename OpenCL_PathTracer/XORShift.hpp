@@ -36,7 +36,6 @@ public:
     
     float getFloat0cTo1c() {
         return getUInt() * (1.0 / 4294967295.0);
-        //        return (getUInt() & 0xffffff) / (float)(1 << 24 - 1);
     };
     
     //このままでは極めて1に近い数字はfloatの精度上1になってしまうため問題？．

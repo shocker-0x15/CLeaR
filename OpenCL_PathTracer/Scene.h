@@ -15,6 +15,7 @@
 #include "Face.hpp"
 #include "BVH.hpp"
 #include "clUtility.hpp"
+#include "Distribution.hpp"
 #include <cassert>
 
 //8bytes
@@ -219,9 +220,12 @@ public:
         return othersRef[name];
     }
     
-    void calcLightPowerCDF() {
+    void calcLightPowerDistribution() {
         auto refOthers = &otherResouces;
-        uint64_t lpCDFHead = addDataAligned<cl_uint>(refOthers, (cl_uint)lightPowers.size());
+        uint64_t lpDistHead = fillZerosAligned(refOthers, sizeof(Discrete1D), 4);
+        Discrete1D dist;
+        dist.head._type = DistributionType::Discrete1D;
+        dist.numItems = (cl_uint)lightPowers.size();
         
         std::vector<float> PMF(lightPowers.size());
         std::vector<float> CDF(lightPowers.size());
@@ -233,10 +237,13 @@ public:
             CDF[i] /= sum;
             PMF[i] = lightPowers[i] / sum;
         }
-        addDataAligned(refOthers, CDF.data(), sizeof(float) * CDF.size(), sizeof(float));
-        addDataAligned(refOthers, PMF.data(), sizeof(float) * PMF.size(), sizeof(float));
+        uint64_t lpCDFHead = addDataAligned(refOthers, CDF.data(), sizeof(float) * CDF.size(), sizeof(float));
+        uint64_t lpPMFHead = addDataAligned(refOthers, PMF.data(), sizeof(float) * PMF.size(), sizeof(float));
+        dist.offsetCDF = (int32_t)lpCDFHead - (int32_t)lpDistHead;
+        dist.offsetPMF = (int32_t)lpPMFHead - (int32_t)lpDistHead;
+        memcpy(refOthers->data() + lpDistHead, &dist, sizeof(Discrete1D));
         
-        addOtherResouce(lpCDFHead, "LightPowerDistribution");
+        addOtherResouce(lpDistHead, "LightPowerDistribution");
     }
     
     void build();

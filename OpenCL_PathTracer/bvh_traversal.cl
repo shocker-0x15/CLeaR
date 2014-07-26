@@ -2,7 +2,21 @@
 #define device_bvh_traversal_cl
 
 #include "global.cl"
+#include "scene.cl"
 #include "texture.cl"
+
+//32bytes
+struct __attribute__((aligned(16))) BBox {
+    point3 min, max;
+};
+
+//48bytes
+struct __attribute__((aligned(16))) BVHNode {
+    BBox bbox;
+    uint children[2];
+};
+
+//------------------------
 
 bool rayTriangleIntersection(const Scene* scene,
                              const float3* org, const float3* dir, ushort faceIdx,

@@ -2,9 +2,23 @@
 #define sim_bvh_traversal_cl
 
 #include "sim_global.hpp"
+#include "sim_scene.hpp"
 #include "sim_texture.hpp"
 
 namespace sim {
+    //32bytes
+    struct BBox {
+        point3 min, max;
+    };
+    
+    //48bytes
+    struct BVHNode {
+        BBox bbox;
+        uint children[2]; uchar dum[8];
+    };
+    
+    //------------------------
+    
     bool rayTriangleIntersection(const Scene* scene,
                                  const float3* org, const float3* dir, ushort faceIdx,
                                  float* t, Intersection* isect);

@@ -7,19 +7,18 @@
 #include "camera.cl"
 
 kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
-                        global uint* lights, uint numLights,
-                        global uchar* materialsData, global uchar* texturesData,
+                        global uint* lights,
+                        global uchar* materialsData, global uchar* texturesData, global uchar* otherResources,
                         global uchar* BVHNodes,
-                        global uchar* others,
                         global uint* randStates, global float3* pixels) {
     const Scene scene = {
         vertices, normals, tangents, uvs, (global Face*)faces,
-        (global LightInfo*)lights, numLights,
-        materialsData, texturesData, others, 
+        (global LightInfo*)lights, 
+        materialsData, texturesData, otherResources,
         (global BVHNode*)BVHNodes,
-        (global CameraHead*)(others + *((global uint*)others + 0)),
-        (global EnvironmentHead*)(others + *((global uint*)others + 1)),
-        others + *((global uint*)others + 2)
+        (global CameraHead*)(otherResources + *((global uint*)otherResources + 0)),
+        (global EnvironmentHead*)(otherResources + *((global uint*)otherResources + 1)),
+        (global Discrete1D*)(otherResources + *((global uint*)otherResources + 2))
     };
     
     const uint gid0 = get_global_id(0);

@@ -2,6 +2,7 @@
 #define device_camera_cl
 
 #include "global.cl"
+#include "scene.cl"
 #include "rng.cl"
 #include "matrix.cl"
 

@@ -25,7 +25,7 @@ void Scene::build() {
         setEnvironment(addDataAligned(&otherResouces, envHead, 4));
     }
     
-    calcLightPowerCDF();
+    calcLightPowerDistribution();
     
     for (int i = 0; i < faces.size(); ++i) {
         BBox bb{vertices[faces[i].p0]};

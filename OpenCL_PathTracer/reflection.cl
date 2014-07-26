@@ -2,6 +2,7 @@
 #define device_reflection_cl
 
 #include "global.cl"
+#include "scene.cl"
 #include "rng.cl"
 #include "texture.cl"
 #include "material_structures.cl"

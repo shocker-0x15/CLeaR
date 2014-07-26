@@ -42,6 +42,10 @@
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46B46F96194C4272005FD1EA /* material_structures.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
 		46B46F97194C457A005FD1EA /* material_structures.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
+		46BC78831981654800B30320 /* distribution.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78821981654800B30320 /* distribution.cl */; };
+		46BC78851981663F00B30320 /* scene.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78841981663F00B30320 /* scene.cl */; };
+		46BC788619816C7500B30320 /* distribution.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46BC78821981654800B30320 /* distribution.cl */; };
+		46BC788719816C7500B30320 /* scene.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46BC78841981663F00B30320 /* scene.cl */; };
 		46CB87F61972F08000B99D06 /* texture_structures.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46CB87F51972F08000B99D06 /* texture_structures.cl */; };
 		46CB87F71972F6CD00B99D06 /* texture_structures.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46CB87F51972F08000B99D06 /* texture_structures.cl */; };
 		46E860641928DE9600944028 /* camera.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46E860631928DE9600944028 /* camera.cl */; };
@@ -67,6 +71,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				46BC788619816C7500B30320 /* distribution.cl in CopyFiles */,
+				46BC788719816C7500B30320 /* scene.cl in CopyFiles */,
 				46CB87F71972F6CD00B99D06 /* texture_structures.cl in CopyFiles */,
 				46B46F97194C457A005FD1EA /* material_structures.cl in CopyFiles */,
 				46E86067192A433300944028 /* matrix.cl in CopyFiles */,
@@ -139,6 +145,11 @@
 		46B46F94194C2AE2005FD1EA /* sim_material_structures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_material_structures.hpp; sourceTree = "<group>"; };
 		46B46F95194C4272005FD1EA /* material_structures.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = material_structures.cl; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
+		46BC78811981612800B30320 /* Distribution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Distribution.hpp; sourceTree = "<group>"; };
+		46BC78821981654800B30320 /* distribution.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = distribution.cl; sourceTree = "<group>"; };
+		46BC78841981663F00B30320 /* scene.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = scene.cl; sourceTree = "<group>"; };
+		46BC78881983F1CB00B30320 /* sim_distribution.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_distribution.hpp; sourceTree = "<group>"; };
+		46BC78891983F1E500B30320 /* sim_scene.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_scene.hpp; sourceTree = "<group>"; };
 		46BEA025197D532400FDBEA7 /* sim_texture_structures.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_texture_structures.hpp; sourceTree = "<group>"; };
 		46CB87F41972E6DE00B99D06 /* TextureStructures.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TextureStructures.hpp; sourceTree = "<group>"; };
 		46CB87F51972F08000B99D06 /* texture_structures.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = texture_structures.cl; sourceTree = "<group>"; };
@@ -194,6 +205,7 @@
 				462229F8191AB62700D71891 /* BVH.hpp */,
 				46222A2A191D04ED00D71891 /* ModelLoader.hpp */,
 				46222A29191D04ED00D71891 /* ModelLoader.cpp */,
+				46BC78811981612800B30320 /* Distribution.hpp */,
 				46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */,
 				46CB87F41972E6DE00B99D06 /* TextureStructures.hpp */,
 				46222A2D191D0A1F00D71891 /* CreateFunctions.hpp */,
@@ -241,7 +253,9 @@
 			children = (
 				462229FD191AB6B800D71891 /* global.cl */,
 				46E860651928E89A00944028 /* matrix.cl */,
+				46BC78821981654800B30320 /* distribution.cl */,
 				46222A01191AB6B800D71891 /* rng.cl */,
+				46BC78841981663F00B30320 /* scene.cl */,
 				46CB87F51972F08000B99D06 /* texture_structures.cl */,
 				46222A02191AB6B800D71891 /* texture.cl */,
 				462229FC191AB6B800D71891 /* bvh_traversal.cl */,
@@ -261,7 +275,9 @@
 				4649F3A6191EBFA200C24459 /* sim_base.hpp */,
 				4649F3A3191EBA5B00C24459 /* sim_global.hpp */,
 				4622DFE1193A183100CF2A3B /* sim_matrix.hpp */,
+				46BC78881983F1CB00B30320 /* sim_distribution.hpp */,
 				4649F3A8191EC58900C24459 /* sim_rng.hpp */,
+				46BC78891983F1E500B30320 /* sim_scene.hpp */,
 				46BEA025197D532400FDBEA7 /* sim_texture_structures.hpp */,
 				4649F3A9191EC5DC00C24459 /* sim_texture.hpp */,
 				4649F3A4191EBB7300C24459 /* sim_bvh_traversal.hpp */,
@@ -329,6 +345,7 @@
 				46A690BF197456F400E54586 /* Scene.cpp in Sources */,
 				462229F7191AB60200D71891 /* XORShift.cpp in Sources */,
 				46222A09191AB6B800D71891 /* rng.cl in Sources */,
+				46BC78851981663F00B30320 /* scene.cl in Sources */,
 				462229E9191AB59D00D71891 /* main.cpp in Sources */,
 				462229FB191AB64300D71891 /* ImageLoader.cpp in Sources */,
 				46222A07191AB6B800D71891 /* pathtracer.cl in Sources */,
@@ -345,6 +362,7 @@
 				46222A25191AB70100D71891 /* Vector4f.cpp in Sources */,
 				46222A04191AB6B800D71891 /* bvh_traversal.cl in Sources */,
 				46222A0A191AB6B800D71891 /* texture.cl in Sources */,
+				46BC78831981654800B30320 /* distribution.cl in Sources */,
 				46222A23191AB70100D71891 /* Point3f.cpp in Sources */,
 				46222A06191AB6B800D71891 /* light.cl in Sources */,
 				46E860661928E89A00944028 /* matrix.cl in Sources */,

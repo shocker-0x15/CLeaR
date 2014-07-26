@@ -34,6 +34,7 @@ namespace OBJ {
         float Ks[3];
         float Ka[3];
         float Ns;
+        float Ni;
         std::string mapKd;
         std::string mapKs;
         std::string mapKa;
@@ -42,7 +43,7 @@ namespace OBJ {
         Material() :
         name{""},
         Kd{0, 0, 0}, Ks{0, 0, 0}, Ka{0, 0, 0},
-        Ns(100),
+        Ns(100), Ni(1.0f),
         mapKd{""}, mapKs{""}, mapKa{""}, mapBump{""} { };
     };
     
@@ -103,6 +104,13 @@ namespace OBJ {
                     }
                     else if (sLine[1] == 'a') {
                         curMat->Ka[0] = r; curMat->Ka[1] = g; curMat->Ka[2] = b;
+                    }
+                    break;
+                }
+                case 'N': {
+                    float value;
+                    if (sscanf(sLine.c_str(), "Ni %f", &value) == 1) {
+                        curMat->Ni = value;
                     }
                     break;
                 }
@@ -405,30 +413,45 @@ namespace OBJ {
             for (int j = 0; j < obj.groups.size(); ++j) {
                 Object::Group &g = obj.groups[j];
                 Material &mat = materials[matIdx[g.material]];
-                std::string diffuseTexName = g.name + "_" + mat.name + "_Kd";
+                std::string matName = g.name + "_" + mat.name;
+                std::string alphaTexName = "";
                 bool hasAlpha = false;
-                if (mat.mapKd != "")
-                    mc.createImageTexture(diffuseTexName.c_str(), mat.mapKd.c_str(), &hasAlpha);
-                else
-                    mc.createFloat3ConstantTexture(diffuseTexName.c_str(), mat.Kd[0], mat.Kd[1], mat.Kd[2]);
-                
-                std::string sigmaTexName = g.name + "_" + mat.name + "_Kd_sigma";
-                mc.createFloatConstantTexture(sigmaTexName.c_str(), 0.0f);
-                
-                std::string matteMatName = g.name + "_" + mat.name;
-                mc.createMatteMaterial(matteMatName.c_str(), nullptr, diffuseTexName.c_str(), sigmaTexName.c_str());
+                if (mat.Ni == 1.0f) {
+                    std::string diffuseTexName = g.name + "_" + mat.name + "_Kd";
+                    if (mat.mapKd != "")
+                        mc.createImageTexture(diffuseTexName.c_str(), mat.mapKd.c_str(), &hasAlpha);
+                    else
+                        mc.createFloat3ConstantTexture(diffuseTexName.c_str(), mat.Kd[0], mat.Kd[1], mat.Kd[2]);
+                    
+                    if (hasAlpha)
+                        alphaTexName = diffuseTexName;
+                    
+                    std::string sigmaTexName = g.name + "_" + mat.name + "_Kd_sigma";
+                    mc.createFloatConstantTexture(sigmaTexName.c_str(), 0.0f);
+                    
+                    mc.createMatteMaterial(matName.c_str(), nullptr, diffuseTexName.c_str(), sigmaTexName.c_str());
+                }
+                else {
+                    std::string glassReflectanceTexName = g.name + "_" + mat.name + "_Reflectance";
+                    std::string glassTransimittanceTexName = g.name + "_" + mat.name + "_Transmittance";
+                    mc.createFloat3ConstantTexture(glassReflectanceTexName.c_str(), 0.95f, 0.95f, 0.95f);
+                    mc.createFloat3ConstantTexture(glassTransimittanceTexName.c_str(), 0.95f, 0.95f, 0.95f);
+                    mc.createGlassMaterial(matName.c_str(), nullptr, glassReflectanceTexName.c_str(), glassTransimittanceTexName.c_str(), mat.Ni, 1.0f);
+                }
                 
                 for (int k = 0; k < g.posIndices.size() / 3; ++k) {
                     if (g.format == Object::Group::Format::VTN) {
                         scene->addFace(Face::make_P_N_UV(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                          g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
                                                          g.uvIndices[k * 3 + 0], g.uvIndices[k * 3 + 1], g.uvIndices[k * 3 + 2],
-                                                         scene->idxOfMat(matteMatName.c_str()), UINT16_MAX, UINT32_MAX));
+                                                         scene->idxOfMat(matName.c_str()), UINT16_MAX,
+                                                         hasAlpha ? (uint32_t)scene->idxOfTex(alphaTexName.c_str()) : UINT32_MAX));
                     }
                     else if (g.format == Object::Group::Format::VN) {
                         scene->addFace(Face::make_P_N(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                       g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
-                                                      scene->idxOfMat(matteMatName.c_str()), UINT16_MAX, UINT32_MAX));
+                                                      scene->idxOfMat(matName.c_str()), UINT16_MAX,
+                                                      hasAlpha ? (uint32_t)scene->idxOfTex(alphaTexName.c_str()) : UINT32_MAX));
                     }
                 }
             }

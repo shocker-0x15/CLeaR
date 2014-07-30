@@ -32,7 +32,7 @@ namespace sim {
     
     //4bytes
     typedef struct {
-        uint offsetEnvLightProperty;
+        uint idx_envLightProperty;
     } EnvironmentHead;
     
     typedef struct {
@@ -44,7 +44,7 @@ namespace sim {
         LightInfo* lights;
         uchar* materialsData;
         uchar* texturesData;
-        uchar* otherResoucesData;
+        uchar* otherResourcesData;
         BVHNode* BVHNodes;
         CameraHead* camera;
         EnvironmentHead* environment;

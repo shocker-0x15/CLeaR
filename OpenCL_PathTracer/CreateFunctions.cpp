@@ -10,6 +10,9 @@
 #include "ImageLoader.h"
 #include "MaterialStructures.hpp"
 #include "TextureStructures.hpp"
+#include <half.h>
+
+#include "BMPExporter.h"
 
 void MaterialCreator::createFloat3ConstantTexture(const char* name, float s0, float s1, float s2) {
     std::vector<uint8_t>* texData = &scene->texturesData;
@@ -33,29 +36,44 @@ void MaterialCreator::createFloatConstantTexture(const char* name, float val) {
 
 void MaterialCreator::createImageTexture(const char* name, const char* filename, bool* hasAlpha) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = fillZerosAligned(texData, sizeof(ImageTexture), 4);
-    uint64_t imageHead = align(texData, 128);
-    uint32_t w, h;
-    ColorChannel::Value colorType;
-    bool ret = loadImage(filename, texData, &w, &h, &colorType, false);
-    assert(ret);
-    ImageTexture* image = (ImageTexture*)&(*texData)[texHead];
-    image->width = w;
-    image->height = h;
-    if (colorType == ColorChannel::RGB8x3)
-        image->texType = TextureType::ColorImageRGB8x3;
-    else if (colorType == ColorChannel::RGBA8x4)
-        image->texType = TextureType::ColorImageRGBA8x4;
-    else if (colorType == ColorChannel::RGBA16Fx4)
-        image->texType = TextureType::ColorImageRGBA16Fx4;
-    else if (colorType == ColorChannel::Gray8)
-        image->texType = TextureType::GrayImage8;
-    image->offsetData = (int32_t)imageHead - (int32_t)texHead;
-    ret = scene->addTexture(texHead, name);
-    assert(ret);
-    
-    if (hasAlpha != nullptr)
-        *hasAlpha = colorType == ColorChannel::RGBA8x4 || colorType == ColorChannel::RGBA16Fx4;
+    uint64_t texHead;
+    if (scene->texFilehasLoaded(filename, &texHead)) {
+        bool ret = scene->addTexture(texHead, name);
+        assert(ret);
+        
+        ImageTexture* image = (ImageTexture*)&(*texData)[texHead];
+        if (hasAlpha != nullptr)
+            *hasAlpha = (image->texType == TextureType::ColorImageRGBA8x4 ||
+                         image->texType == TextureType::ColorImageRGBA16Fx4);
+    }
+    else {
+        uint64_t texHead = fillZerosAligned(texData, sizeof(ImageTexture), 4);
+        uint64_t imageHead = align(texData, 128);
+        uint32_t w, h;
+        ColorChannel::Value colorType;
+        bool ret = loadImage(filename, texData, &w, &h, &colorType, false);
+        assert(ret);
+        ImageTexture* image = (ImageTexture*)&(*texData)[texHead];
+        image->width = w;
+        image->height = h;
+        if (colorType == ColorChannel::RGB8x3)
+            image->texType = TextureType::ColorImageRGB8x3;
+        else if (colorType == ColorChannel::RGBA8x4)
+            image->texType = TextureType::ColorImageRGBA8x4;
+        else if (colorType == ColorChannel::RGBA16Fx4)
+            image->texType = TextureType::ColorImageRGBA16Fx4;
+        else if (colorType == ColorChannel::Gray8)
+            image->texType = TextureType::GrayImage8;
+        image->offsetData = (int32_t)imageHead - (int32_t)texHead;
+        ret = scene->addTexture(texHead, name);
+        assert(ret);
+        ret = scene->addTexFileToDB(texHead, filename);
+        assert(ret);
+        
+        if (hasAlpha != nullptr)
+            *hasAlpha = (image->texType == TextureType::ColorImageRGBA8x4 ||
+                         image->texType == TextureType::ColorImageRGBA16Fx4);
+    }
 }
 
 void MaterialCreator::createNormalMapTexture(const char* name, const char* filename) {
@@ -146,11 +164,196 @@ void MaterialCreator::createFresnelDielectric(const char* name, float etaExt, fl
 }
 
 
-void MaterialCreator::createDistribution2DFromImageTexture(const char* name, const char* image) {
+float MaterialCreator::averageLuminance(const char* image, float xLeft, float xRight, float yTop, float yBottom) {
+    ImageTexture* imgTex = (ImageTexture*)&scene->texturesData[scene->idxOfTex(image)];
+    void* dataHead = (uint8_t*)imgTex + imgTex->offsetData;
+    
+    float sumLuminance = 0.0f;
+    uint32_t xLeftPix = (uint32_t)xLeft;
+    uint32_t xRightPix = (uint32_t)xRight;
+    uint32_t yTopPix = (uint32_t)yTop;
+    uint32_t yBottomPix = (uint32_t)yBottom;
+    
+    float R, G, B, luminance;
+    
+    uint64_t offsetsCorners[] = {
+        4 * (yTopPix * imgTex->width + xLeftPix),
+        4 * (yTopPix * imgTex->width + xRightPix),
+        4 * (yBottomPix * imgTex->width + xLeftPix),
+        4 * (yBottomPix * imgTex->width + xRightPix)
+    };
+    float coeffsCorners[] = {
+        (xLeftPix + 1 - xLeft) * (yTopPix + 1 - yTop),
+        (xRight - xRightPix) * (yTopPix + 1 - yTop),
+        (xLeftPix + 1 - xLeft) * (yBottom - yBottomPix),
+        (xRight - xRightPix) * (yBottom - yBottomPix)
+    };
+    for (uint32_t i = 0; i < 4; ++i) {
+        R = float(*((half*)dataHead + offsetsCorners[i] + 0));
+        G = float(*((half*)dataHead + offsetsCorners[i] + 1));
+        B = float(*((half*)dataHead + offsetsCorners[i] + 2));
+        luminance = 0.2126f * R + 0.7152f * G + 0.0722f * B;
+        sumLuminance += coeffsCorners[i] * luminance;
+    }
+    
+    float coeffsEdges[] = {
+        yTopPix + 1 - yTop,
+        xLeftPix + 1 - xLeft,
+        xRight - xRightPix,
+        yBottom - yBottomPix
+    };
+    for (uint32_t x = xLeftPix + 1; x < xRightPix; ++x) {
+        uint64_t offsetEdge;
+        
+        offsetEdge = 4 * (yTopPix * imgTex->width + x);
+        R = float(*((half*)dataHead + offsetEdge + 0));
+        G = float(*((half*)dataHead + offsetEdge + 1));
+        B = float(*((half*)dataHead + offsetEdge + 2));
+        luminance = 0.2126f * R + 0.7152f * G + 0.0722f * B;
+        sumLuminance += coeffsEdges[0] * luminance;
+        
+        offsetEdge = 4 * (yBottomPix * imgTex->width + x);
+        R = float(*((half*)dataHead + offsetEdge + 0));
+        G = float(*((half*)dataHead + offsetEdge + 1));
+        B = float(*((half*)dataHead + offsetEdge + 2));
+        luminance = 0.2126f * R + 0.7152f * G + 0.0722f * B;
+        sumLuminance += coeffsEdges[3] * luminance;
+    }
+    for (uint32_t y = yTopPix + 1; y < yBottomPix; ++y) {
+        uint64_t offsetEdge;
+        
+        offsetEdge = 4 * (y * imgTex->width + xLeftPix);
+        R = float(*((half*)dataHead + offsetEdge + 0));
+        G = float(*((half*)dataHead + offsetEdge + 1));
+        B = float(*((half*)dataHead + offsetEdge + 2));
+        luminance = 0.2126f * R + 0.7152f * G + 0.0722f * B;
+        sumLuminance += coeffsEdges[1] * luminance;
+        
+        offsetEdge = 4 * (y * imgTex->width + xRightPix);
+        R = float(*((half*)dataHead + offsetEdge + 0));
+        G = float(*((half*)dataHead + offsetEdge + 1));
+        B = float(*((half*)dataHead + offsetEdge + 2));
+        luminance = 0.2126f * R + 0.7152f * G + 0.0722f * B;
+        sumLuminance += coeffsEdges[2] * luminance;
+    }
+    
+    for (uint32_t y = yTopPix + 1; y < yBottomPix; ++y) {
+        for (uint32_t x = xLeftPix + 1; x < xRightPix; ++x) {
+            uint64_t offsetPix = 4 * (y * imgTex->width + x);
+            R = float(*((half*)dataHead + offsetPix + 0));
+            G = float(*((half*)dataHead + offsetPix + 1));
+            B = float(*((half*)dataHead + offsetPix + 2));
+            luminance = 0.2126f * R + 0.7152f * G + 0.0722f * B;
+            sumLuminance += luminance;
+        }
+    }
+    
+    return sumLuminance / ((xRight - xLeft) * (yBottom - yTop));
+}
+
+void MaterialCreator::createContinuousConsts2D_H_FromImageTexture(const char* name, const char* image, bool zenithCorrection) {
+    uint32_t sizeX = 64, sizeY = 64;
     std::vector<uint8_t>* otherResouces = &scene->otherResouces;
-    uint64_t otherHead = 0;
-    bool ret = scene->addOtherResouce(otherHead, name);
+    ImageTexture* imgTex = (ImageTexture*)&scene->texturesData[scene->idxOfTex(image)];
+    
+    uint64_t CC2DHHead = fillZerosAligned(otherResouces, sizeof(ContinuousConsts2D_H), 4);
+    uint64_t pPDFHead = fillZerosAligned(otherResouces, sizeof(float) * sizeY, sizeof(float));
+    uint64_t pCDFHead = fillZerosAligned(otherResouces, sizeof(float) * (sizeY + 1), sizeof(float));
+    uint64_t childrenHead = fillZerosAligned(otherResouces, sizeof(ContinuousConsts1D) * sizeY, 4);
+    uint64_t cPDFsHead = fillZerosAligned(otherResouces, sizeof(float) * sizeX * sizeY, sizeof(float));
+    uint64_t cCDFsHead = fillZerosAligned(otherResouces, sizeof(float) * (sizeX + 1) * sizeY, sizeof(float));
+    
+    uint64_t childHead = childrenHead;
+    uint64_t cPDFHead = cPDFsHead;
+    uint64_t cCDFHead = cCDFsHead;
+    for (uint32_t i = 0; i < sizeY; ++i) {
+        ContinuousConsts1D* child = (ContinuousConsts1D*)(otherResouces->data() + childHead);
+        child->head._type = DistributionType::ContinuousConsts1D;
+        child->startDomain = 0.0f;
+        child->endDomain = 1.0f;
+        child->widthStratum = (child->endDomain - child->startDomain) / sizeX;
+        child->numValues = sizeX;
+        child->offsetPDF = (int32_t)cPDFHead - (int32_t)childHead;
+        child->offsetCDF = (int32_t)cCDFHead - (int32_t)childHead;
+        
+        float* cPDF = (float*)(otherResouces->data() + cPDFHead);
+        float* cCDF = (float*)(otherResouces->data() + cCDFHead);
+        
+        float yBase = ((float)imgTex->height / sizeY) * i;
+        float yNext = ((float)imgTex->height / sizeY) * (i + 1);
+        float correction = zenithCorrection ? cosf(M_PI * (0.5f - (i + 0.5f) / sizeY)) : 1.0f;
+        for (uint32_t j = 0; j < sizeX; ++j) {
+            float xBase = ((float)imgTex->width / sizeX) * j;
+            float xNext = ((float)imgTex->width / sizeX) * (j + 1);
+            *(cPDF + j) = averageLuminance(image, xBase, xNext, yBase, yNext) * correction;
+        }
+        
+        *(cCDF + 0) = 0.0f;
+        for (uint32_t j = 1; j <= sizeX; ++j) {
+            *(cCDF + j) = *(cCDF + j - 1) + *(cPDF + j - 1) * child->widthStratum;
+        }
+        
+        float* pPDFValue = (float*)(otherResouces->data() + pPDFHead) + i;
+        *pPDFValue = *(cCDF + sizeX);
+        float normCoeff = 1.0f / *(cCDF + sizeX);
+        for (uint32_t j = 0; j < sizeX; ++j) {
+            *(cPDF + j) *= normCoeff;
+            *(cCDF + j + 1) *= normCoeff;
+        }
+        
+        childHead += sizeof(ContinuousConsts1D);
+        cPDFHead += sizeof(float) * sizeX;
+        cCDFHead += sizeof(float) * (sizeX + 1);
+    }
+    
+    ContinuousConsts2D_H* CC2DH = (ContinuousConsts2D_H*)(otherResouces->data() + CC2DHHead);
+    CC2DH->head._type = DistributionType::ContinuousConsts2D_H;
+    CC2DH->offsetChildren = (int32_t)childrenHead - (int32_t)CC2DHHead;
+    CC2DH->distParent.head._type = DistributionType::ContinuousConsts1D;
+    CC2DH->distParent.startDomain = 0.0f;
+    CC2DH->distParent.endDomain = 1.0f;
+    CC2DH->distParent.widthStratum = (CC2DH->distParent.endDomain - CC2DH->distParent.startDomain) / sizeY;
+    CC2DH->distParent.numValues = sizeY;
+    CC2DH->distParent.offsetPDF = (int32_t)pPDFHead - (int32_t)CC2DHHead;
+    CC2DH->distParent.offsetCDF = (int32_t)pCDFHead - (int32_t)CC2DHHead;
+    
+    float* pPDF = (float*)(otherResouces->data() + pPDFHead);
+    float* pCDF = (float*)(otherResouces->data() + pCDFHead);
+    *(pCDF + 0) = 0.0f;
+    for (uint32_t i = 1; i <= sizeY; ++i) {
+        *(pCDF + i) = *(pCDF + i - 1) + *(pPDF + i - 1) * CC2DH->distParent.widthStratum;
+    }
+    
+    float normCoeff = 1.0f / *(pCDF + sizeY);
+    for (uint32_t j = 0; j < sizeY; ++j) {
+        *(pPDF + j) *= normCoeff;
+        *(pCDF + j + 1) *= normCoeff;
+    }
+    
+    bool ret = scene->addOtherResouce(CC2DHHead, name);
     assert(ret);
+    
+//    uint32_t byteWidth = sizeX * 3 + sizeX % 4;
+//    uint8_t* visData = (uint8_t*)malloc(byteWidth * sizeY * sizeof(uint8_t));
+//    float* cPDFs = (float*)(otherResouces->data() + cPDFsHead);
+//    float sumPDFValue = 0.0f;
+//    for (int y = 0; y < sizeY; ++y) {
+//        float parentCoeff = *(pPDF + y);
+//        float* cPDF = cPDFs + sizeX * y;
+//        for (int x = 0; x < sizeX; ++x) {
+//            float PDFValue = parentCoeff * *(cPDF + x);
+//            sumPDFValue += PDFValue;
+////            printf("%f, ", PDFValue);
+//            uint32_t idxBMP = byteWidth * (sizeY - 1 - y) + 3 * x;
+//            uint8_t u8Val = (uint8_t)std::min(255.0f, 20 * PDFValue);
+//            visData[idxBMP + 0] = u8Val;
+//            visData[idxBMP + 1] = u8Val;
+//            visData[idxBMP + 2] = u8Val;
+//        }
+//        printf("\n");
+//    }
+//    saveBMP("IBL_luminance.bmp", visData, sizeX, sizeY);
+//    free(visData);
 }
 
 
@@ -288,7 +491,7 @@ void MaterialCreator::createDiffuseLightProperty(const char* name, const char* e
 }
 
 
-void MaterialCreator::createImageBasedEnvLElem(const char* radiance) {
+void MaterialCreator::createImageBasedEnvLElem(const char* radiance, float multiplier) {
     ++numEEDFs;
     std::vector<uint8_t>* lightPropData = &scene->materialsData;
     uint64_t head = align(lightPropData, 4);
@@ -296,14 +499,15 @@ void MaterialCreator::createImageBasedEnvLElem(const char* radiance) {
     ImageBasedEnvLElem* IBEnvInfo = (ImageBasedEnvLElem*)&(*lightPropData)[head];
     IBEnvInfo->id = EnvLPElem::ImageBased;
     IBEnvInfo->idx_Le = (cl_uint)scene->idxOfTex(radiance);
+    IBEnvInfo->multiplier = multiplier;
     char dist2DName[256] = "InternalDistribution2D_";
     strcat(dist2DName, radiance);
-    createDistribution2DFromImageTexture(dist2DName, radiance);
+    createContinuousConsts2D_H_FromImageTexture(dist2DName, radiance, true);
     IBEnvInfo->idx_Dist2D = (cl_uint)scene->idxOfOther(dist2DName);
 }
 
-void MaterialCreator::createImageBasedEnvLightPropety(const char* name, const char* radiance) {
+void MaterialCreator::createImageBasedEnvLightPropety(const char* name, const char* radiance, float multiplier) {
     beginLightProperty(name);
-    createImageBasedEnvLElem(radiance);
+    createImageBasedEnvLElem(radiance, multiplier);
     endLightProperty();
 }

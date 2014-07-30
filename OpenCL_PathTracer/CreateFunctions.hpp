@@ -71,7 +71,8 @@ public:
     void createFresnelConductor(const char* name, float eta_r, float eta_g, float eta_b, float k_r, float k_g, float k_b);
     void createFresnelDielectric(const char* name, float eta, float k);
     
-    void createDistribution2DFromImageTexture(const char* name, const char* image);
+    float averageLuminance(const char* image, float xLeft, float xRight, float yTop, float yBottom);
+    void createContinuousConsts2D_H_FromImageTexture(const char* name, const char* image, bool zenithCorrection);
     
     
     void createDiffuseRElem(const char* reflectance, const char* sigma);
@@ -94,9 +95,9 @@ public:
     void createDiffuseLightProperty(const char* name, const char* emittance);
     
     
-    void createImageBasedEnvLElem(const char* radiance);
+    void createImageBasedEnvLElem(const char* radiance, float multiplier = 1.0f);
     
-    void createImageBasedEnvLightPropety(const char* name, const char* radiance);
+    void createImageBasedEnvLightPropety(const char* name, const char* radiance, float multiplier = 1.0f);
 };
 
 #endif

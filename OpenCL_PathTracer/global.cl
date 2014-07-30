@@ -8,6 +8,7 @@
                                head->localToWorld.s2, head->localToWorld.s6, head->localToWorld.sa, head->localToWorld.se,\
                                head->localToWorld.s3, head->localToWorld.s7, head->localToWorld.sb, head->localToWorld.sf)
 #define printSize(t) printf("sizeof("#t"): %u\n", sizeof(t))
+#define convertPtrCG(dstT, ptr, offset) (const global dstT*)((const global uchar*)ptr + (offset))
 
 typedef float2 point2;
 typedef float3 vector3;

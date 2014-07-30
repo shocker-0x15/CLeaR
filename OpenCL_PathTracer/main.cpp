@@ -19,52 +19,12 @@
 #include "BVH.hpp"
 #include "Scene.h"
 #include <chrono>
+#include "BMPExporter.h"
 
 #include "sim_pathtracer.hpp"
 
 void CL_CALLBACK completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
-}
-
-void saveBMP(const char* filename, const void* pixels, uint32_t width, uint32_t height) {
-    uint32_t byteWidth = 3 * width + width % 4;
-    const uint32_t FILE_HEADER_SIZE = 14;
-    const uint32_t INFO_HEADER_SIZE = 40;
-    const uint32_t HEADER_SIZE = FILE_HEADER_SIZE + INFO_HEADER_SIZE;
-    uint8_t header[HEADER_SIZE];
-    uint32_t fileSize = byteWidth * height + HEADER_SIZE;
-    uint32_t dataOffset = HEADER_SIZE;
-    uint16_t numPlanes = 1;
-    uint16_t numBits = 24;
-    uint32_t compress = 0;
-    uint32_t dataSize = byteWidth * height;
-    uint32_t xppm = 1;
-    uint32_t yppm = 1;
-    
-    FILE* fp = fopen(filename, "wb");
-    if (fp == nullptr)
-        return;
-    
-    memset(header, 0, HEADER_SIZE);
-    header[0] = 'B';
-	header[1] = 'M';
-	memcpy(header + 2, &fileSize, sizeof(uint32_t));
-	memcpy(header + 10, &dataOffset, sizeof(uint32_t));
-    
-    memcpy(header + 14, &INFO_HEADER_SIZE, sizeof(uint32_t));
-	memcpy(header + 18, &width, sizeof(uint32_t));
-	memcpy(header + 22, &height, sizeof(uint32_t));
-	memcpy(header + 26, &numPlanes, sizeof(uint16_t));
-	memcpy(header + 28, &numBits, sizeof(uint16_t));
-	memcpy(header + 30, &compress, sizeof(uint32_t));
-	memcpy(header + 34, &dataSize, sizeof(uint32_t));
-	memcpy(header + 38, &xppm, sizeof(uint32_t));
-	memcpy(header + 42, &yppm, sizeof(uint32_t));
-    
-    fwrite(header, sizeof(uint8_t), HEADER_SIZE, fp);
-    fwrite(pixels, sizeof(uint8_t), dataSize, fp);
-    
-    fclose(fp);
 }
 
 XORShiftRandom32 rng{215363872};
@@ -107,7 +67,7 @@ void buildScene() {
     float near = 1;
     float far = 100;
     perspectiveCamera.virtualPlaneArea = aspect * powf(tanf(fovY / 2), 2);
-    perspectiveCamera.lensRadius = 0.005f;
+    perspectiveCamera.lensRadius = 0.0f;
     perspectiveCamera.objPDistance = 3.8f;
     Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
                                      Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
@@ -145,8 +105,8 @@ void buildScene() {
     MaterialCreator &mc = MaterialCreator::sharedInstance();
     mc.setScene(&scene);
     
-    mc.createImageTexture("IBLSource", "images/Playa_Sunrise.exr");
-    mc.createImageBasedEnvLightPropety("IBL", "IBLSource");
+    mc.createImageTexture("IBLSource", "images/LA_Downtown_Afternoon_Fishing_3k.exr");
+    mc.createImageBasedEnvLightPropety("IBL", "IBLSource", 50.0f);
     struct EnvironmentHead {
         uint32_t offsetEnvLightProperty;
     };
@@ -195,16 +155,16 @@ void buildScene() {
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
     mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
-    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
     scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
     scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
     //光源
@@ -224,7 +184,7 @@ void buildScene() {
     scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
-    loadModel("models/Pikachu_corrected_subdivided.obj", &scene);
+//    loadModel("models/Pikachu_corrected_subdivided.obj", &scene);
     
     scene.build();
 }
@@ -240,7 +200,7 @@ int main(int argc, const char * argv[]) {
     printf("%s\n", std::ctime(&ctimeLaunch));
     
 #define SIMULATION 0
-    const uint32_t iterations = 4;
+    const uint32_t iterations = 128;
     
     buildScene();
     

@@ -87,10 +87,11 @@ namespace sim {
         uint idx_M;
     } DiffuseLElem;
     
-    //12bytes
+    //16bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_Le;
+        float multiplier;
         uint idx_Dist2D;
     } ImageBasedEnvLElem;
 }

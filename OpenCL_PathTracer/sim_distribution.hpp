@@ -6,6 +6,8 @@
 namespace sim {
     typedef enum {
         DistributionType_Discrete1D = 0,
+        DistributionType_ContinuousConsts1D,
+        DistributionType_ContinuousConsts2D_H,
     } DistributionType;
     
     //1byte
@@ -21,25 +23,84 @@ namespace sim {
         int offsetCDF;
     } Discrete1D;
     
+    //28bytes
+    typedef struct {
+        DistributionHead head; uchar dum0[3];
+        uint numValues;
+        float startDomain, endDomain;
+        float widthStratum;
+        int offsetPDF;
+        int offsetCDF;
+    } ContinuousConsts1D;
+    
+    //36bytes
+    typedef struct {
+        DistributionHead head; uchar dum0[3];
+        int offsetChildren;
+        ContinuousConsts1D distParent;
+    } ContinuousConsts2D_H;
+    
     //------------------------
     
     uint sampleDiscrete1D(const Discrete1D* dist, float u, float* prob);
+    inline float probDiscrete1D(const Discrete1D* dist, uint num);
+    float sampleContinuousConsts1D(const ContinuousConsts1D* dist, float u, float* PDF);
+    inline float PDFContinuousConsts1D(const ContinuousConsts1D* dist, float point);
+    float2 sampleContinuousConsts2D_H(const ContinuousConsts2D_H* dist, float u0, float u1, float* PDF);
+    float PDFContinuousConsts2D_H(const ContinuousConsts2D_H* dist, const float2* p);
     
     //------------------------
     
     uint sampleDiscrete1D(const Discrete1D* dist, float u, float* prob) {
-        const float* CDF = (const float*)((const uchar*)dist + dist->offsetCDF);
+        const float* CDF = convertPtrCG(float, dist, dist->offsetCDF);
         for (uint i = 0; i < dist->numItems; ++i) {
             if (*(CDF + i) > u) {
-                *prob = *((const float*)((const uchar*)dist + dist->offsetPMF) + i);
+                *prob = *(convertPtrCG(float, dist, dist->offsetPMF) + i);
                 return i;
             }
         }
+        *prob = 0.0f;
         return UINT_MAX;
     }
     
-    float probDiscrete1D(const Discrete1D* dist, uint num) {
-        return *((const float*)((const uchar*)dist + dist->offsetPMF) + num);
+    inline float probDiscrete1D(const Discrete1D* dist, uint num) {
+        return *(convertPtrCG(float, dist, dist->offsetPMF) + num);
+    }
+    
+    float sampleContinuousConsts1D(const ContinuousConsts1D* dist, float u, float* PDF) {
+        const float* CDF = convertPtrCG(float, dist, dist->offsetCDF);
+        for (uint i = 0; i < dist->numValues; ++i) {
+            if (*(CDF + i + 1) > u) {
+                float t = (u - *(CDF + i)) / (*(CDF + i + 1) - *(CDF + i));
+                *PDF = *(convertPtrCG(float, dist, dist->offsetPDF) + i);
+                return dist->startDomain + (i + t) * dist->widthStratum;
+            }
+        }
+        *PDF = 0.0f;
+        return 0.0f;
+    }
+    
+    inline float PDFContinuousConsts1D(const ContinuousConsts1D* dist, float point) {
+        return *(convertPtrCG(float, dist, dist->offsetPDF) +
+                 (uint)((point - dist->startDomain) / dist->widthStratum));//min(*, dist->numValues - 1)でクランプしたほうが良いかも。
+    }
+    
+    float2 sampleContinuousConsts2D_H(const ContinuousConsts2D_H* dist, float u0, float u1, float* PDF) {
+        float2 ret;
+        float PDFTop;
+        ret.s1 = sampleContinuousConsts1D(&dist->distParent, u1, &PDFTop);
+        uint idxChild = (uint)((ret.s1 - dist->distParent.startDomain) / dist->distParent.widthStratum);
+        ret.s0 = sampleContinuousConsts1D(convertPtrCG(ContinuousConsts1D, dist, dist->offsetChildren) + idxChild, u0, PDF);
+        *PDF *= PDFTop;
+        return ret;
+    }
+    
+    float PDFContinuousConsts2D_H(const ContinuousConsts2D_H* dist, const float2* p) {
+        float ret;
+        ret = PDFContinuousConsts1D(&dist->distParent, p->s1);
+        uint idxChild = (uint)((p->s1 - dist->distParent.startDomain) / dist->distParent.widthStratum);
+        ret *= PDFContinuousConsts1D(convertPtrCG(ContinuousConsts1D, dist, dist->offsetChildren) + idxChild, p->s0);
+        return ret;
     }
 }
 

@@ -29,6 +29,8 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     const uint tileY = gid1 - get_global_offset(1);
     global uint* rds = randStates + 4 * (gsize0 * tileY + tileX);
     global float3* pix = pixels + (scene.camera->width * gid1 + gid0);
+    
+    uchar memPool[512] __attribute__((aligned(16)));
 
     //レンズ上の点をサンプル、IDFを生成してレンズへの入射方向をサンプルする。
     //IDFの値などからパスのウェイトを計算する。
@@ -36,24 +38,26 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
     ray.depth = 0;
     float lensPDF;
     float dirPDF;
-    uchar BSDF_IDF[256] __attribute__((aligned(16)));
+    float MISWeight;
+    float lightPDF;
+    uchar* IDF = memPool + 0;
     LensPosition lensPos;
     CameraSample c_sample = {{getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
-    sampleLensPos(&scene, &c_sample, &lensPos, BSDF_IDF, &lensPDF);
+    sampleLensPos(&scene, &c_sample, &lensPos, IDF, &lensPDF);
     ray.org = lensPos.p;
     IDFSample pixSample = {{gid0 + getFloat0cTo1o(rds), gid1 + getFloat0cTo1o(rds)}};
-    color alpha = sample_We(BSDF_IDF, &pixSample, &ray.dir, &dirPDF);
-    alpha *= absCosNsIDF(BSDF_IDF, &ray.dir) / dirPDF;
+    color alpha = sample_We(IDF, &pixSample, &ray.dir, &dirPDF);
+    alpha *= absCosNsIDF(IDF, &ray.dir) / dirPDF;
     float initY = luminance(&alpha);
     
-    uchar EDF[256] __attribute__((aligned(16)));
+    uchar* EDF = memPool + 256;
     Intersection isect;
     LightPosition lpos;
     bool traceContinue = true;
     vector3 vout;
-    BxDFType sampledType;
-//    if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
-//    if (gid0 == 512 && gid1 == 130) {
+    BxDFType sampledType = (BxDFType)0;
+//    if (gid0 >= 502 && gid0 < 522 && gid1 >= 480 && gid1 < 500) {
+//    if (gid0 == 512 && gid1 == 490) {
     //レイとシーンとの交差判定、交点の情報を取得する。
     if (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
         //光源に直接ヒットする1次レイはMISは使用せず値を評価。
@@ -66,34 +70,35 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         }
         
         //1次レイの交点のシェーディングおよび2次レイ以降の処理。
+        uchar* BSDF = memPool + 0;
         while (true) {
             //交点情報からBSDFを構築する。
-            BSDFAlloc(&scene, face->matPtr, &isect, BSDF_IDF);
+            BSDFAlloc(&scene, face->matPtr, &isect, BSDF);
             
-            float MISWeight;
             float dist2;
-            float lightPDF;
             
             //MISを用いたNext Event Estimation (explicit path)で光源からの寄与を計算する。
             //まず光源上の位置をサンプル、間に遮蔽物が無い場合はBSDFなどを用いて寄与を計算する。
             //BSDFがスペキュラー成分しか持っていない場合は寄与が取れる確率がゼロであるため処理しない。
-            if (hasNonSpecular(BSDF_IDF)) {
+            if (hasNonSpecular(BSDF)) {
                 LightSample l_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
                 sampleLightPos(&scene, &l_sample, &isect.p, &lpos, EDF, &lightPDF);
                 
                 vector3 vinL = lpos.p - isect.p;
                 dist2 = dot(vinL, vinL);
                 vinL = vinL * (1.0f / sqrt(dist2));
+                if (lpos.atInfinity)
+                    dist2 = 1.0f;
                 
                 point3 shadowRayOrg = isect.p + vinL * EPSILON;
                 Intersection lIsect;
-                rayIntersection(&scene, &shadowRayOrg, &vinL, &lIsect);
-                if (lIsect.faceID == lpos.faceID) {
+                bool hit = rayIntersection(&scene, &shadowRayOrg, &vinL, &lIsect);
+                if (lIsect.faceID == lpos.faceID || (lpos.atInfinity && hit == false)) {
                     vector3 vinLrev = -vinL;
-                    float fsPDF = fs_pdf(BSDF_IDF, &vout, &vinL) * absCosNsEDF(EDF, &vinL) / dist2;
+                    float fsPDF = fs_pdf(BSDF, &vout, &vinL) * absCosNsEDF(EDF, &vinL) / dist2;
                     MISWeight = (lightPDF * lightPDF) / (lightPDF * lightPDF + fsPDF * fsPDF);
-                    *pix += (MISWeight * absCosNsEDF(EDF, &vinL) * absCosNsBSDF(BSDF_IDF, &vinL) / dist2 / lightPDF) *
-                    (alpha * Le(EDF, &vinLrev) * fs(BSDF_IDF, &vout, &vinL));
+                    *pix += (MISWeight * absCosNsEDF(EDF, &vinL) * absCosNsBSDF(BSDF, &vinL) / dist2 / lightPDF) *
+                    (alpha * Le(EDF, &vinLrev) * fs(BSDF, &vout, &vinL));
                 }
             }
 
@@ -102,12 +107,12 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
             //BSDFから入射方向をサンプルする。
             //サンプル方向のBSDFの値とPDFなどを用いてパスのウェイトを計算。
             BSDFSample fs_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
-            color fs = sample_fs(BSDF_IDF, &vout, &fs_sample, &ray.dir, &dirPDF, &sampledType);
+            color fs = sample_fs(BSDF, &vout, &fs_sample, &ray.dir, &dirPDF, &sampledType);
             if (zeroVec(&fs) || dirPDF == 0.0f) {
                 traceContinue = false;
                 break;
             }
-            alpha *= fs * (absCosNsBSDF(BSDF_IDF, &ray.dir) / dirPDF);
+            alpha *= fs * (absCosNsBSDF(BSDF, &ray.dir) / dirPDF);
             
             //サンプルした入射方向から新たなレイを生成し、シーンとの交差判定を行う。
             ray.org = isect.p + ray.dir * EPSILON;
@@ -121,11 +126,11 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
             //レイが光源にヒットした場合(implicit path)はMISを用いて寄与を計算する。
             //スペキュラー成分をサンプルしている場合は特殊処理。
             if (face->lightPtr != USHRT_MAX) {
+                LightPositionFromIntersection(&isect, &lpos);
+                EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
                 MISWeight = 1.0f;
                 if ((sampledType & BxDF_Non_Singular) != 0) {
-                    LightPositionFromIntersection(&isect, &lpos);
-                    EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
-                    lightPDF = getAreaPDF(&scene, isect.faceID, isect.uv) * distance2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
+                    lightPDF = getAreaPDF(&scene, &lpos) * distance2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
                     MISWeight = (dirPDF * dirPDF) / (lightPDF * lightPDF + dirPDF * dirPDF);
                 }
                 *pix += MISWeight * alpha * Le(EDF, &vout);
@@ -154,9 +159,14 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         lpos.atInfinity = true;
         float theta, phi;
         dirToPolarYTop(&ray.dir, &theta, &phi);
-        lpos.uv = (float2)(phi * (1.0f / (2.0f * M_PI_F)), theta * (1.0f / M_PI_F));
+        lpos.uv = (float2)(phi / (2.0f * M_PI_F), theta / M_PI_F);
         EDFAlloc(&scene, USHRT_MAX, &lpos, EDF);
-        *pix += alpha * Le(EDF, &vout) * 50;
+        MISWeight = 1.0f;
+        if ((sampledType & BxDF_Non_Singular) != 0 && ray.depth > 0) {
+            lightPDF = getAreaPDF(&scene, &lpos) * 1.0f / absCosNsEDF(EDF, &vout);
+            MISWeight = (dirPDF * dirPDF) / (lightPDF * lightPDF + dirPDF * dirPDF);
+        }
+        *pix += MISWeight * alpha * Le(EDF, &vout);
     }
 //    }
     

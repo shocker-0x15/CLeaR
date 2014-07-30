@@ -86,10 +86,11 @@ typedef struct __attribute__((aligned(4))) {
     uint idx_M __attribute__((aligned(4)));
 } DiffuseLElem;
 
-//12bytes
+//16bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_Le __attribute__((aligned(4)));
+    float multiplier;
     uint idx_Dist2D;
 } ImageBasedEnvLElem;
 

@@ -14,6 +14,8 @@
 namespace DistributionType {
     enum Value {
         Discrete1D = 0,
+        ContinuousConsts1D,
+        ContinuousConsts2D_H,
     };
 }
 
@@ -29,5 +31,22 @@ typedef struct {
     int32_t offsetPMF;
     int32_t offsetCDF;
 } Discrete1D;
+
+//28bytes
+typedef struct {
+    DistributionHead head; uint8_t dum0[3];
+    uint32_t numValues;
+    float startDomain, endDomain;
+    float widthStratum;
+    int32_t offsetPDF;
+    int32_t offsetCDF;
+} ContinuousConsts1D;
+
+//36bytes
+typedef struct {
+    DistributionHead head; uint8_t dum0[3];
+    int32_t offsetChildren;
+    ContinuousConsts1D distParent;
+} ContinuousConsts2D_H;
 
 #endif

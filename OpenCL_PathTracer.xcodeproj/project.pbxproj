@@ -42,6 +42,7 @@
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46B46F96194C4272005FD1EA /* material_structures.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
 		46B46F97194C457A005FD1EA /* material_structures.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
+		46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46B8879F1986A34600292F5F /* BMPExporter.cpp */; };
 		46BC78831981654800B30320 /* distribution.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78821981654800B30320 /* distribution.cl */; };
 		46BC78851981663F00B30320 /* scene.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78841981663F00B30320 /* scene.cl */; };
 		46BC788619816C7500B30320 /* distribution.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46BC78821981654800B30320 /* distribution.cl */; };
@@ -145,6 +146,8 @@
 		46B46F94194C2AE2005FD1EA /* sim_material_structures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_material_structures.hpp; sourceTree = "<group>"; };
 		46B46F95194C4272005FD1EA /* material_structures.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = material_structures.cl; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
+		46B8879E19869B0F00292F5F /* BMPExporter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BMPExporter.h; sourceTree = "<group>"; };
+		46B8879F1986A34600292F5F /* BMPExporter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BMPExporter.cpp; sourceTree = "<group>"; };
 		46BC78811981612800B30320 /* Distribution.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = Distribution.hpp; sourceTree = "<group>"; };
 		46BC78821981654800B30320 /* distribution.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = distribution.cl; sourceTree = "<group>"; };
 		46BC78841981663F00B30320 /* scene.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = scene.cl; sourceTree = "<group>"; };
@@ -199,6 +202,8 @@
 			children = (
 				462229FA191AB64300D71891 /* ImageLoader.h */,
 				462229F9191AB64300D71891 /* ImageLoader.cpp */,
+				46B8879E19869B0F00292F5F /* BMPExporter.h */,
+				46B8879F1986A34600292F5F /* BMPExporter.cpp */,
 				46222A2F191D122B00D71891 /* Face.hpp */,
 				46222A30191D1D5D00D71891 /* Scene.h */,
 				46A690BE197456F400E54586 /* Scene.cpp */,
@@ -357,6 +362,7 @@
 				46222A24191AB70100D71891 /* Vector3f.cpp in Sources */,
 				46222A08191AB6B800D71891 /* reflection.cl in Sources */,
 				46CB87F61972F08000B99D06 /* texture_structures.cl in Sources */,
+				46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */,
 				46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */,
 				4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */,
 				46222A25191AB70100D71891 /* Vector4f.cpp in Sources */,

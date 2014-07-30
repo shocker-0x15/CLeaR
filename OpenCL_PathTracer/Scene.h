@@ -34,19 +34,20 @@ public:
     std::vector<LightInfo> lightInfos;
     std::vector<float> lightPowers;
     std::vector<uint8_t> materialsData;
-    std::map<std::string, size_t> materialsRef;
-    std::map<std::string, size_t> lightPropsRef;
+    std::map<std::string, uint64_t> materialsRef;
+    std::map<std::string, uint64_t> lightPropsRef;
     std::vector<uint8_t> texturesData;
-    std::map<std::string, size_t> texturesRef;
+    std::map<std::string, uint64_t> texturesRef;
+    std::map<std::string, uint64_t> texFilesDatabase;
     std::vector<uint8_t> otherResouces;
-    std::map<std::string, size_t> othersRef;
+    std::map<std::string, uint64_t> othersRef;
     BVH bvh;
     
     bool immediateMode;
-    size_t idxBaseVertices;
-    size_t idxBaseNormals;
-    size_t idxBaseTangents;
-    size_t idxBaseUVs;
+    uint64_t idxBaseVertices;
+    uint64_t idxBaseNormals;
+    uint64_t idxBaseTangents;
+    uint64_t idxBaseUVs;
     
     Scene() {
         immediateMode = false;
@@ -106,27 +107,36 @@ public:
         }
     }
     bool addMaterial(size_t idx, const char* name) {
-        std::pair<std::map<std::string, size_t>::iterator, bool> ret = materialsRef.insert(std::pair<std::string, size_t>(name, idx));
+        std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = materialsRef.insert(std::pair<std::string, uint64_t>(name, idx));
         return ret.second;
     }
     bool addLightProp(size_t idx, const char* name) {
-        std::pair<std::map<std::string, size_t>::iterator, bool> ret = lightPropsRef.insert(std::pair<std::string, size_t>(name, idx));
+        std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = lightPropsRef.insert(std::pair<std::string, uint64_t>(name, idx));
         return ret.second;
     }
     bool addTexture(size_t idx, const char* name) {
-        std::pair<std::map<std::string, size_t>::iterator, bool> ret = texturesRef.insert(std::pair<std::string, size_t>(name, idx));
+        std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = texturesRef.insert(std::pair<std::string, uint64_t>(name, idx));
+        return ret.second;
+    }
+    bool addTexFileToDB(size_t idx, const char* filename) {
+        std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = texFilesDatabase.insert(std::pair<std::string, uint64_t>(filename, idx));
         return ret.second;
     }
     bool addOtherResouce(size_t idx, const char* name) {
-        std::pair<std::map<std::string, size_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, size_t>(name, idx));
+        std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, uint64_t>(name, idx));
         return ret.second;
     }
     bool setCamera(size_t idx) {
-        std::pair<std::map<std::string, size_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, size_t>("Camera", idx));
+        std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, uint64_t>("Camera", idx));
         return ret.second;
     }
     bool setEnvironment(size_t idx) {
-        std::pair<std::map<std::string, size_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, size_t>("Environment", idx));
+        std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, uint64_t>("Environment", idx));
+        LightInfo lInfo;
+        lInfo.atInfinity = 1;
+        lInfo.reference = UINT32_MAX;
+        lightInfos.push_back(lInfo);
+        lightPowers.push_back(1.0f);// 適当。ライトの出力に比例した値にすべき。
         return ret.second;
     }
     
@@ -172,50 +182,55 @@ public:
         return otherResouces.data();
     }
     
-    size_t numVertices() const {
+    uint64_t numVertices() const {
         return vertices.size();
     }
-    size_t numNormals() const {
+    uint64_t numNormals() const {
         return normals.size();
     }
-    size_t numTangents() const {
+    uint64_t numTangents() const {
         return tangents.size();
     }
-    size_t numUVs() const {
+    uint64_t numUVs() const {
         return uvs.size();
     }
-    size_t numFaces() const {
+    uint64_t numFaces() const {
         return faces.size();
     }
-    size_t numLights() const {
+    uint64_t numLights() const {
         return lightInfos.size();
     }
-    size_t sizeOfMaterialsData() const {
+    uint64_t sizeOfMaterialsData() const {
         return materialsData.size() * sizeof(uint8_t);
     }
-    size_t sizeOfTexturesData() const {
+    uint64_t sizeOfTexturesData() const {
         return texturesData.size() * sizeof(uint8_t);
     }
-    size_t sizeOfBVHNodes() const {
+    uint64_t sizeOfBVHNodes() const {
         return bvh.nodes.size() * sizeof(BVHNode);
     }
-    size_t sizeOfOtherResouces() const {
+    uint64_t sizeOfOtherResouces() const {
         return otherResouces.size();
     }
     
-    size_t idxOfMat(const std::string &name) {
+    uint64_t idxOfMat(const std::string &name) {
         assert(materialsRef.count(name) == 1);
         return materialsRef[name];
     }
-    size_t idxOfLight(const std::string &name) {
+    uint64_t idxOfLight(const std::string &name) {
         assert(lightPropsRef.count(name) == 1);
         return lightPropsRef[name];
     }
-    size_t idxOfTex(const std::string &name) {
+    uint64_t idxOfTex(const std::string &name) {
         assert(texturesRef.count(name) == 1);
         return texturesRef[name];
     }
-    size_t idxOfOther(const std::string &name) {
+    bool texFilehasLoaded(const std::string &filename, uint64_t* idx) {
+        bool ret = texFilesDatabase.count(filename) == 1;
+        *idx = ret ? texFilesDatabase[filename] : 0;
+        return ret;
+    }
+    uint64_t idxOfOther(const std::string &name) {
         assert(othersRef.count(name) == 1);
         return othersRef[name];
     }

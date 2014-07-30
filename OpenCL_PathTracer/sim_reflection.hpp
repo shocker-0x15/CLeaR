@@ -251,7 +251,7 @@ namespace sim {
                     speR->head.id = BxDFID_SpecularReflection;
                     speR->head.fxType = BxDFType(BxDF_Reflection | BxDF_Specular);
                     speR->R = evaluateColorTexture(scene->texturesData + speRElem->idx_R, isect->uv);
-                    speR->fresnel = scene->otherResoucesData + speRElem->idx_Fresnel;
+                    speR->fresnel = scene->otherResourcesData + speRElem->idx_Fresnel;
                     
                     BSDFp += sizeof(SpecularReflection);
                     matsData_p += sizeof(SpecularRElem);
@@ -269,7 +269,7 @@ namespace sim {
                     speT->T = evaluateColorTexture(scene->texturesData + speTElem->idx_T, isect->uv);
                     speT->etaExt = speTElem->etaExt;
                     speT->etaInt = speTElem->etaInt;
-                    speT->fresnel = scene->otherResoucesData + speTElem->idx_Fresnel;
+                    speT->fresnel = scene->otherResourcesData + speTElem->idx_Fresnel;
                     
                     BSDFp += sizeof(SpecularTransmission);
                     matsData_p += sizeof(SpecularTElem);

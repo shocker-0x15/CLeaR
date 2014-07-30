@@ -100,10 +100,11 @@ typedef struct {
     uint32_t idx_M;
 } DiffuseLElem;
 
-//12bytes
+//16bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_Le;
+    float multiplier;
     uint32_t idx_Dist2D;
 } ImageBasedEnvLElem;
 

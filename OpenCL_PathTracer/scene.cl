@@ -31,7 +31,7 @@ typedef struct __attribute__((aligned(64))) {
 
 //4bytes
 typedef struct __attribute__((aligned(4))) {
-    uint offsetEnvLightProperty;
+    uint idx_envLightProperty;
 } EnvironmentHead;
 
 typedef struct {
@@ -43,7 +43,7 @@ typedef struct {
     global LightInfo* lights;
     global uchar* materialsData;
     global uchar* texturesData;
-    global uchar* otherResoucesData;
+    global uchar* otherResourcesData;
     global BVHNode* BVHNodes;
     global CameraHead* camera;
     global EnvironmentHead* environment;

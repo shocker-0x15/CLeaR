@@ -88,7 +88,7 @@ static float l_sinPhi(const vector3* v);
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, uchar* EDF, float* areaPDF);
-float getAreaPDF(const Scene* scene, uint faceID, float2 uv);
+float getAreaPDF(const Scene* scene, const LightPosition* lpos);
 
 void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF);
 
@@ -132,10 +132,51 @@ static float l_sinPhi(const vector3* v) {
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
                     LightPosition* lpos, uchar* EDF, float* areaPDF) {
     LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerDistribution, l_sample->uLight, areaPDF)];
+    ushort lightPropPtr = USHRT_MAX;
     if (lInfo.atInfinity) {
         lpos->atInfinity = true;
         
-        EDFAlloc(scene, USHRT_MAX, lpos, EDF);
+        const global uchar* lightsData_p = scene->materialsData + scene->environment->idx_envLightProperty;
+        const global LightPropertyInfo* lpInfo = (const global LightPropertyInfo*)lightsData_p;
+        
+        //IBLの重ね合わせを考える場合は、複合BSDFからのサンプリングのように1sample MISを行った方が良い？
+        //ただ全方位のIBLを重ね合わせたい需要はあんまり無さそうだからMISしなくても良いかも。
+        *areaPDF *= 1.0f;//本当はここで複合IBLから1要素を確率的にサンプリングする。
+        uint whichIBL = 0;
+        
+        float uvPDF;
+        lightsData_p += sizeof(LightPropertyInfo);
+        for (uint i = 0; i < lpInfo->numEEDFs; ++i) {
+            AlignPtrG(&lightsData_p, 4);
+            uchar EnvLPElemID = *lightsData_p;
+            switch (EnvLPElemID) {
+                case EnvLPElem_ImageBased: {
+                    const global ImageBasedEnvLElem* llIBEnvElem = (const global ImageBasedEnvLElem*)lightsData_p;
+                    
+                    if (whichIBL == i) {
+                        lpos->uv = sampleContinuousConsts2D_H((const global ContinuousConsts2D_H*)(scene->otherResourcesData + llIBEnvElem->idx_Dist2D),
+                                                              l_sample->uPos[0], l_sample->uPos[1], &uvPDF);
+                        float theta = lpos->uv.s1 * M_PI_F;
+                        float phi = lpos->uv.s0 * 2 * M_PI_F;
+                        float worldRadius = 10;//正しく遮蔽を調べるために、本来はワールドのバウンディングスフィアの半径とでもすべき。
+                        float sinTheta = sin(theta);
+                        lpos->p = (point3)(sin(phi) * sinTheta, cos(theta), cos(phi) * sinTheta) * worldRadius;
+                        *areaPDF *= uvPDF / (2 * M_PI_F * M_PI_F * sinTheta);
+                        break;
+                    }
+                    
+                    lightsData_p += sizeof(ImageBasedEnvLElem);
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+        
+//        for (uint i = 0; i < lpInfo->numEEDFs; ++i) {
+//            //各IBLが選択される確率の加重平均をとる処理。
+//        }
     }
     else {
         lpos->atInfinity = false;
@@ -193,22 +234,55 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
                 lpos->uDir = normalize(uDir);
         }
         
-        EDFAlloc(scene, face->lightPtr, lpos, EDF);
+        lightPropPtr = face->lightPtr;
     }
+    EDFAlloc(scene, lightPropPtr, lpos, EDF);
 }
 
-float getAreaPDF(const Scene* scene, uint faceID, float2 uv) {
-    const global Face* face = scene->faces + faceID;
-    const global point3* p0 = scene->vertices + face->p0;
-    const global point3* p1 = scene->vertices + face->p1;
-    const global point3* p2 = scene->vertices + face->p2;
-    
-    vector3 ng = cross(*p1 - *p0, *p2 - *p0);
-    
-    float areaPDF = 1.0f / (0.5f * length(ng));
-    for (uint i = 0; i < scene->lightPowerDistribution->numItems; ++i)
-        if (scene->lights[i].reference == faceID)
-            return areaPDF * probDiscrete1D(scene->lightPowerDistribution, i);
+float getAreaPDF(const Scene* scene, const LightPosition* lpos) {
+    if (lpos->atInfinity) {
+        const global uchar* lightsData_p = scene->materialsData + scene->environment->idx_envLightProperty;
+        const global LightPropertyInfo* lpInfo = (const global LightPropertyInfo*)lightsData_p;
+        
+        float areaPDF = 0.0f;
+        float uvPDF;
+        lightsData_p += sizeof(LightPropertyInfo);
+        for (uint i = 0; i < lpInfo->numEEDFs; ++i) {
+            AlignPtrG(&lightsData_p, 4);
+            uchar EnvLPElemID = *lightsData_p;
+            switch (EnvLPElemID) {
+                case EnvLPElem_ImageBased: {
+                    const global ImageBasedEnvLElem* llIBEnvElem = (const global ImageBasedEnvLElem*)lightsData_p;
+                    
+                    uvPDF = PDFContinuousConsts2D_H((const global ContinuousConsts2D_H*)(scene->otherResourcesData + llIBEnvElem->idx_Dist2D), &lpos->uv);
+                    areaPDF += uvPDF / (2 * M_PI_F * M_PI_F * sin(lpos->uv.s1 * M_PI_F)) * 1.0f;//本来はこのIBLが選ばれる確率をかける必要がある。
+                    
+                    lightsData_p += sizeof(ImageBasedEnvLElem);
+                    break;
+                }
+                default: {
+                    break;
+                }
+            }
+        }
+        
+        for (uint i = 0; i < scene->lightPowerDistribution->numItems; ++i)
+            if (scene->lights[i].atInfinity)
+                return areaPDF * probDiscrete1D(scene->lightPowerDistribution, i);
+    }
+    else {
+        const global Face* face = scene->faces + lpos->faceID;
+        const global point3* p0 = scene->vertices + face->p0;
+        const global point3* p1 = scene->vertices + face->p1;
+        const global point3* p2 = scene->vertices + face->p2;
+        
+        vector3 ng = cross(*p1 - *p0, *p2 - *p0);
+        
+        float areaPDF = 1.0f / (0.5f * length(ng));
+        for (uint i = 0; i < scene->lightPowerDistribution->numItems; ++i)
+            if (scene->lights[i].reference == lpos->faceID)
+                return areaPDF * probDiscrete1D(scene->lightPowerDistribution, i);
+    }
     return 0.0f;
 }
 
@@ -217,7 +291,7 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
     if (lpos->atInfinity) {
         EnvEDFHead* envEDFHead = (EnvEDFHead*)EDF;
         envEDFHead->ddfHead._type = DDFType_EnvEDF;
-        const global uchar* lightsData_p = scene->materialsData + scene->environment->offsetEnvLightProperty;
+        const global uchar* lightsData_p = scene->materialsData + scene->environment->idx_envLightProperty;
         const global LightPropertyInfo* lpInfo = (const global LightPropertyInfo*)lightsData_p;
         
         envEDFHead->numEnvEEDFs = lpInfo->numEEDFs;
@@ -239,7 +313,7 @@ void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar*
                     
                     entire->head.id = EnvEEDFID_EntireSceneEmission;
                     entire->head.eLeType = EEDF_Diffuse;
-                    entire->Le = evaluateColorTexture(scene->texturesData + llIBEnvElem->idx_Le, lpos->uv);
+                    entire->Le = evaluateColorTexture(scene->texturesData + llIBEnvElem->idx_Le, lpos->uv) * llIBEnvElem->multiplier;
                     
                     EDFp += sizeof(EntireSceneEmission);
                     lightsData_p += sizeof(ImageBasedEnvLElem);
@@ -357,7 +431,7 @@ color Le(const uchar* EDF, const vector3* vout) {
 }
 
 inline float absCosNsEDF(const uchar* EDF, const vector3* v) {
-    return fabs(dot(((const EDFHead*)EDF)->n, *v));
+    return ((const DDFHead*)EDF)->_type == DDFType_EDF ? fabs(dot(((const EDFHead*)EDF)->n, *v)) : 1.0f;
 }
 
 #endif

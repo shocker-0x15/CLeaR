@@ -160,9 +160,8 @@ namespace sim {
                                                                   l_sample->uPos[0], l_sample->uPos[1], &uvPDF);
                             float theta = lpos->uv.s1 * M_PI_F;
                             float phi = lpos->uv.s0 * 2 * M_PI_F;
-                            float worldRadius = 10;//正しく遮蔽を調べるために、本来はワールドのバウンディングスフィアの半径とでもすべき。
                             float sinTheta = sinf(theta);
-                            lpos->p = point3(sinf(phi) * sinTheta, cosf(theta), cosf(phi) * sinTheta) * worldRadius;
+                            lpos->p = point3(sinf(phi) * sinTheta, cosf(theta), cosf(phi) * sinTheta);
                             *areaPDF *= uvPDF / (2 * M_PI_F * M_PI_F * sinTheta);
                             break;
                         }

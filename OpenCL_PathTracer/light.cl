@@ -158,9 +158,8 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
                                                               l_sample->uPos[0], l_sample->uPos[1], &uvPDF);
                         float theta = lpos->uv.s1 * M_PI_F;
                         float phi = lpos->uv.s0 * 2 * M_PI_F;
-                        float worldRadius = 10;//正しく遮蔽を調べるために、本来はワールドのバウンディングスフィアの半径とでもすべき。
                         float sinTheta = sin(theta);
-                        lpos->p = (point3)(sin(phi) * sinTheta, cos(theta), cos(phi) * sinTheta) * worldRadius;
+                        lpos->p = (point3)(sin(phi) * sinTheta, cos(theta), cos(phi) * sinTheta);
                         *areaPDF *= uvPDF / (2 * M_PI_F * M_PI_F * sinTheta);
                         break;
                     }

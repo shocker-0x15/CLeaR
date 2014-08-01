@@ -170,9 +170,9 @@ float MaterialCreator::averageLuminance(const char* image, float xLeft, float xR
     
     float sumLuminance = 0.0f;
     uint32_t xLeftPix = (uint32_t)xLeft;
-    uint32_t xRightPix = (uint32_t)xRight;
+    uint32_t xRightPix = (uint32_t)ceilf(xRight) - 1;
     uint32_t yTopPix = (uint32_t)yTop;
-    uint32_t yBottomPix = (uint32_t)yBottom;
+    uint32_t yBottomPix = (uint32_t)ceilf(yBottom) - 1;
     
     float R, G, B, luminance;
     

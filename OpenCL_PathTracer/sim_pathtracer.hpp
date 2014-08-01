@@ -88,8 +88,10 @@ namespace sim {
                     vector3 vinL = lpos.p - isect.p;
                     dist2 = dot(vinL, vinL);
                     vinL = vinL * (1.0f / sqrtf(dist2));
-                    if (lpos.atInfinity)
+                    if (lpos.atInfinity) {
+                        vinL = lpos.p;
                         dist2 = 1.0f;
+                    }
                     
                     point3 shadowRayOrg = isect.p + vinL * EPSILON;
                     Intersection lIsect;

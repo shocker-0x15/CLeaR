@@ -112,7 +112,7 @@ void buildScene() {
     };
     EnvironmentHead envHead;
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
-//    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
+    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
     
     //部屋
     scene.beginObject();
@@ -180,11 +180,11 @@ void buildScene() {
     mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
     mc.createDiffuseLightProperty("light_top", "M_top");
     
-    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
-    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light")));
+    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light")));
     scene.endObject();
     
-//    loadModel("models/Pikachu_corrected_subdivided.obj", &scene);
+    loadModel("models/Pikachu_corrected_subdivided.obj", &scene);
     
     scene.build();
 }
@@ -200,7 +200,7 @@ int main(int argc, const char * argv[]) {
     printf("%s\n", std::ctime(&ctimeLaunch));
     
 #define SIMULATION 0
-    const uint32_t iterations = 128;
+    const uint32_t iterations = 16;
     
     buildScene();
     

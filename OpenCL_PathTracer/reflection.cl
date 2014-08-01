@@ -491,6 +491,9 @@ static color sample_fx(const BxDFHead* BxDF, const vector3* vout, const BSDFSamp
 static color fx(const BxDFHead* BxDF, const vector3* vout, const vector3* vin) {
     switch (BxDF->id) {
         case BxDFID_Diffuse: {
+            if(vin->z * vout->z <= 0.0f)
+                return colorZero;
+            
             const Diffuse* diffuse = (const Diffuse*)BxDF;
             
             if (diffuse->A == 1.0f) {

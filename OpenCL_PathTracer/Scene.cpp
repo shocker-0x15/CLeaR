@@ -22,7 +22,8 @@ void Scene::build() {
         };
         EnvironmentHead envHead;
         envHead.offsetEnvLightProperty = (uint32_t)idxOfLight("Dark");
-        setEnvironment(addDataAligned(&otherResouces, envHead, 4));
+        
+        othersRef.insert(std::pair<std::string, uint64_t>("Environment", addDataAligned(&otherResouces, envHead, 4)));
     }
     
     calcLightPowerDistribution();

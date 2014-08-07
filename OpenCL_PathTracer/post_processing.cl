@@ -1,4 +1,15 @@
+//
+//  post_processing.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 void atomic_add_f32(volatile global float* address, float value);
+kernel void clear(uint width, uint height, global float3* buffer);
+kernel void scaling(uint width, uint height, uint spp, global float3* src, global float3* output);
+kernel void gaussianScattering(uint width, uint height, uint spp, global float3* src, global float3* output);
+kernel void bloom(uint width, uint height, uint spp, global float3* src, global float3* output);
+kernel void toneMapping(uint width, uint height, uint b_width, global float3* src, global uchar* dst);
 
 void atomic_add_f32(volatile global float* address, float value) {
     uint oldval, newval, readback;
@@ -114,7 +125,7 @@ kernel void toneMapping(uint width, uint height, uint b_width, global float3* sr
         scaleTM = 1.0f;
     
     uchar3 result = convert_uchar3_rtz(clamp(255.0f * pow(scaleTM * satVal, 1.0f / 2.2f), 0.0f, 255.0f));
-    dst[dIdx + 0] = result.b;
-    dst[dIdx + 1] = result.g;
-    dst[dIdx + 2] = result.r;
+    dst[dIdx + 0] = result.s2;
+    dst[dIdx + 1] = result.s1;
+    dst[dIdx + 2] = result.s0;
 }

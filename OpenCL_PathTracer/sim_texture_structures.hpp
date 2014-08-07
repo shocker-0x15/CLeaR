@@ -1,3 +1,9 @@
+//
+//  sim_texture_structures.hpp
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef sim_texture_structures_cl
 #define sim_texture_structures_cl
 

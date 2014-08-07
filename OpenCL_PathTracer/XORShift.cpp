@@ -1,9 +1,9 @@
 //
 //  XORShift.cpp
-//  GIRenderer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 11/07/21.
-//  Copyright 2011年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
 #include "XORShift.hpp"

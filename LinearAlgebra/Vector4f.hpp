@@ -1,13 +1,13 @@
 //
 //  Vector4f.hpp
-//  GIRenderer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 11/08/22.
-//  Copyright (c) 2011年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#ifndef GIRenderer_Vector4f_hpp
-#define GIRenderer_Vector4f_hpp
+#ifndef OpenCL_PathTracer_Vector4f_hpp
+#define OpenCL_PathTracer_Vector4f_hpp
 
 #include <cstdio>
 #include <cmath>

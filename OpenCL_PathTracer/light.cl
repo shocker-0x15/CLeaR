@@ -1,3 +1,9 @@
+//
+//  light.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef device_light_cl
 #define device_light_cl
 

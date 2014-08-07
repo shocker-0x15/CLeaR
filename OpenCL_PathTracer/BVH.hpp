@@ -1,6 +1,6 @@
 //
 //  BVH.h
-//  OpenCL_TEST
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 2014/05/04.
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
@@ -83,6 +83,7 @@ struct BVH {
         lIdx[right] = temp;
     }
     
+    //インデックスsplitIdxの要素の数値以上と未満の組に分ける。
     void divide(uint32_t start, uint32_t end, uint8_t axis, uint32_t splitIdx) {
         if (splitIdx <= start || splitIdx + 1 >= end)
             return;
@@ -114,6 +115,28 @@ struct BVH {
         }
     }
     
+    //座標が基準点以上の組と未満の組に分ける。
+    void divide(uint32_t start, uint32_t end, uint8_t axis, float pivot, uint32_t* splitIdx) {
+        if (end - start <= 2) {
+            *splitIdx = (start + end) / 2;
+            return;
+        }
+        uint32_t left = start - 1;
+        uint32_t right = end;
+        while (true) {
+            while (leaves[lIdx[++left]].centerOfAxis(axis) < pivot);
+            while (leaves[lIdx[--right]].centerOfAxis(axis) > pivot);
+            
+            if (left < right) {
+                swapIndex(left, right);
+            }
+            else {
+                *splitIdx = std::max(left, start + 1);
+                return;
+            }
+        }
+    }
+    
     void buildRecursive(uint32_t parent, uint32_t start, uint32_t end) {
         BBox bbox;
         for (uint32_t i = start; i < end; ++i)
@@ -128,18 +151,22 @@ struct BVH {
         }
         
         uint8_t widestAxis = bbox.widestAxis();
-        uint32_t median = (start + end) / 2;
-        divide(start, end, widestAxis, median);
+//        //子の数が同じになるように分割する。
+//        uint32_t splitIdx = (start + end) / 2;
+//        divide(start, end, widestAxis, splitIdx);
+        //中点で分割する。
+        uint32_t splitIdx;
+        divide(start, end, widestAxis, bbox.centerOfAxis(widestAxis), &splitIdx);
         
         BVHNode child1{BBox{}};
         nodes.push_back(child1);
         nodes[parent].children[0] = (uint32_t)nodes.size() - 1;
-        buildRecursive((uint32_t)nodes.size() - 1, start, median);
+        buildRecursive((uint32_t)nodes.size() - 1, start, splitIdx);
         
         BVHNode child2{BBox{}};
         nodes.push_back(child2);
         nodes[parent].children[1] = (uint32_t)nodes.size() - 1;
-        buildRecursive((uint32_t)nodes.size() - 1, median, end);
+        buildRecursive((uint32_t)nodes.size() - 1, splitIdx, end);
     }
     
     void build() {

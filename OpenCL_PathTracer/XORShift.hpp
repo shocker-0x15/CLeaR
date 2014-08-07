@@ -1,13 +1,13 @@
 //
 //  XORShift.hpp
-//  GIRenderer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 11/07/21.
-//  Copyright 2011年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#ifndef GIRenderer_XORShift_hpp
-#define GIRenderer_XORShift_hpp
+#ifndef OpenCL_PathTracer_XORShift_hpp
+#define OpenCL_PathTracer_XORShift_hpp
 
 class XORShiftRandom32 {
     unsigned int seed128[4];

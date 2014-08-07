@@ -1,3 +1,9 @@
+//
+//  sim_pathtracer.hpp
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #include "sim_global.hpp"
 #include "sim_bvh_traversal.hpp"
 #include "sim_matrix.hpp"
@@ -7,6 +13,12 @@
 #include "sim_camera.hpp"
 
 namespace sim {
+    void pathtracing(float3* vertices, float3* normals, float3* tangents, float2* uvs, uchar* faces,
+                     uint* lights,
+                     uchar* materialsData, uchar* texturesData, uchar* otherResources,
+                     uchar* BVHNodes,
+                     uint* randStates, float3* pixels);
+    
     void pathtracing(float3* vertices, float3* normals, float3* tangents, float2* uvs, uchar* faces,
                      uint* lights,
                      uchar* materialsData, uchar* texturesData, uchar* otherResources,

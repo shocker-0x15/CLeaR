@@ -1,3 +1,9 @@
+//
+//  bvh_traversal.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef device_bvh_traversal_cl
 #define device_bvh_traversal_cl
 

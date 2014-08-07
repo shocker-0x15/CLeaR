@@ -1,3 +1,9 @@
+//
+//  sim_distribution.hpp
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef sim_distribution_cl
 #define sim_distribution_cl
 

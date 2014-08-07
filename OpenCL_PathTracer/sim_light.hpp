@@ -1,3 +1,9 @@
+//
+//  sim_light.hpp
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef sim_light_cl
 #define sim_light_cl
 

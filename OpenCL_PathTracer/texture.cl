@@ -1,3 +1,9 @@
+//
+//  texture.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #pragma OPENCL EXTENSION cl_khr_fp16 : enable
 #ifndef device_texture_cl
 #define device_texture_cl

@@ -1,13 +1,13 @@
 //
 //  Matrix4f.hpp
-//  GIRenderer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 11/08/22.
-//  Copyright (c) 2011年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#ifndef GIRenderer_Matrix4f_hpp
-#define GIRenderer_Matrix4f_hpp
+#ifndef OpenCL_PathTracer_Matrix4f_hpp
+#define OpenCL_PathTracer_Matrix4f_hpp
 
 #include "Vector3f.hpp"
 #include "Vector4f.hpp"

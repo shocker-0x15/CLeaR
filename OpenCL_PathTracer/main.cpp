@@ -1,6 +1,6 @@
 //
 //  main.cpp
-//  PathTracer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 2014/04/17.
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
@@ -112,7 +112,7 @@ void buildScene() {
     };
     EnvironmentHead envHead;
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
-    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
+//    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
     
     //部屋
     scene.beginObject();
@@ -155,16 +155,16 @@ void buildScene() {
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
     mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
-//    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-//    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-//    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-//    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-//    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-//    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
     scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
     scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-//    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-//    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
     //光源
@@ -180,8 +180,8 @@ void buildScene() {
     mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
     mc.createDiffuseLightProperty("light_top", "M_top");
     
-    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light")));
-    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light")));
+    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
     loadModel("models/Pikachu_corrected_subdivided.obj", &scene);

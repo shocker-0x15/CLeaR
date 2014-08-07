@@ -1,3 +1,9 @@
+//
+//  scene.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef device_scene_cl
 #define device_scene_cl
 

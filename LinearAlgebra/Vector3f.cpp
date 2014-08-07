@@ -1,9 +1,9 @@
 //
 //  Vector3f.cpp
-//  GIRenderer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 11/07/16.
-//  Copyright 2011 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
 #include "Vector3f.hpp"

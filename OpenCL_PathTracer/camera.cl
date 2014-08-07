@@ -1,3 +1,9 @@
+//
+//  camera.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef device_camera_cl
 #define device_camera_cl
 

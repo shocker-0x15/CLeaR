@@ -1,3 +1,9 @@
+//
+//  sim_rng.hpp
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef sim_rng_cl
 #define sim_rng_cl
 

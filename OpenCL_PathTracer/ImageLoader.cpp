@@ -1,6 +1,6 @@
 //
 //  ImageLoader.cpp
-//  OpenCL_TEST
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 2014/05/05.
 //  Copyright (c) 2014年 渡部 心. All rights reserved.

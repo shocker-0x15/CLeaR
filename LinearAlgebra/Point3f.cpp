@@ -1,9 +1,9 @@
 //
 //  Point3f.cpp
-//  GIRenderer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 12/08/29.
-//
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
 #include "Point3f.hpp"

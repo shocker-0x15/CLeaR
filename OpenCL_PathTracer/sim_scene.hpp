@@ -1,3 +1,9 @@
+//
+//  sim_scene.hpp
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef sim_scene_cl
 #define sim_scene_cl
 

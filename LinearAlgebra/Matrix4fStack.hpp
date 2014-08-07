@@ -1,13 +1,13 @@
 //
 //  Matrix4fStack.hpp
-//  GIRenderer
+//  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 11/11/25.
-//  Copyright (c) 2011年 __MyCompanyName__. All rights reserved.
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#ifndef GIRenderer_Matrix4fStack_hpp
-#define GIRenderer_Matrix4fStack_hpp
+#ifndef OpenCL_PathTracer_Matrix4fStack_hpp
+#define OpenCL_PathTracer_Matrix4fStack_hpp
 
 #include "GlobalIncludes.hpp"
 #include "Matrix4f.hpp"

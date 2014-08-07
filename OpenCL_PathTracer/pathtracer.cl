@@ -1,3 +1,9 @@
+//
+//  pathtracer.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #include "global.cl"
 #include "bvh_traversal.cl"
 #include "matrix.cl"
@@ -5,6 +11,12 @@
 #include "light.cl"
 #include "reflection.cl"
 #include "camera.cl"
+
+kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
+                        global uint* lights,
+                        global uchar* materialsData, global uchar* texturesData, global uchar* otherResources,
+                        global uchar* BVHNodes,
+                        global uint* randStates, global float3* pixels);
 
 kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
                         global uint* lights,

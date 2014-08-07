@@ -1,5 +1,5 @@
 //
-//  sim_base.h
+//  sim_base.hpp
 //  OpenCL_PathTracer
 //
 //  Created by 渡部 心 on 2014/05/11.

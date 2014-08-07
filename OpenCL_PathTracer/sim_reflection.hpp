@@ -1,3 +1,9 @@
+//
+//  sim_reflection.hpp
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef sim_reflection_cl
 #define sim_reflection_cl
 

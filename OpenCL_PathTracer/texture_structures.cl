@@ -1,3 +1,9 @@
+//
+//  texture_structures.cl
+//  OpenCL_PathTracer
+//  Copyright (c) 2014年 渡部 心. All rights reserved.
+//
+
 #ifndef device_texture_structures_cl
 #define device_texture_structures_cl
 

@@ -130,6 +130,7 @@
 		46222A30191D1D5D00D71891 /* Scene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Scene.h; sourceTree = "<group>"; };
 		4622DFE1193A183100CF2A3B /* sim_matrix.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_matrix.hpp; sourceTree = "<group>"; };
 		4622DFE2193A350A00CF2A3B /* sim_camera.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_camera.hpp; sourceTree = "<group>"; };
+		464794231993D76700E35B28 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
 		4649F3A3191EBA5B00C24459 /* sim_global.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = sim_global.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		4649F3A4191EBB7300C24459 /* sim_bvh_traversal.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_bvh_traversal.hpp; sourceTree = "<group>"; };
 		4649F3A5191EBD8600C24459 /* sim_light.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = sim_light.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
@@ -178,6 +179,7 @@
 		462229DC191AB59D00D71891 = {
 			isa = PBXGroup;
 			children = (
+				464794231993D76700E35B28 /* README.md */,
 				46B46F9219461013005FD1EA /* libHalf.11.dylib */,
 				46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */,
 				462229F3191AB5BB00D71891 /* libpng16.16.dylib */,

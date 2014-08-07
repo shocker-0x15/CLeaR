@@ -1,4 +1,4 @@
-#CLeaR: Open**CL** **e**xperimental **a**\*\*\* **R**aytracer
+#CLeaR: OpenCL experimental a\*\*\* Raytracer
 
 CLeaRはOpenCLでどのくらい実用的なレンダラーが書けるかを実験するために作られたレンダラーです。
 

@@ -69,7 +69,7 @@ void buildScene() {
     float near = 1;
     float far = 100;
     perspectiveCamera.virtualPlaneArea = aspect * powf(tanf(fovY / 2), 2);
-    perspectiveCamera.lensRadius = 0.0f;
+    perspectiveCamera.lensRadius = 0.05f;
     perspectiveCamera.objPDistance = 3.8f;
     Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
                                      Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
@@ -112,8 +112,6 @@ void buildScene() {
     EnvironmentHead envHead;
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
 //    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
-    
-    Matrix4fStack localToWorld{true};
     
     //部屋
     scene.beginObject();
@@ -185,7 +183,8 @@ void buildScene() {
     scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
-    loadModel("models/Pikachu_corrected_subdivided.obj", &scene);
+    scene.localToWorld = LA::TranslateMatrix(0, -0.999f, 0) * LA::RotateMatrix(M_PI / 6, 0, 1, 0) * LA::ScaleMatrix(0.25f, 0.25f, 0.25f);
+    loadModel("models/Pikachu.obj", &scene);
     
     scene.build();
 }

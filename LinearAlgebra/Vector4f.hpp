@@ -18,7 +18,7 @@ public:
     float x, y, z, w;
     
     Vector4f() : x(0), y(0), z(0), w(0) { };
-    Vector4f(float xx, float yy, float zz, float ww) : x(xx), y(yy), z(zz), w(ww) { };
+    constexpr Vector4f(float xx, float yy, float zz, float ww) : x(xx), y(yy), z(zz), w(ww) { };
     Vector4f(const Vector3f &vec3) : x(vec3.x), y(vec3.y), z(vec3.z) { };
     Vector4f(const Vector3f &vec3, float ww) : x(vec3.x), y(vec3.y), z(vec3.z), w(ww) { };
     

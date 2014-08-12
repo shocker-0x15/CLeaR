@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include "Matrix4fStack.hpp"
 #include "Face.hpp"
 #include "BVH.hpp"
 #include "clUtility.hpp"
@@ -48,6 +49,7 @@ public:
     uint64_t idxBaseNormals;
     uint64_t idxBaseTangents;
     uint64_t idxBaseUVs;
+    Matrix4fStack localToWorld{true};
     
     Scene() {
         immediateMode = false;
@@ -56,15 +58,19 @@ public:
     }
     
     void addVertex(float x, float y, float z) {
-        cl_float3 f3Val{x, y, z};
+        Point3f p = localToWorld.top() * Point3f(x, y, z);
+        cl_float3 f3Val{p.x, p.y, p.z};
         vertices.push_back(f3Val);
     }
     void addNormal(float x, float y, float z) {
-        cl_float3 f3Val{x, y, z};
+        Matrix4f normMat = localToWorld.top().Invert().Transpose();
+        Vector3f n = normMat * Vector3f(x, y, z);
+        cl_float3 f3Val{n.x, n.y, n.z};
         normals.push_back(f3Val);
     }
     void addTangent(float x, float y, float z) {
-        cl_float3 f3Val{x, y, z};
+        Vector3f s = localToWorld.top() * Vector3f(x, y, z);
+        cl_float3 f3Val{s.x, s.y, s.z};
         tangents.push_back(f3Val);
     }
     void addUV(float u, float v) {

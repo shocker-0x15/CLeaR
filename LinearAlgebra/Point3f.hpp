@@ -18,7 +18,7 @@ public:
     float x, y, z;
     
     Point3f() : x(0), y(0), z(0) { };
-    Point3f(float xx, float yy, float zz) : x(xx), y(yy), z(zz) { };
+    constexpr Point3f(float xx, float yy, float zz) : x(xx), y(yy), z(zz) { };
     
     Point3f operator+(const Point3f &p) const {
         return Point3f(this->x + p.x, this->y + p.y, this->z + p.z);

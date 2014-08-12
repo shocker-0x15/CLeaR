@@ -41,7 +41,7 @@ public:
         m03(0.0f), m13(0.0f), m23(0.0f), m33(1.0f)
     { };
     
-    Matrix4f(const Vector4f &v0, const Vector4f &v1, const Vector4f &v2, const Vector4f &v3) :
+    constexpr Matrix4f(const Vector4f &v0, const Vector4f &v1, const Vector4f &v2, const Vector4f &v3) :
         m00(v0.x), m10(v0.y), m20(v0.z), m30(v0.w),
         m01(v1.x), m11(v1.y), m21(v1.z), m31(v1.w),
         m02(v2.x), m12(v2.y), m22(v2.z), m32(v2.w),

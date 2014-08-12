@@ -16,7 +16,6 @@ class Matrix4fStack {
     std::stack<Matrix4f> m_stack;
     bool m_mulFromLeft;
     
-    Matrix4fStack() {};
 public:
     Matrix4fStack(bool mulFromLeft = false) {
         m_stack.push(Matrix4f::Identity);

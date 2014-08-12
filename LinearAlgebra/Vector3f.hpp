@@ -17,7 +17,7 @@ public:
     float x, y, z;
     
     Vector3f() : x(0), y(0), z(0) { };
-    Vector3f(float xx, float yy, float zz) : x(xx), y(yy), z(zz) { };
+    constexpr Vector3f(float xx, float yy, float zz) : x(xx), y(yy), z(zz) { };
     
     Vector3f operator+(const Vector3f &vec) const {
         return Vector3f(this->x + vec.x, this->y + vec.y, this->z + vec.z);

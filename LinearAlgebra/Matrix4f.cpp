@@ -8,7 +8,19 @@
 
 #include "Matrix4f.hpp"
 
-const Matrix4f Matrix4f::Identity = Matrix4f(Vector4f(1, 0, 0, 0), Vector4f(0, 1, 0, 0), Vector4f(0, 0, 1, 0), Vector4f(0, 0, 0, 1));
-const Matrix4f Matrix4f::Zero = Matrix4f(Vector4f(0, 0, 0, 0), Vector4f(0, 0, 0, 0), Vector4f(0, 0, 0, 0), Vector4f(0, 0, 0, 0));
-const Matrix4f Matrix4f::One = Matrix4f(Vector4f(1, 1, 1, 1), Vector4f(1, 1, 1, 1), Vector4f(1, 1, 1, 1), Vector4f(1, 1, 1, 1));
-const Matrix4f Matrix4f::NaN = Matrix4f(Vector4f(NAN, NAN, NAN, NAN), Vector4f(NAN, NAN, NAN, NAN), Vector4f(NAN, NAN, NAN, NAN), Vector4f(NAN, NAN, NAN, NAN));
+const Matrix4f Matrix4f::Identity = Matrix4f(Vector4f(1, 0, 0, 0),
+                                             Vector4f(0, 1, 0, 0),
+                                             Vector4f(0, 0, 1, 0),
+                                             Vector4f(0, 0, 0, 1));
+const Matrix4f Matrix4f::Zero = Matrix4f(Vector4f(0, 0, 0, 0),
+                                         Vector4f(0, 0, 0, 0),
+                                         Vector4f(0, 0, 0, 0),
+                                         Vector4f(0, 0, 0, 0));
+const Matrix4f Matrix4f::One = Matrix4f(Vector4f(1, 1, 1, 1),
+                                        Vector4f(1, 1, 1, 1),
+                                        Vector4f(1, 1, 1, 1),
+                                        Vector4f(1, 1, 1, 1));
+const Matrix4f Matrix4f::NaN = Matrix4f(Vector4f(NAN, NAN, NAN, NAN),
+                                        Vector4f(NAN, NAN, NAN, NAN),
+                                        Vector4f(NAN, NAN, NAN, NAN),
+                                        Vector4f(NAN, NAN, NAN, NAN));

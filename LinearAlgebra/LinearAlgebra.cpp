@@ -6,7 +6,7 @@
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#include "LinearAlgebra.hpp"
+#include "LinearAlgebra.h"
 #include <math.h>
 #include <stdio.h>
 

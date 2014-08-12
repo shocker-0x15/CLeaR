@@ -15,37 +15,37 @@
 
 class Matrix4f {
 public:
-    float m00, m01, m02, m03;
-    float m10, m11, m12, m13;
-    float m20, m21, m22, m23;
-    float m30, m31, m32, m33;
+    float m00, m10, m20, m30;
+    float m01, m11, m21, m31;
+    float m02, m12, m22, m32;
+    float m03, m13, m23, m33;
     
     Matrix4f() : 
-        m00(0), m01(0), m02(0), m03(0), 
-        m10(0), m11(0), m12(0), m13(0), 
-        m20(0), m21(0), m22(0), m23(0), 
-        m30(0), m31(0), m32(0), m33(0) 
+        m00(0), m10(0), m20(0), m30(0),
+        m01(0), m11(0), m21(0), m31(0),
+        m02(0), m12(0), m22(0), m32(0),
+        m03(0), m13(0), m23(0), m33(0)
     { };
     
     Matrix4f(float* array) : 
-        m00(array[ 0]), m01(array[ 4]), m02(array[ 8]), m03(array[12]), 
-        m10(array[ 1]), m11(array[ 5]), m12(array[ 9]), m13(array[13]), 
-        m20(array[ 2]), m21(array[ 6]), m22(array[10]), m23(array[14]), 
-        m30(array[ 3]), m31(array[ 7]), m32(array[11]), m33(array[15]) 
+        m00(array[ 0]), m10(array[ 1]), m20(array[ 2]), m30(array[ 3]),
+        m01(array[ 4]), m11(array[ 5]), m21(array[ 6]), m31(array[ 7]),
+        m02(array[ 8]), m12(array[ 9]), m22(array[10]), m32(array[11]),
+        m03(array[12]), m13(array[13]), m23(array[14]), m33(array[15])
     { };
     
     Matrix4f(const Vector3f &v0, const Vector3f &v1, const Vector3f &v2) : 
-        m00(v0.x), m01(v1.x), m02(v2.x), m03(  0), 
-        m10(v0.y), m11(v1.y), m12(v2.y), m13(  0), 
-        m20(v0.z), m21(v1.z), m22(v2.z), m23(  0), 
-        m30(   0), m31(   0), m32(   0), m33(1.0) 
+        m00(v0.x), m10(v0.y), m20(v0.z), m30(0.0f),
+        m01(v1.x), m11(v1.y), m21(v1.z), m31(0.0f),
+        m02(v2.x), m12(v2.y), m22(v2.z), m32(0.0f),
+        m03(0.0f), m13(0.0f), m23(0.0f), m33(1.0f)
     { };
     
-    Matrix4f(const Vector4f &v0, const Vector4f &v1, const Vector4f &v2, const Vector4f &v3) : 
-        m00(v0.x), m01(v1.x), m02(v2.x), m03(v3.x), 
-        m10(v0.y), m11(v1.y), m12(v2.y), m13(v3.y), 
-        m20(v0.z), m21(v1.z), m22(v2.z), m23(v3.z), 
-        m30(v0.w), m31(v1.w), m32(v2.w), m33(v3.w)     
+    Matrix4f(const Vector4f &v0, const Vector4f &v1, const Vector4f &v2, const Vector4f &v3) :
+        m00(v0.x), m10(v0.y), m20(v0.z), m30(v0.w),
+        m01(v1.x), m11(v1.y), m21(v1.z), m31(v1.w),
+        m02(v2.x), m12(v2.y), m22(v2.z), m32(v2.w),
+        m03(v3.x), m13(v3.y), m23(v3.z), m33(v3.w)
     { };
     
     Vector4f Column(int c) const {

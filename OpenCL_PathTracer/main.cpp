@@ -8,7 +8,7 @@
 
 #include <cstdio>
 #include <vector>
-#include "Matrix4f.hpp"
+#include "LinearAlgebra.h"
 #include "XORShift.hpp"
 #include <fstream>
 //#define __CL_ENABLE_EXCEPTIONS
@@ -35,6 +35,8 @@ std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
 void buildScene() {
+    namespace LA = LinearAlgebra;
+    
     std::vector<uint8_t>* refOthers = &scene.otherResouces;
     
     //128bytes
@@ -78,10 +80,7 @@ void buildScene() {
                                        Vector4f(0, 0, 2, 0),
                                        Vector4f(-1, 1, -1, 1));
     Matrix4f rasterToCamera = clipToCamera * rasterToScreen;
-    f16Val.s0 = rasterToCamera.m00; f16Val.s4 = rasterToCamera.m01; f16Val.s8 = rasterToCamera.m02; f16Val.sc = rasterToCamera.m03;
-    f16Val.s1 = rasterToCamera.m10; f16Val.s5 = rasterToCamera.m11; f16Val.s9 = rasterToCamera.m12; f16Val.sd = rasterToCamera.m13;
-    f16Val.s2 = rasterToCamera.m20; f16Val.s6 = rasterToCamera.m21; f16Val.sa = rasterToCamera.m22; f16Val.se = rasterToCamera.m23;
-    f16Val.s3 = rasterToCamera.m30; f16Val.s7 = rasterToCamera.m31; f16Val.sb = rasterToCamera.m32; f16Val.sf = rasterToCamera.m33;
+    memcpy(&f16Val, &rasterToCamera, sizeof(cl_float16));
     perspectiveCamera.rasterToCamera = f16Val;
     scene.setCamera(addDataAligned(refOthers, perspectiveCamera, 64));
     
@@ -113,6 +112,8 @@ void buildScene() {
     EnvironmentHead envHead;
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
 //    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
+    
+    Matrix4fStack localToWorld{true};
     
     //部屋
     scene.beginObject();

@@ -9,33 +9,59 @@
 #ifndef OpenCL_PathTracer_Matrix4fStack_hpp
 #define OpenCL_PathTracer_Matrix4fStack_hpp
 
-#include "GlobalIncludes.hpp"
 #include "Matrix4f.hpp"
+#include <stack>
 
 class Matrix4fStack {
-    std::vector<Matrix4f> stack;
-public:
-    Matrix4f current;
+    std::stack<Matrix4f> m_stack;
+    bool m_mulFromLeft;
     
-    Matrix4fStack() : current(Matrix4f::Identity) { };
+    Matrix4fStack() {};
+public:
+    Matrix4fStack(bool mulFromLeft = false) {
+        m_stack.push(Matrix4f::Identity);
+        m_mulFromLeft = mulFromLeft;
+    }
+    
+    explicit Matrix4fStack(const Matrix4f& mat) {
+        m_stack.push(mat);
+    }
     
     void push() {
-        stack.push_back(current);
+        m_stack.push(m_stack.top());
     }
     
     void pop() {
-        if (stack.size() > 0) {
-            current = stack[stack.size() - 1];
-            stack.pop_back();
+        if (m_stack.size() > 1)
+            m_stack.pop();
+        else {
+            m_stack.top() = Matrix4f::Identity;
         }
     }
     
-    void preMult(const Matrix4f &mat) {
-        current = mat * current;
+    Matrix4fStack& operator=(const Matrix4f& mat) {
+        m_stack.top() = mat;
+        return *this;
     }
     
-    void postMult(const Matrix4f &mat) {
-        current *= mat;
+    Matrix4fStack& operator*=(const Matrix4f& mat) {
+        if (m_mulFromLeft)
+            m_stack.top() = mat * m_stack.top();
+        else
+            m_stack.top() *= mat;
+        return *this;
+    }
+    
+    const Matrix4f& top() const {
+        return m_stack.top();
+    }
+    
+    Matrix4f& top() {
+        return m_stack.top();
+    }
+    
+    operator Matrix4f() const {
+        return m_stack.top();
     }
 };
 

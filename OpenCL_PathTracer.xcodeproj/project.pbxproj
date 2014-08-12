@@ -111,7 +111,7 @@
 		46222A02191AB6B800D71891 /* texture.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = texture.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
 		46222A03191AB6B800D71891 /* post_processing.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; lineEnding = 0; path = post_processing.cl; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.opencl; };
 		46222A16191AB70100D71891 /* LinearAlgebra.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LinearAlgebra.cpp; sourceTree = "<group>"; };
-		46222A17191AB70100D71891 /* LinearAlgebra.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = LinearAlgebra.hpp; sourceTree = "<group>"; };
+		46222A17191AB70100D71891 /* LinearAlgebra.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LinearAlgebra.h; sourceTree = "<group>"; };
 		46222A18191AB70100D71891 /* Matrix4f.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Matrix4f.cpp; sourceTree = "<group>"; };
 		46222A19191AB70100D71891 /* Matrix4f.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = Matrix4f.hpp; sourceTree = "<group>"; };
 		46222A1A191AB70100D71891 /* Matrix4fStack.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = Matrix4fStack.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
@@ -231,7 +231,7 @@
 			isa = PBXGroup;
 			children = (
 				46222A16191AB70100D71891 /* LinearAlgebra.cpp */,
-				46222A17191AB70100D71891 /* LinearAlgebra.hpp */,
+				46222A17191AB70100D71891 /* LinearAlgebra.h */,
 				46222A18191AB70100D71891 /* Matrix4f.cpp */,
 				46222A19191AB70100D71891 /* Matrix4f.hpp */,
 				46222A1A191AB70100D71891 /* Matrix4fStack.hpp */,

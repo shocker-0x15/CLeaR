@@ -9,7 +9,7 @@
 #ifndef OpenCL_PathTracer_LinearAlgebra_hpp
 #define OpenCL_PathTracer_LinearAlgebra_hpp
 
-#include "Matrix4f.hpp"
+#include "Matrix4fStack.hpp"
 
 namespace LinearAlgebra {
     Matrix4f LookAt(float ex, float ey, float ez, float tx, float ty, float tz, float ux, float uy, float uz);

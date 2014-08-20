@@ -21,14 +21,14 @@ For now, it looks like the same as logic used in CPU implementation, so it is no
 * .obj Loader
 
 ##動作環境 / Confirmed Environment
-現状以下の環境で動作を確認しています。
+現状以下の環境で動作を確認しています。  
 I've confirmed that the program runs correctly on the following environment.
 
 * OS X 10.9.4
 * MacBook Pro Retina Late 2013
 * Geforce GT 750M
 
-動作させるにあたっては以下のライブラリが必要です。
+動作させるにあたっては以下のライブラリが必要です。  
 It requires the following libraries.
 
 * OpenEXR 2.10

@@ -22,12 +22,13 @@ typedef enum {
 } TextureType;
 
 typedef enum {
-    ColorProceduralType_CheckerBoard = 0,
-    ColorProceduralType_CheckerBoardBump,
+    ColorProcedureType_CheckerBoard = 0,
+    ColorProcedureType_CheckerBoardBump,
+    ColorProcudureType_Random1,//仮の名前
 } ColorProcedureType;
 
 typedef enum {
-    FloatProceduralType_CheckerBoard = 0,
+    FloatProcedureType_CheckerBoard = 0,
 } FloatProcedureType;
 
 typedef enum {
@@ -81,6 +82,10 @@ typedef struct __attribute__((aligned(4))) {
     float width __attribute__((aligned(4)));
     uchar reverse;
 } Float3CheckerBoardBumpTexture;
+
+typedef struct __attribute__((aligned(4))) {
+    ProceduralTextureHead head;
+} Float3Random1Texture;
 
 //12bytes
 typedef struct __attribute__((aligned(4))) {

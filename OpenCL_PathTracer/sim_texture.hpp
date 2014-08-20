@@ -116,11 +116,11 @@ namespace sim {
     
     color proceduralColorTexture(const ProceduralTextureHead* textureData, float2 uv) {
         switch (textureData->procedureType) {
-            case ColorProceduralType_CheckerBoard: {
+            case ColorProcedureType_CheckerBoard: {
                 const Float3CheckerBoardTexture* f3Checker = (const Float3CheckerBoardTexture*)textureData;
                 return f3Checker->c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
             }
-            case ColorProceduralType_CheckerBoardBump: {
+            case ColorProcedureType_CheckerBoardBump: {
                 const Float3CheckerBoardBumpTexture* f3CheckerBump = (const Float3CheckerBoardBumpTexture*)textureData;
                 float halfWidth = f3CheckerBump->width * 0.5f;
                 
@@ -156,7 +156,7 @@ namespace sim {
     
     float proceduralFloatTexture(const ProceduralTextureHead* textureData, float2 uv) {
         switch (textureData->procedureType) {
-            case FloatProceduralType_CheckerBoard: {
+            case FloatProcedureType_CheckerBoard: {
                 const FloatCheckerBoardTexture* fChecker = (const FloatCheckerBoardTexture*)textureData;
                 return fChecker->v[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
             }

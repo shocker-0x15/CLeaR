@@ -23,12 +23,12 @@ namespace sim {
     } TextureType;
     
     typedef enum {
-        ColorProceduralType_CheckerBoard = 0,
-        ColorProceduralType_CheckerBoardBump,
+        ColorProcedureType_CheckerBoard = 0,
+        ColorProcedureType_CheckerBoardBump,
     } ColorProcedureType;
     
     typedef enum {
-        FloatProceduralType_CheckerBoard = 0,
+        FloatProcedureType_CheckerBoard = 0,
     } FloatProcedureType;
     
     typedef enum {

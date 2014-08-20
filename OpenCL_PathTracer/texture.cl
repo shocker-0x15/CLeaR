@@ -11,6 +11,42 @@
 #include "global.cl"
 #include "texture_structures.cl"
 
+constant uint pseeds[] = {
+    100,  86, 165, 128, 122,   3,  56, 127,  55, 180, 198,  14, 178, 176,  24,  16,
+    210, 161,  34, 217,  78, 242, 160, 241, 109,  48, 248,  89, 136,  58, 170,  85,
+    125, 179,  75,  30, 145,  84, 194, 193, 131,  82, 184, 250, 246, 143, 104, 228,
+    251,  81, 158, 208,  52, 245,  25, 197, 224, 232, 141, 139, 182,   8,  77,  47,
+    230, 171,  91,  10, 212, 151,  23,  93,  32, 255, 199, 159,  18,   9,  41, 119,
+    147, 138, 195,  66, 172, 121, 129,  11,  43, 120, 162, 133, 186, 177, 202, 105,
+    225, 218, 103, 142, 130, 244, 206, 189,  96,  64,  95, 163, 216,  67, 111,  83,
+    118, 124, 188,   1,  63,  33, 205,  98, 169, 213,  39, 254, 196, 148,  21, 192,
+     60, 140, 167,  44,  99,  13, 126,  72, 168, 123,  12,  31, 203, 220, 134, 164,
+     88,   0, 223, 153,  40, 173, 215, 207,  69, 106, 201,  57,  38, 107,  29,  62,
+    146,  71, 243,  15, 183,   2,  90,  45, 113,  49,   4,  17, 115, 211, 237,  20,
+    227,  97,  50, 234, 219, 229, 152, 226, 190, 181, 101,  68,  27,  87, 135, 236,
+    214,  59,  61, 209, 187,  74, 156, 137,  42, 240, 253, 233,  28,  19,  36, 238,
+    204,  22,  79,  70,  37,  26, 157, 154,   6,  76, 155, 110,  80, 117, 132,  73,
+    112,  92, 191, 144,  46, 114,  35, 239,  65,   7, 200, 102, 235, 150, 185, 108,
+    249, 221, 149, 231,  51,  94, 175, 247, 166, 252,   5, 222, 174,  53, 116,  54,
+    
+    100,  86, 165, 128, 122,   3,  56, 127,  55, 180, 198,  14, 178, 176,  24,  16,
+    210, 161,  34, 217,  78, 242, 160, 241, 109,  48, 248,  89, 136,  58, 170,  85,
+    125, 179,  75,  30, 145,  84, 194, 193, 131,  82, 184, 250, 246, 143, 104, 228,
+    251,  81, 158, 208,  52, 245,  25, 197, 224, 232, 141, 139, 182,   8,  77,  47,
+    230, 171,  91,  10, 212, 151,  23,  93,  32, 255, 199, 159,  18,   9,  41, 119,
+    147, 138, 195,  66, 172, 121, 129,  11,  43, 120, 162, 133, 186, 177, 202, 105,
+    225, 218, 103, 142, 130, 244, 206, 189,  96,  64,  95, 163, 216,  67, 111,  83,
+    118, 124, 188,   1,  63,  33, 205,  98, 169, 213,  39, 254, 196, 148,  21, 192,
+    60, 140, 167,  44,  99,  13, 126,  72, 168, 123,  12,  31, 203, 220, 134, 164,
+    88,   0, 223, 153,  40, 173, 215, 207,  69, 106, 201,  57,  38, 107,  29,  62,
+    146,  71, 243,  15, 183,   2,  90,  45, 113,  49,   4,  17, 115, 211, 237,  20,
+    227,  97,  50, 234, 219, 229, 152, 226, 190, 181, 101,  68,  27,  87, 135, 236,
+    214,  59,  61, 209, 187,  74, 156, 137,  42, 240, 253, 233,  28,  19,  36, 238,
+    204,  22,  79,  70,  37,  26, 157, 154,   6,  76, 155, 110,  80, 117, 132,  73,
+    112,  92, 191, 144,  46, 114,  35, 239,  65,   7, 200, 102, 235, 150, 185, 108,
+    249, 221, 149, 231,  51,  94, 175, 247, 166, 252,   5, 222, 174,  53, 116,  54,
+};
+
 color evaluateColorTexture(const global uchar* textureData, float2 uv);
 float evaluateFloatTexture(const global uchar* textureData, float2 uv);
 float evaluateAlphaTexture(const global uchar* textureData, float2 uv);
@@ -115,11 +151,11 @@ float evaluateAlphaTexture(const global uchar* textureData, float2 uv) {
 
 color proceduralColorTexture(const global ProceduralTextureHead* textureData, float2 uv) {
     switch (textureData->procedureType) {
-        case ColorProceduralType_CheckerBoard: {
+        case ColorProcedureType_CheckerBoard: {
             const global Float3CheckerBoardTexture* f3Checker = (const global Float3CheckerBoardTexture*)textureData;
             return f3Checker->c[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
         }
-        case ColorProceduralType_CheckerBoardBump: {
+        case ColorProcedureType_CheckerBoardBump: {
             const global Float3CheckerBoardBumpTexture* f3CheckerBump = (const global Float3CheckerBoardBumpTexture*)textureData;
             float halfWidth = f3CheckerBump->width * 0.5f;
             
@@ -148,6 +184,9 @@ color proceduralColorTexture(const global ProceduralTextureHead* textureData, fl
             
             return 0.5f * normalize((vector3)(uComp, vComp, 1.0f)) + 0.5f;
         }
+        case ColorProcudureType_Random1: {
+            const global Float3Random1Texture* f3Random = (const global Float3Random1Texture*)textureData;
+        }
         default:
             return colorZero;
     }
@@ -155,7 +194,7 @@ color proceduralColorTexture(const global ProceduralTextureHead* textureData, fl
 
 float proceduralFloatTexture(const global ProceduralTextureHead* textureData, float2 uv) {
     switch (textureData->procedureType) {
-        case FloatProceduralType_CheckerBoard: {
+        case FloatProcedureType_CheckerBoard: {
             const global FloatCheckerBoardTexture* fChecker = (const global FloatCheckerBoardTexture*)textureData;
             return fChecker->v[((uint)(uv.s0 * 2) + (uint)(uv.s1 * 2)) % 2];
         }

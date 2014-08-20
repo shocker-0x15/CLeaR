@@ -6,8 +6,8 @@ BSDF周りの処理は[PBRT-v2](https://github.com/mmp/pbrt-v2)をかなり参�
 (参考：["Megakernels Considered Harmful: Wavefront Path Tracing on GPUs"](https://research.nvidia.com/publication/megakernels-considered-harmful-wavefront-path-tracing-gpus))
 
 CLeaR has been developed with a purpose to experiment how practical renderer can be written using OpenCL.
-In writing procedures regarding BSDF, I refered to [PBRT-v2](https://github.com/mmp/pbrt-v2) considerably.
-It looks like the same as logic used in CPU implementation for now, so it is not efficient implementation for current GPU architectures in 2014 due to the massive usage of registers and control-flow divergence by conditional branches.
+In writing procedures regarding BSDF, I refered to [PBRT-v2](https://github.com/mmp/pbrt-v2) considerably.  
+For now, it looks like the same as logic used in CPU implementation, so it is not efficient implementation for current GPU architectures as of 2014 due to the massive usage of registers and control-flow divergence by conditional branches.
 (refer to ["Megakernels Considered Harmful: Wavefront Path Tracing on GPUs"](https://research.nvidia.com/publication/megakernels-considered-harmful-wavefront-path-tracing-gpus))
 
 ##特徴 / Features

@@ -11,6 +11,7 @@
 #include "MaterialStructures.hpp"
 #include "TextureStructures.hpp"
 #include <half.h>
+#include "HalfToFloat.hpp"
 
 #include "BMPExporter.h"
 

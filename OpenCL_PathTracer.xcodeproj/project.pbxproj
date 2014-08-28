@@ -130,6 +130,8 @@
 		46222A30191D1D5D00D71891 /* Scene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Scene.h; sourceTree = "<group>"; };
 		4622DFE1193A183100CF2A3B /* sim_matrix.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_matrix.hpp; sourceTree = "<group>"; };
 		4622DFE2193A350A00CF2A3B /* sim_camera.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_camera.hpp; sourceTree = "<group>"; };
+		463B7A8519AF959900C610F2 /* toFloat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = toFloat.h; sourceTree = "<group>"; };
+		463B7A8619AF963000C610F2 /* HalfToFloat.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = HalfToFloat.hpp; sourceTree = "<group>"; };
 		464794231993D76700E35B28 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
 		4649F3A3191EBA5B00C24459 /* sim_global.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; lineEnding = 0; path = sim_global.hpp; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.objcpp; };
 		4649F3A4191EBB7300C24459 /* sim_bvh_traversal.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_bvh_traversal.hpp; sourceTree = "<group>"; };
@@ -248,6 +250,8 @@
 		46222A26191AB75300D71891 /* CommonSources */ = {
 			isa = PBXGroup;
 			children = (
+				463B7A8519AF959900C610F2 /* toFloat.h */,
+				463B7A8619AF963000C610F2 /* HalfToFloat.hpp */,
 				46222A27191AB75300D71891 /* cl12.hpp */,
 				46222A2E191D0ECD00D71891 /* clUtility.hpp */,
 				4688CD55191E6CE200257766 /* clUtility.cpp */,

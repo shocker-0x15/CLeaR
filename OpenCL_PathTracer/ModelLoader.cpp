@@ -11,6 +11,7 @@
 #include <fstream>
 #include <map>
 #include "CreateFunctions.hpp"
+#include "TextureStructures.hpp"
 
 inline void makeTangent(float nx, float ny, float nz, float* s) {
     if (fabsf(nx) > fabsf(ny)) {
@@ -28,6 +29,8 @@ inline void makeTangent(float nx, float ny, float nz, float* s) {
 }
 
 namespace OBJ {
+    static uint64_t objID = 0;
+    
     struct Material {
         std::string name;
         float Kd[3];
@@ -150,7 +153,7 @@ namespace OBJ {
         return true;
     }
     
-    bool load(const char* fileName, Scene* scene) {
+    bool load(const char* fileName, Scene* scene, uint64_t matOverride = UINT64_MAX) {
         std::ifstream ifs;
         ifs.open(fileName);
         if (ifs.fail()) {
@@ -187,12 +190,12 @@ namespace OBJ {
 //        mc.createAshikhminMaterial("objfile_default_material", nullptr,
 //                                   "objfile_default_Ashikhmin_Rs", "objfile_default_Ashikhmin_Rd",
 //                                   "objfile_default_Ashikhmin_nu", "objfile_default_Ashikhmin_nv");
-        //Water
-        mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.95f, 0.95f, 0.95f);
-        mc.createFloat3ConstantTexture("objfile_default_transmittance", 0.95f, 0.95f, 0.95f);
-        mc.createGlassMaterial("objfile_default_material", nullptr, 
-                               "objfile_default_reflectance",
-                               "objfile_default_transmittance", 1.0f, 1.333f);
+//        //Water
+//        mc.createFloat3ConstantTexture("objfile_default_reflectance", 0.95f, 0.95f, 0.95f);
+//        mc.createFloat3ConstantTexture("objfile_default_transmittance", 0.95f, 0.95f, 0.95f);
+//        mc.createGlassMaterial("objfile_default_material", nullptr, 
+//                               "objfile_default_reflectance",
+//                               "objfile_default_transmittance", 1.0f, 1.333f);
 //        mc.createFloat3ConstantTexture("objfile_default_reflectance", 1.0f, 1.0f, 1.0f);
 //        //Gold
 //        mc.createMetalMaterial("objfile_default_material", nullptr, "objfile_default_reflectance",
@@ -399,6 +402,34 @@ namespace OBJ {
 //            printf("\n");
 //        }
         
+        char prefixID[6];
+        sprintf(prefixID, "%05llu", objID);
+        
+        for (int i = 0; i < materials.size(); ++i) {
+            Material &mat = materials[i];
+            std::string matName = std::string(prefixID) + "_" + mat.name;
+            
+            if (mat.Ni == 1.0f) {
+                std::string diffuseTexName = matName + "_Kd";
+                if (mat.mapKd != "")
+                    mc.createImageTexture(diffuseTexName.c_str(), mat.mapKd.c_str());
+                else
+                    mc.createFloat3ConstantTexture(diffuseTexName.c_str(), mat.Kd[0], mat.Kd[1], mat.Kd[2]);
+                
+                std::string sigmaTexName = matName + "_Kd_sigma";
+                mc.createFloatConstantTexture(sigmaTexName.c_str(), 0.0f);
+                
+                mc.createMatteMaterial(matName.c_str(), nullptr, diffuseTexName.c_str(), sigmaTexName.c_str());
+            }
+            else {
+                std::string glassReflectanceTexName = matName + "_Reflectance";
+                std::string glassTransimittanceTexName = matName + "_Transmittance";
+                mc.createFloat3ConstantTexture(glassReflectanceTexName.c_str(), 0.95f, 0.95f, 0.95f);
+                mc.createFloat3ConstantTexture(glassTransimittanceTexName.c_str(), 0.95f, 0.95f, 0.95f);
+                mc.createGlassMaterial(matName.c_str(), nullptr, glassReflectanceTexName.c_str(), glassTransimittanceTexName.c_str(), mat.Ni, 1.0f);
+            }
+        }
+        
         scene->beginObject();
         
         for (int i = 0; i < objects.size(); ++i) {
@@ -413,44 +444,36 @@ namespace OBJ {
             for (int j = 0; j < obj.groups.size(); ++j) {
                 Object::Group &g = obj.groups[j];
                 Material &mat = materials[matIdx[g.material]];
-                std::string matName = g.name + "_" + mat.name;
+                std::string matName = std::string(prefixID) + "_" + mat.name;
                 std::string alphaTexName = "";
                 bool hasAlpha = false;
-                if (mat.Ni == 1.0f) {
-                    std::string diffuseTexName = g.name + "_" + mat.name + "_Kd";
-                    if (mat.mapKd != "")
-                        mc.createImageTexture(diffuseTexName.c_str(), mat.mapKd.c_str(), &hasAlpha);
-                    else
-                        mc.createFloat3ConstantTexture(diffuseTexName.c_str(), mat.Kd[0], mat.Kd[1], mat.Kd[2]);
-                    
+                
+                // TODO: ちょっと適当なので直したい。
+                if (mat.Ni == 1.0f && mat.mapKd != "") {
+                    std::string diffuseTexName = matName + "_Kd";
+                    ImageTexture* image = (ImageTexture*)scene->ptrOfTex(diffuseTexName);
+                    hasAlpha = (image->texType == TextureType::ColorImageRGBA8x4 ||
+                                image->texType == TextureType::ColorImageRGBA16Fx4);
                     if (hasAlpha)
                         alphaTexName = diffuseTexName;
-                    
-                    std::string sigmaTexName = g.name + "_" + mat.name + "_Kd_sigma";
-                    mc.createFloatConstantTexture(sigmaTexName.c_str(), 0.0f);
-                    
-                    mc.createMatteMaterial(matName.c_str(), nullptr, diffuseTexName.c_str(), sigmaTexName.c_str());
-                }
-                else {
-                    std::string glassReflectanceTexName = g.name + "_" + mat.name + "_Reflectance";
-                    std::string glassTransimittanceTexName = g.name + "_" + mat.name + "_Transmittance";
-                    mc.createFloat3ConstantTexture(glassReflectanceTexName.c_str(), 0.95f, 0.95f, 0.95f);
-                    mc.createFloat3ConstantTexture(glassTransimittanceTexName.c_str(), 0.95f, 0.95f, 0.95f);
-                    mc.createGlassMaterial(matName.c_str(), nullptr, glassReflectanceTexName.c_str(), glassTransimittanceTexName.c_str(), mat.Ni, 1.0f);
                 }
                 
                 for (int k = 0; k < g.posIndices.size() / 3; ++k) {
+                    uint64_t mat = matOverride;
+                    if (mat == UINT64_MAX)
+                        mat = scene->idxOfMat(matName.c_str());
+                        
                     if (g.format == Object::Group::Format::VTN) {
                         scene->addFace(Face::make_P_N_UV(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                          g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
                                                          g.uvIndices[k * 3 + 0], g.uvIndices[k * 3 + 1], g.uvIndices[k * 3 + 2],
-                                                         scene->idxOfMat(matName.c_str()), UINT16_MAX,
+                                                         mat, UINT16_MAX,
                                                          hasAlpha ? (uint32_t)scene->idxOfTex(alphaTexName.c_str()) : UINT32_MAX));
                     }
                     else if (g.format == Object::Group::Format::VN) {
                         scene->addFace(Face::make_P_N(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                       g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
-                                                      scene->idxOfMat(matName.c_str()), UINT16_MAX,
+                                                      mat, UINT16_MAX,
                                                       hasAlpha ? (uint32_t)scene->idxOfTex(alphaTexName.c_str()) : UINT32_MAX));
                     }
                 }
@@ -459,11 +482,14 @@ namespace OBJ {
         
         scene->endObject();
         
+        scene->addModelToDB(fileName);
+        ++objID;
+        
         return true;
     }
 }
 
-bool loadModel(const char* fileName, Scene* scene) {
+bool loadModel(const char* fileName, Scene* scene, uint64_t matOverride) {
     std::string sFileName = fileName;
     
     size_t extPos = sFileName.find_first_of(".");
@@ -472,7 +498,7 @@ bool loadModel(const char* fileName, Scene* scene) {
     
     std::string sExt = sFileName.substr(extPos + 1);
     if (!sExt.compare("obj")) {
-        OBJ::load(fileName, scene);
+        OBJ::load(fileName, scene, matOverride);
     }
     
     return false;

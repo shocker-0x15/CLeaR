@@ -35,17 +35,12 @@ void MaterialCreator::createFloatConstantTexture(const char* name, float val) {
     assert(ret);
 }
 
-void MaterialCreator::createImageTexture(const char* name, const char* filename, bool* hasAlpha) {
+void MaterialCreator::createImageTexture(const char* name, const char* filename) {
     std::vector<uint8_t>* texData = &scene->texturesData;
     uint64_t texHead;
     if (scene->texFilehasLoaded(filename, &texHead)) {
         bool ret = scene->addTexture(texHead, name);
         assert(ret);
-        
-        ImageTexture* image = (ImageTexture*)&(*texData)[texHead];
-        if (hasAlpha != nullptr)
-            *hasAlpha = (image->texType == TextureType::ColorImageRGBA8x4 ||
-                         image->texType == TextureType::ColorImageRGBA16Fx4);
     }
     else {
         uint64_t texHead = fillZerosAligned(texData, sizeof(ImageTexture), 4);
@@ -70,10 +65,6 @@ void MaterialCreator::createImageTexture(const char* name, const char* filename,
         assert(ret);
         ret = scene->addTexFileToDB(texHead, filename);
         assert(ret);
-        
-        if (hasAlpha != nullptr)
-            *hasAlpha = (image->texType == TextureType::ColorImageRGBA8x4 ||
-                         image->texType == TextureType::ColorImageRGBA16Fx4);
     }
 }
 

@@ -15,7 +15,7 @@ const half::uif _toFloat[1 << 16] =
 #include "toFloat.h"
 
 // Winで何故かhalf=>floatのLUTがうまくライブラリに組み込めておらず変換に失敗するため、自作の変換関数の定義。
-inline float halfToFloat(half _h) {
+inline float halfToFloat(const half &_h) {
     return _toFloat[_h.bits()].f;
 }
 

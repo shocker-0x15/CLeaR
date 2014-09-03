@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include <map>
+#include <set>
 #include "Matrix4fStack.hpp"
 #include "Face.hpp"
 #include "BVH.hpp"
@@ -42,6 +43,7 @@ public:
     std::map<std::string, uint64_t> texFilesDatabase;
     std::vector<uint8_t> otherResouces;
     std::map<std::string, uint64_t> othersRef;
+    std::set<std::string> modelDatabase;
     BVH bvh;
     
     bool immediateMode;
@@ -131,6 +133,9 @@ public:
     bool addOtherResouce(size_t idx, const char* name) {
         std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, uint64_t>(name, idx));
         return ret.second;
+    }
+    void addModelToDB(const char* filename) {
+        modelDatabase.insert(filename);
     }
     bool setCamera(size_t idx) {
         std::pair<std::map<std::string, uint64_t>::iterator, bool> ret = othersRef.insert(std::pair<std::string, uint64_t>("Camera", idx));
@@ -239,6 +244,25 @@ public:
     uint64_t idxOfOther(const std::string &name) {
         assert(othersRef.count(name) == 1);
         return othersRef[name];
+    }
+    void* ptrOfMat(const std::string &name) {
+        assert(materialsRef.count(name) == 1);
+        return &materialsData[materialsRef[name]];
+    }
+    void* ptrOfLight(const std::string &name) {
+        assert(lightPropsRef.count(name) == 1);
+        return &materialsData[lightPropsRef[name]];
+    }
+    void* ptrOfTex(const std::string &name) {
+        assert(texturesRef.count(name) == 1);
+        return &texturesData[texturesRef[name]];
+    }
+    void* ptrOfOther(const std::string &name) {
+        assert(othersRef.count(name) == 1);
+        return &otherResouces[othersRef[name]];
+    }
+    bool modelHasLoaded(const std::string &filename) {
+        return modelDatabase.find(filename) != modelDatabase.end();
     }
     
     void calcLightPowerDistribution() {

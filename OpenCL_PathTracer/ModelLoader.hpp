@@ -12,6 +12,6 @@
 #include <vector>
 #include "Scene.h"
 
-bool loadModel(const char* fileName, Scene* scene);
+bool loadModel(const char* fileName, Scene* scene, uint64_t matOverride = -1);
 
 #endif /* defined(__OpenCL_PathTracer__ModelLoader__) */

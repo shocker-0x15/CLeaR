@@ -28,8 +28,8 @@ void CL_CALLBACK completeTile(cl_event ev, cl_int exec_status, void* user_data) 
 }
 
 XORShiftRandom32 rng{215363872};
-const int g_width = 1024;
-const int g_height = 1024;
+const int g_width = 2048;
+const int g_height = 1152;
 Scene scene;
 std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
@@ -56,21 +56,18 @@ void buildScene() {
     PerspectiveInfo perspectiveCamera;
     perspectiveCamera.head.width = g_width;
     perspectiveCamera.head.height = g_height;
-    cl_float16 f16Val = {
-        1.0f, 0.0f, 0.0f, 0.0f,
-        0.0f, 1.0f, 0.0f, 0.0f,
-        0.0f, 0.0f, 1.0f, 0.0f,
-        0.0f, 0.0f, 3.999f, 1.0f
-    };
-    perspectiveCamera.head.localToWorld = f16Val;
+    Matrix4f camLocalToWorld = LA::TranslateMatrix(0.5f, -0.85f, 2.0f) *
+    LA::RotateMatrix(15 * M_PI / 180.0f, 0, 1, 0) *
+    LA::RotateMatrix(15 * M_PI / 180.0f, 1, 0, 0);
+    memcpy(&perspectiveCamera.head.localToWorld, &camLocalToWorld, sizeof(cl_float16));
     perspectiveCamera.id = 0;// perspective
-    float fovY = 0.6435011088f;
-    float aspect = 1;
+    float fovY = 0.8f;
+    float aspect = (float)g_width / g_height;
     float near = 1;
     float far = 100;
     perspectiveCamera.virtualPlaneArea = aspect * powf(tanf(fovY / 2), 2);
-    perspectiveCamera.lensRadius = 0.05f;
-    perspectiveCamera.objPDistance = 3.8f;
+    perspectiveCamera.lensRadius = 0.025f;
+    perspectiveCamera.objPDistance = 2.5f;
     Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
                                      Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
                                      Vector4f(0, 0, -(far + near) / (far - near), -1),
@@ -80,6 +77,7 @@ void buildScene() {
                                        Vector4f(0, 0, 2, 0),
                                        Vector4f(-1, 1, -1, 1));
     Matrix4f rasterToCamera = clipToCamera * rasterToScreen;
+    cl_float16 f16Val;
     memcpy(&f16Val, &rasterToCamera, sizeof(cl_float16));
     perspectiveCamera.rasterToCamera = f16Val;
     scene.setCamera(addDataAligned(refOthers, perspectiveCamera, 64));
@@ -104,14 +102,14 @@ void buildScene() {
     MaterialCreator &mc = MaterialCreator::sharedInstance();
     mc.setScene(&scene);
     
-    mc.createImageTexture("IBLSource", "images/LA_Downtown_Afternoon_Fishing_3k.exr");
-    mc.createImageBasedEnvLightPropety("IBL", "IBLSource", 50.0f);
+    mc.createImageTexture("IBLSource", "images/moonlight_night.exr");
+    mc.createImageBasedEnvLightPropety("IBL", "IBLSource", 10.0f);
     struct EnvironmentHead {
         uint32_t offsetEnvLightProperty;
     };
     EnvironmentHead envHead;
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
-//    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
+    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
     
     //部屋
     scene.beginObject();
@@ -154,16 +152,16 @@ void buildScene() {
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
     mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
-    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
     scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
     scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
     //光源
@@ -179,12 +177,25 @@ void buildScene() {
     mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
     mc.createDiffuseLightProperty("light_top", "M_top");
     
-    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
-    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+//    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+//    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
-    scene.localToWorld = LA::TranslateMatrix(0, -0.999f, 0) * LA::RotateMatrix(M_PI / 6, 0, 1, 0) * LA::ScaleMatrix(0.25f, 0.25f, 0.25f);
-    loadModel("models/Pikachu.obj", &scene);
+    //Water
+    mc.createFloat3ConstantTexture("water_reflectance", 0.95f, 0.95f, 0.95f);
+    mc.createFloat3ConstantTexture("water_transmittance", 0.95f, 0.95f, 0.95f);
+    mc.createGlassMaterial("big_sphere_material", nullptr,
+                           "water_reflectance",
+                           "water_transmittance", 1.0f, 1.333f);
+    mc.createFloat3ConstantTexture("silver_reflectance", 1.0f, 1.0f, 1.0f);
+    //Silver
+    mc.createMetalMaterial("small_sphere_material", nullptr, "silver_reflectance",
+                           0.14221f, 0.12643f, 0.15837f, 4.5230e+0f, 3.3071e+0f, 2.3359e+0f);
+    
+    scene.localToWorld = LA::TranslateMatrix(0.35f, -0.999f, -0.2f) * LA::ScaleMatrix(0.35f, 0.35f, 0.35f) * LA::TranslateMatrix(0, 1, 0);
+    loadModel("models/sphere.obj", &scene, scene.idxOfMat("big_sphere_material"));
+    scene.localToWorld = LA::TranslateMatrix(-0.35f, -0.999f, 0.3f) * LA::ScaleMatrix(0.25f, 0.25f, 0.25f) * LA::TranslateMatrix(0, 1, 0);
+    loadModel("models/sphere.obj", &scene, scene.idxOfMat("small_sphere_material"));
     
     scene.build();
 }

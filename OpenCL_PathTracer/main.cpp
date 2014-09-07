@@ -34,6 +34,48 @@ Scene scene;
 std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
+void HSVtoRGB(float h, float s, float v, float* r, float* g, float* b) {
+    int Hi = (int)(floorf(fmodf(6.0f * h, 6)));
+    float f = 6.0f * h - Hi;
+    float p = v * (1 - s);
+    float q = v * (1 - f * s);
+    float t = v * (1 - (1 - f) * s);
+    switch (Hi) {
+        case 0:
+            *r = v;
+            *g = t;
+            *b = p;
+            break;
+        case 1:
+            *r = q;
+            *g = v;
+            *b = p;
+            break;
+        case 2:
+            *r = p;
+            *g = v;
+            *b = t;
+            break;
+        case 3:
+            *r = p;
+            *g = q;
+            *b = v;
+            break;
+        case 4:
+            *r = t;
+            *g = p;
+            *b = v;
+            break;
+        case 5:
+            *r = v;
+            *g = p;
+            *b = q;
+            break;
+        default:
+            break;
+    }
+}
+
 void buildScene() {
     namespace LA = LinearAlgebra;
     
@@ -56,18 +98,16 @@ void buildScene() {
     PerspectiveInfo perspectiveCamera;
     perspectiveCamera.head.width = g_width;
     perspectiveCamera.head.height = g_height;
-    Matrix4f camLocalToWorld = LA::TranslateMatrix(0.5f, -0.85f, 2.0f) *
-    LA::RotateMatrix(15 * M_PI / 180.0f, 0, 1, 0) *
-    LA::RotateMatrix(15 * M_PI / 180.0f, 1, 0, 0);
+    Matrix4f camLocalToWorld = LA::LookAt(-2.0f, 0.5f, 10.0f, 0.0f, 3.0f, 0.0f, 0, 1, 0).Invert();
     memcpy(&perspectiveCamera.head.localToWorld, &camLocalToWorld, sizeof(cl_float16));
     perspectiveCamera.id = 0;// perspective
-    float fovY = 0.8f;
+    float fovY = 50.0f * M_PI / 180.0f;
     float aspect = (float)g_width / g_height;
     float near = 1;
     float far = 100;
     perspectiveCamera.virtualPlaneArea = aspect * powf(tanf(fovY / 2), 2);
-    perspectiveCamera.lensRadius = 0.025f;
-    perspectiveCamera.objPDistance = 2.5f;
+    perspectiveCamera.lensRadius = 0.01f;
+    perspectiveCamera.objPDistance = 1.041633333f * 10;
     Matrix4f clipToCamera = Matrix4f(Vector4f(1 / (aspect * tanf(fovY / 2)), 0, 0, 0),
                                      Vector4f(0, 1 / tanf(fovY / 2), 0, 0),
                                      Vector4f(0, 0, -(far + near) / (far - near), -1),
@@ -111,91 +151,143 @@ void buildScene() {
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
     scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
     
-    //部屋
-    scene.beginObject();
-    scene.addVertex(-1.0f, -1.0f, -1.0f);
-    scene.addVertex( 1.0f, -1.0f, -1.0f);
-    scene.addVertex( 1.0f,  1.0f, -1.0f);
-    scene.addVertex(-1.0f,  1.0f, -1.0f);
-    scene.addVertex(-1.0f, -1.0f,  1.0f);
-    scene.addVertex( 1.0f, -1.0f,  1.0f);
-    scene.addVertex( 1.0f,  1.0f,  1.0f);
-    scene.addVertex(-1.0f,  1.0f,  1.0f);
-    scene.addUV(0.0f, 0.0f);
-    scene.addUV(5.0f, 0.0f);
-    scene.addUV(5.0f, 5.0f);
-    scene.addUV(0.0f, 5.0f);
-    scene.addUV(0.0f, 1.0f);
-    scene.addUV(1.0f, 1.0f);
-    scene.addUV(1.0f, 0.0f);
-    scene.addUV(0.0f, 0.0f);
     
-    mc.createFloat3ConstantTexture("R_leftWall", 0.75f, 0.25f, 0.25f);
-    mc.createFloat3ConstantTexture("R_rightWall", 0.25f, 0.25f, 0.75f);
-    mc.createFloat3ConstantTexture("R_otherWalls", 0.75f, 0.75f, 0.75f);
-    mc.createFloatConstantTexture("sigma_lambert", 0.0f);
-    mc.createFloat3CheckerBoardTexture("R_floor", 0.75f, 0.75f, 0.75f, 0.25f, 0.25f, 0.25f);
-    mc.createFloat3CheckerBoardBumpTexture("bump_floor", 0.05f, false);
-    mc.createNormalMapTexture("bump_backWall", "images/paper_bump.png");
-    mc.createImageTexture("R_backWall", "images/Kirby.png");
+    scene.localToWorld = LA::ScaleMatrix(10.0f, 10.0f, 10.0f);
     
-//    mc.createImageTexture("R_floor", "images/stone_wall__.png");
-//    mc.createNormalMapTexture("bump_floor", "images/stone_wall_normal_map__.png");
-//    mc.createFloat3ConstantTexture("Rs_floor", 0.15f, 0.15f, 0.15f);
-//    mc.createFloatConstantTexture("nu_floor", 150);
-//    mc.createFloatConstantTexture("nv_floor", 150);
-//    mc.createAshikhminMaterial("mat_floor", "bump_floor", "Rs_floor", "R_floor", "nu_floor", "nv_floor");
     
-    mc.createMatteMaterial("mat_leftWall", nullptr, "R_leftWall", "sigma_lambert");
-    mc.createMatteMaterial("mat_rightWall", nullptr, "R_rightWall", "sigma_lambert");
-    mc.createMatteMaterial("mat_otherWalls", nullptr, "R_otherWalls", "sigma_lambert");
-    mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
-    mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
+    scene.localToWorld.push();
+    {
+        scene.localToWorld = scene.localToWorld.top() * LA::TranslateMatrix(-5, 0, -5);
+        
+        mc.createNormalMapTexture("floor_bump", "images/RayHH_assets/Metal-3166-bump-map.png");
+        mc.createFloat3ConstantTexture("floor_Rs", 0.75f, 0.75f, 0.75f);
+        mc.createFloat3ConstantTexture("floor_Rd", 0.5f, 0.5f, 0.5f);
+        mc.createFloatConstantTexture("floor_nu", 100.0f);
+        mc.createFloatConstantTexture("floor_nv", 100.0f);
+        mc.createAshikhminMaterial("floor_panel", "floor_bump", "floor_Rs", "floor_Rd", "floor_nu", "floor_nv");
+//        mc.createFloat3ConstantTexture("floor_R", 0.75f, 0.75f, 0.75f);
+//        mc.createFloatConstantTexture("floor_sigma", 0.0f);
+//        mc.createMatteMaterial("floor_panel", nullptr, "floor_R", "floor_sigma");
+//        mc.createFloat3ConstantTexture("floor_R", 0.99f, 0.99f, 0.99f);
+//        mc.createMetalMaterial("floor_panel", nullptr, "floor_R",
+//                               0.14221f, 0.12643f, 0.15837f, 4.5230e+0f, 3.3071e+0f, 2.3359e+0f);
+        
+        for (int i = 0; i < 100; ++i) {
+            scene.localToWorld.push();
+            scene.localToWorld = scene.localToWorld.top() * LA::TranslateMatrix(float(i % 10), 0.0f, float(i / 10));
+            
+            scene.beginObject();
+            {
+                scene.addVertex(0.0f, 0.0f, 0.0f);
+                scene.addVertex(0.0f, 0.0f, 1.0f);
+                scene.addVertex(1.0f, 0.0f, 1.0f);
+                scene.addVertex(1.0f, 0.0f, 0.0f);
+                
+                scene.addUV(0.0f, 0.0f);
+                scene.addUV(0.0f, 5.0f);
+                scene.addUV(5.0f, 5.0f);
+                scene.addUV(5.0f, 0.0f);
+                
+                scene.addFace(Face::make_P_UV(0, 1, 2, 0, 1, 2, scene.idxOfMat("floor_panel")));
+                scene.addFace(Face::make_P_UV(0, 2, 3, 0, 2, 3, scene.idxOfMat("floor_panel")));
+            }
+            scene.endObject();
+            
+            scene.localToWorld.pop();
+        }
+    }
+    scene.localToWorld.pop();
     
-//    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-//    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-//    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-//    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-//    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-//    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-//    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-//    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
-    scene.endObject();
     
-    //光源
-    scene.beginObject();
-    scene.addVertex(-0.25f, 0.9999f, -0.25f);
-    scene.addVertex(0.25f, 0.9999f, -0.25f);
-    scene.addVertex(0.25f, 0.9999f, 0.25f);
-    scene.addVertex(-0.25f, 0.9999f, 0.25f);
+    scene.localToWorld.push();
+    {
+        scene.localToWorld = scene.localToWorld.top() *
+        LA::RotateMatrix(-M_PI / 9, 0, 1, 0) * LA::ScaleMatrix(0.1f, 0.1f, 0.1f) * LA::ScaleMatrix(0.75f, 2.25f, 0.75f) * LA::TranslateMatrix(0, 1, 0);
+        
+        mc.createFloat3ConstantTexture("box_light_R", 0.9f, 0.9f, 0.9f);
+        mc.createFloatConstantTexture("box_light_sigma", 0.0f);
+        mc.createMatteMaterial("box_light", nullptr, "box_light_R", "box_light_sigma");
+        mc.createFloat3ConstantTexture("box_light_M", 1200.0f, 366.0f, 66.0f);
+        mc.createDiffuseLightProperty("box_light", "box_light_M");
+        
+        loadModel("models/box.obj", &scene, scene.idxOfMat("box_light"), scene.idxOfLight("box_light"));
+    }
+    scene.localToWorld.pop();
     
-    mc.createFloat3ConstantTexture("R_light", 0.9f, 0.9f, 0.9f);
-    mc.createFloat3ConstantTexture("M_top", 1500.0f, 1500.0f, 1500.0f);
     
-    mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
-    mc.createDiffuseLightProperty("light_top", "M_top");
+    scene.localToWorld.push();
+    {
+        scene.localToWorld = scene.localToWorld.top() *
+        LA::TranslateMatrix(0, 0.6f, 0) * LA::RotateMatrix(-M_PI / 9, 0, 1, 0) * LA::ScaleMatrix(0.1f, 0.1f, 0.1f);
+        
+        //Water
+        mc.createFloat3ConstantTexture("water_R", 0.95f, 0.95f, 0.95f);
+        mc.createFloat3ConstantTexture("water_T", 0.85f, 0.85f, 0.85f);
+        mc.createGlassMaterial("monkey", nullptr,
+                               "water_R",
+                               "water_T", 1.0f, 1.333f);
+        
+        loadModel("models/monkey.obj", &scene, scene.idxOfMat("monkey"));
+    }
+    scene.localToWorld.pop();
     
-//    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
-//    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
-    scene.endObject();
+
+//    scene.localToWorld.push();
+//    {
+//        scene.localToWorld = scene.localToWorld.top() *
+//        LA::ScaleMatrix(0.25f, 0.1f, 0.25f) * LA::TranslateMatrix(0, -0.14f, 0.0f);
+//        
+//        mc.createFloat3ConstantTexture("fluid_R", 1.0f, 1.0f, 1.0f);
+//        mc.createMetalMaterial("fluid", nullptr, "fluid_R",
+//                               3.0568f, 3.15007f, 2.22288f, 3.3785e+0f, 3.3278e+0, 3.0647e+0f);
+//        
+//        loadModel("models/fluid.obj", &scene, scene.idxOfMat("fluid"));
+//    }
+//    scene.localToWorld.pop();
     
-    //Water
-    mc.createFloat3ConstantTexture("water_reflectance", 0.95f, 0.95f, 0.95f);
-    mc.createFloat3ConstantTexture("water_transmittance", 0.95f, 0.95f, 0.95f);
-    mc.createGlassMaterial("big_sphere_material", nullptr,
-                           "water_reflectance",
-                           "water_transmittance", 1.0f, 1.333f);
-    mc.createFloat3ConstantTexture("silver_reflectance", 1.0f, 1.0f, 1.0f);
-    //Silver
-    mc.createMetalMaterial("small_sphere_material", nullptr, "silver_reflectance",
-                           0.14221f, 0.12643f, 0.15837f, 4.5230e+0f, 3.3071e+0f, 2.3359e+0f);
     
-    scene.localToWorld = LA::TranslateMatrix(0.35f, -0.999f, -0.2f) * LA::ScaleMatrix(0.35f, 0.35f, 0.35f) * LA::TranslateMatrix(0, 1, 0);
-    loadModel("models/sphere.obj", &scene, scene.idxOfMat("big_sphere_material"));
-    scene.localToWorld = LA::TranslateMatrix(-0.35f, -0.999f, 0.3f) * LA::ScaleMatrix(0.25f, 0.25f, 0.25f) * LA::TranslateMatrix(0, 1, 0);
-    loadModel("models/sphere.obj", &scene, scene.idxOfMat("small_sphere_material"));
+    scene.localToWorld.push();
+    {
+        for (int i = 0; i < 5; ++i) {
+            int numAround = (i + 1) * 10;
+            for (int j = 0; j < numAround; ++j) {
+                if (i == 0 && j == 3)
+                    continue;
+                float sX = 0.3f + 0.2f * rng.getFloat0cTo1o();
+                float sY = 1.0f + 0.2f * rng.getFloat0cTo1o();
+                float sZ = 0.3f + 0.2f * rng.getFloat0cTo1o();
+                float angle = 2 * M_PI * rng.getFloat0cTo1o();
+                
+                float posAngle = (2 * M_PI * j + 0.1f * rng.getFloat0cTo1o()) / numAround;
+                float posRadius = 0.25f * (i + 0.5f * rng.getFloat0cTo1o()) + 0.7f;
+                float scale = (0.03f + (5 - i) * 0.015f) + 0.03f * rng.getFloat0cTo1o();
+                
+                float r, g, b;
+                char suffix[30];
+                sprintf(suffix, "_%d_%d", i, j);
+                std::string matName = "rndmat";
+                matName += suffix;
+                HSVtoRGB(rng.getFloat0cTo1o(), 0.3f + 0.7f * rng.getFloat0cTo1o(), 0.5f + 0.5f * rng.getFloat0cTo1o(), &r, &g, &b);
+                mc.createFloat3ConstantTexture((matName + "_R").c_str(), r, g, b);
+                mc.createFloatConstantTexture((matName + "_sigma").c_str(), rng.getFloat0cTo1o() * 0.3f);
+                mc.createMatteMaterial(matName.c_str(), nullptr, (matName + "_R").c_str(), (matName + "_sigma").c_str());
+                
+                scene.localToWorld.push();
+                {
+                    scene.localToWorld = scene.localToWorld.top() *
+                    LA::TranslateMatrix(posRadius * cosf(posAngle), 0.0f, posRadius * sinf(posAngle)) *
+                    LA::RotateMatrix(angle, 0, 1, 0) * LA::ScaleMatrix(scale * sX, scale * sY, scale * sZ) * LA::TranslateMatrix(0, 1, 0);
+                    
+                    loadModel("models/beveled_box.obj", &scene, scene.idxOfMat(matName.c_str()));
+                }
+                scene.localToWorld.pop();
+            }
+        }
+        
+//        scene.localToWorld = scene.localToWorld.top() *
+        
+    }
+    scene.localToWorld.pop();
     
     scene.build();
 }

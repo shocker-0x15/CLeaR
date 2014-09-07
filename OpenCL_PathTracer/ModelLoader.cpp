@@ -153,7 +153,7 @@ namespace OBJ {
         return true;
     }
     
-    bool load(const char* fileName, Scene* scene, uint64_t matOverride = UINT64_MAX) {
+    bool load(const char* fileName, Scene* scene, uint64_t matOverride, uint64_t lightOverride) {
         std::ifstream ifs;
         ifs.open(fileName);
         if (ifs.fail()) {
@@ -462,18 +462,21 @@ namespace OBJ {
                     uint64_t mat = matOverride;
                     if (mat == UINT64_MAX)
                         mat = scene->idxOfMat(matName.c_str());
+                    uint64_t light = lightOverride;
+                    if (light == UINT64_MAX)
+                        light = UINT16_MAX;
                         
                     if (g.format == Object::Group::Format::VTN) {
                         scene->addFace(Face::make_P_N_UV(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                          g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
                                                          g.uvIndices[k * 3 + 0], g.uvIndices[k * 3 + 1], g.uvIndices[k * 3 + 2],
-                                                         mat, UINT16_MAX,
+                                                         mat, light,
                                                          hasAlpha ? (uint32_t)scene->idxOfTex(alphaTexName.c_str()) : UINT32_MAX));
                     }
                     else if (g.format == Object::Group::Format::VN) {
                         scene->addFace(Face::make_P_N(g.posIndices[k * 3 + 0], g.posIndices[k * 3 + 1], g.posIndices[k * 3 + 2],
                                                       g.nrmIndices[k * 3 + 0], g.nrmIndices[k * 3 + 1], g.nrmIndices[k * 3 + 2],
-                                                      mat, UINT16_MAX,
+                                                      mat, light,
                                                       hasAlpha ? (uint32_t)scene->idxOfTex(alphaTexName.c_str()) : UINT32_MAX));
                     }
                 }
@@ -489,7 +492,7 @@ namespace OBJ {
     }
 }
 
-bool loadModel(const char* fileName, Scene* scene, uint64_t matOverride) {
+bool loadModel(const char* fileName, Scene* scene, uint64_t matOverride, uint64_t lightOverride) {
     std::string sFileName = fileName;
     
     size_t extPos = sFileName.find_first_of(".");
@@ -498,7 +501,7 @@ bool loadModel(const char* fileName, Scene* scene, uint64_t matOverride) {
     
     std::string sExt = sFileName.substr(extPos + 1);
     if (!sExt.compare("obj")) {
-        OBJ::load(fileName, scene, matOverride);
+        OBJ::load(fileName, scene, matOverride, lightOverride);
     }
     
     return false;

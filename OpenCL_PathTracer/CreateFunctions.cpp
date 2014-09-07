@@ -70,17 +70,17 @@ void MaterialCreator::createImageTexture(const char* name, const char* filename)
 
 void MaterialCreator::createNormalMapTexture(const char* name, const char* filename) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = fillZerosAligned(texData, sizeof(ImageTexture), 4);
+    uint64_t texHead = fillZerosAligned(texData, sizeof(NormalMapTexture), 4);
     uint64_t imageHead = align(texData, 128);
     uint32_t w, h;
     ColorChannel::Value colorType;
-    bool ret = loadImage(filename, texData, &w, &h, &colorType, false);
+    bool ret = loadImage(filename, texData, &w, &h, &colorType, true);
     assert(ret);
-    ImageTexture* image = (ImageTexture*)&(*texData)[texHead];
-    image->texType = TextureType::ColorImageRGB8x3;
-    image->width = w;
-    image->height = h;
-    image->offsetData = (int32_t)imageHead - (int32_t)texHead;
+    NormalMapTexture* norm = (NormalMapTexture*)&(*texData)[texHead];
+    norm->texType = TextureType::ColorImageRGB8x3;
+    norm->width = w;
+    norm->height = h;
+    norm->offsetData = (int32_t)imageHead - (int32_t)texHead;
     ret = scene->addTexture(texHead, name);
     assert(ret);
 }
@@ -244,7 +244,7 @@ float MaterialCreator::averageLuminance(const char* image, float xLeft, float xR
 }
 
 void MaterialCreator::createContinuousConsts2D_H_FromImageTexture(const char* name, const char* image, bool zenithCorrection) {
-    uint32_t sizeX = 64, sizeY = 64;
+    uint32_t sizeX = 2048, sizeY = 1024;
     std::vector<uint8_t>* otherResouces = &scene->otherResouces;
     ImageTexture* imgTex = (ImageTexture*)&scene->texturesData[scene->idxOfTex(image)];
     

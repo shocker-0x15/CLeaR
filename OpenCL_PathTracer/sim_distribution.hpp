@@ -75,12 +75,32 @@ namespace sim {
     
     float sampleContinuousConsts1D(const ContinuousConsts1D* dist, float u, float* PDF) {
         const float* CDF = convertPtrCG(float, dist, dist->offsetCDF);
-        for (uint i = 0; i < dist->numValues; ++i) {
-            if (*(CDF + i + 1) > u) {
-                float t = (u - *(CDF + i)) / (*(CDF + i + 1) - *(CDF + i));
-                *PDF = *(convertPtrCG(float, dist, dist->offsetPDF) + i);
-                return dist->startDomain + (i + t) * dist->widthStratum;
+//        for (uint i = 0; i < dist->numValues; ++i) {
+//            if (*(CDF + i + 1) > u) {
+//                float t = (u - *(CDF + i)) / (*(CDF + i + 1) - *(CDF + i));
+//                *PDF = *(convertPtrCG(float, dist, dist->offsetPDF) + i);
+//                return dist->startDomain + (i + t) * dist->widthStratum;
+//            }
+//        }
+//        *PDF = 0.0f;
+//        return 0.0f;
+        
+        uint start = 0;
+        uint end = dist->numValues;
+        uint i = dist->numValues / 2;
+        while (true) {
+            if (*(CDF + i) > u)
+                end = i;
+            else
+                start = i;
+            
+            if (end - start == 1) {
+                float t = (u - *(CDF + start)) / (*(CDF + end) - *(CDF + start));
+                *PDF = *(convertPtrCG(float, dist, dist->offsetPDF) + start);
+                return dist->startDomain + (start + t) * dist->widthStratum;
             }
+            
+            i = (end - start) / 2 + start;
         }
         *PDF = 0.0f;
         return 0.0f;

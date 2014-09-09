@@ -158,9 +158,7 @@ inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n
 
 inline void dirToPolarYTop(const vector3* dir, float* theta, float* phi) {
     *theta = acos(clamp(dir->y, -1.0f, 1.0f));
-    *phi = atan2(dir->x, dir->z);
-    if (*phi < 0.0f)
-        *phi += 2.0f * M_PI_F;
+    *phi = fmod(atan2(-dir->x, dir->z) + 2.0f * M_PI_F, 2 * M_PI_F);
 }
 
 inline float distance2(const point3* p0, const point3* p1) {

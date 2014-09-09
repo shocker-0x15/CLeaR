@@ -51,7 +51,7 @@ public:
     uint64_t idxBaseNormals;
     uint64_t idxBaseTangents;
     uint64_t idxBaseUVs;
-    Matrix4fStack localToWorld{true};
+    Matrix4fStack localToWorld{false};
     
     Scene() {
         immediateMode = false;
@@ -273,10 +273,10 @@ public:
         dist.numItems = (cl_uint)lightPowers.size();
         
         std::vector<float> PMF(lightPowers.size());
-        std::vector<float> CDF(lightPowers.size());
-        CDF[0] = lightPowers[0];
-        for (int i = 1; i < lightPowers.size(); ++i)
-            CDF[i] = CDF[i - 1] + lightPowers[i];
+        std::vector<float> CDF(lightPowers.size() + 1);
+        CDF[0] = 0.0f;
+        for (int i = 1; i < CDF.size(); ++i)
+            CDF[i] = CDF[i - 1] + lightPowers[i - 1];
         float sum = CDF.back();
         for (int i = 0; i < CDF.size(); ++i) {
             CDF[i] /= sum;

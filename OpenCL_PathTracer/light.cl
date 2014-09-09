@@ -165,7 +165,7 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
                         float theta = lpos->uv.s1 * M_PI_F;
                         float phi = lpos->uv.s0 * 2 * M_PI_F;
                         float sinTheta = sin(theta);
-                        lpos->p = (point3)(sin(phi) * sinTheta, cos(theta), cos(phi) * sinTheta);
+                        lpos->p = (point3)(-sin(phi) * sinTheta, cos(theta), cos(phi) * sinTheta);
                         *areaPDF *= uvPDF / (2 * M_PI_F * M_PI_F * sinTheta);
                         break;
                     }

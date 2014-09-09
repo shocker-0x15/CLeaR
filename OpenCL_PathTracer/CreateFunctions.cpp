@@ -244,9 +244,9 @@ float MaterialCreator::averageLuminance(const char* image, float xLeft, float xR
 }
 
 void MaterialCreator::createContinuousConsts2D_H_FromImageTexture(const char* name, const char* image, bool zenithCorrection) {
-    uint32_t sizeX = 2048, sizeY = 1024;
     std::vector<uint8_t>* otherResouces = &scene->otherResouces;
     ImageTexture* imgTex = (ImageTexture*)&scene->texturesData[scene->idxOfTex(image)];
+    uint32_t sizeX = imgTex->width, sizeY = imgTex->height;
     
     uint64_t CC2DHHead = fillZerosAligned(otherResouces, sizeof(ContinuousConsts2D_H), 4);
     uint64_t pPDFHead = fillZerosAligned(otherResouces, sizeof(float) * sizeY, sizeof(float));

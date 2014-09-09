@@ -59,11 +59,21 @@ namespace sim {
     
     uint sampleDiscrete1D(const Discrete1D* dist, float u, float* prob) {
         const float* CDF = convertPtrCG(float, dist, dist->offsetCDF);
-        for (uint i = 0; i < dist->numItems; ++i) {
-            if (*(CDF + i) > u) {
-                *prob = *(convertPtrCG(float, dist, dist->offsetPMF) + i);
-                return i;
+        uint start = 0;
+        uint end = dist->numItems + 1;
+        uint i = end / 2;
+        while (true) {
+            if (*(CDF + i) > u)
+                end = i;
+            else
+                start = i;
+            
+            if (end - start == 1) {
+                *prob = *(convertPtrCG(float, dist, dist->offsetPMF) + start);
+                return start;
             }
+            
+            i = (end - start) / 2 + start;
         }
         *prob = 0.0f;
         return UINT_MAX;
@@ -75,19 +85,9 @@ namespace sim {
     
     float sampleContinuousConsts1D(const ContinuousConsts1D* dist, float u, float* PDF) {
         const float* CDF = convertPtrCG(float, dist, dist->offsetCDF);
-//        for (uint i = 0; i < dist->numValues; ++i) {
-//            if (*(CDF + i + 1) > u) {
-//                float t = (u - *(CDF + i)) / (*(CDF + i + 1) - *(CDF + i));
-//                *PDF = *(convertPtrCG(float, dist, dist->offsetPDF) + i);
-//                return dist->startDomain + (i + t) * dist->widthStratum;
-//            }
-//        }
-//        *PDF = 0.0f;
-//        return 0.0f;
-        
         uint start = 0;
-        uint end = dist->numValues;
-        uint i = dist->numValues / 2;
+        uint end = dist->numValues + 1;
+        uint i = end / 2;
         while (true) {
             if (*(CDF + i) > u)
                 end = i;

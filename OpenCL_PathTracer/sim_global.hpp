@@ -162,9 +162,7 @@ namespace sim {
     
     inline void dirToPolarYTop(const vector3* dir, float* theta, float* phi) {
         *theta = acosf(clamp(dir->y, -1.0f, 1.0f));
-        *phi = atan2f(dir->x, dir->z);
-        if (*phi < 0.0f)
-            *phi += 2.0f * M_PI_F;
+        *phi = fmodf(atan2f(-dir->x, dir->z) + 2.0f * M_PI_F, 2 * M_PI_F);
     }
     
     inline float distance2(const point3* p0, const point3* p1) {

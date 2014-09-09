@@ -167,7 +167,7 @@ namespace sim {
                             float theta = lpos->uv.s1 * M_PI_F;
                             float phi = lpos->uv.s0 * 2 * M_PI_F;
                             float sinTheta = sinf(theta);
-                            lpos->p = point3(sinf(phi) * sinTheta, cosf(theta), cosf(phi) * sinTheta);
+                            lpos->p = point3(-sinf(phi) * sinTheta, cosf(theta), cosf(phi) * sinTheta);
                             *areaPDF *= uvPDF / (2 * M_PI_F * M_PI_F * sinTheta);
                             break;
                         }

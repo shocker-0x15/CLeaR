@@ -18,7 +18,7 @@
 #include "ModelLoader.hpp"
 #include "BVH.hpp"
 #include "Scene.h"
-#include <chrono>
+#include "StopWatch.hpp"
 #include "BMPExporter.h"
 
 #include "sim_pathtracer.hpp"
@@ -34,46 +34,12 @@ Scene scene;
 std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
-void HSVtoRGB(float h, float s, float v, float* r, float* g, float* b) {
-    int Hi = (int)(floorf(fmodf(6.0f * h, 6)));
-    float f = 6.0f * h - Hi;
-    float p = v * (1 - s);
-    float q = v * (1 - f * s);
-    float t = v * (1 - (1 - f) * s);
-    switch (Hi) {
-        case 0:
-            *r = v;
-            *g = t;
-            *b = p;
-            break;
-        case 1:
-            *r = q;
-            *g = v;
-            *b = p;
-            break;
-        case 2:
-            *r = p;
-            *g = v;
-            *b = t;
-            break;
-        case 3:
-            *r = p;
-            *g = q;
-            *b = v;
-            break;
-        case 4:
-            *r = t;
-            *g = p;
-            *b = v;
-            break;
-        case 5:
-            *r = v;
-            *g = p;
-            *b = q;
-            break;
-        default:
-            break;
-    }
+std::string stringFromFile(const char* filename) {
+    std::ifstream ifs;
+    ifs.open(filename);
+    ifs.clear();
+    ifs.seekg(0, std::ios::beg);
+    return std::string{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
 }
 
 void buildScene() {
@@ -220,8 +186,8 @@ void buildScene() {
     mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
     mc.createDiffuseLightProperty("light_top", "M_top");
     
-//    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
-//    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    //    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+    //    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
     scene.localToWorld.push();
@@ -254,24 +220,22 @@ void buildScene() {
 int main(int argc, const char * argv[]) {
     using namespace std::chrono;
     
-    system_clock::time_point programStartTimePoint, startTimePoint, endTimePoint;
-    system_clock::duration overallTime, buildTime, renderingKernelSetupTime, postProcessKernelSetupTime, renderingTime, postProcessTime;
+    StopWatch stopwatch;
     
-    programStartTimePoint = system_clock::now();
-    std::time_t ctimeLaunch = system_clock::to_time_t(programStartTimePoint);
+    std::time_t ctimeLaunch = system_clock::to_time_t(stopwatch.start());
     printf("%s\n", std::ctime(&ctimeLaunch));
     
 #define SIMULATION 0
-    const uint32_t iterations = 64;
+    const uint32_t iterations = 16;
     
+    stopwatch.start();
     buildScene();
-    
-    buildTime = system_clock::now() - programStartTimePoint;
-    printf("build time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(buildTime).count());
+    printf("build time: %lldmsec\n", stopwatch.stop());
     
     cl_int ret = CL_SUCCESS;
-//    try {
-        std::ifstream ifs;
+#ifdef __CL_ENABLE_EXCEPTIONS
+    try {
+#endif
         cl::Platform platform;
         cl::Platform::get(&platform);
         
@@ -285,92 +249,52 @@ int main(int argc, const char * argv[]) {
         
         cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0};
         cl::Context context{device, ctx_props};
+        cl::CommandQueue queue{context, device};
         
+        std::string buildLog;
         
         //------------------------------------------------
-        //レンダリングカーネルの生成
-        startTimePoint = system_clock::now();
+        //空間分割プログラムの生成
+        stopwatch.start();
         
-        ifs.open("pathtracer.cl");
-        ifs.clear();
-        ifs.seekg(0, std::ios::beg);
-        std::string rawStrRendering{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
-        cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
-        ifs.close();
+        std::string rawStrBuildAccel = stringFromFile("bvh_construction.cl");
+        cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
         
-        cl::Program programRendering{context, srcRendering};
-        programRendering.build("");
-        std::string buildLog;
-        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
-        printf("rendering kernel build log: \n");
+        cl::Program programBuildAccel{context, srcBuildAccel};
+        programBuildAccel.build("");
+        programBuildAccel.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
+        printf("build accel kernel build log: \n");
         printf("%s\n", buildLog.c_str());
         
-        cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
-        cl::Buffer buf_normals;
-        if (scene.numNormals() == 0)
-            buf_normals = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
-        else
-            buf_normals = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numNormals() * sizeof(cl_float3), scene.rawNormals(), nullptr);
-        cl::Buffer buf_tangents;
-        if (scene.numTangents() == 0)
-            buf_tangents = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
-        else
-            buf_tangents = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numTangents() * sizeof(cl_float3), scene.rawTangents(), nullptr);
-        cl::Buffer buf_uvs;
-        if (scene.numUVs() == 0)
-            buf_uvs = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float2), nullptr, nullptr);
-        else
-            buf_uvs = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numUVs() * sizeof(cl_float2), scene.rawUVs(), nullptr);
-        cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
-        cl::Buffer buf_lightInfos{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numLights() * sizeof(LightInfo), scene.rawLightInfos(), nullptr};
-        cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
-        cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
-        cl::Buffer buf_otherResources{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
-        cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
-        cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
-        cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
-        
-        cl::Kernel kernelRendering{programRendering, "pathtracing"};
-        kernelRendering.setArg(0, buf_vertices);
-        kernelRendering.setArg(1, buf_normals);
-        kernelRendering.setArg(2, buf_tangents);
-        kernelRendering.setArg(3, buf_uvs);
-        kernelRendering.setArg(4, buf_faces);
-        kernelRendering.setArg(5, buf_lightInfos);
-        kernelRendering.setArg(6, buf_materialsData);
-        kernelRendering.setArg(7, buf_texturesData);
-        kernelRendering.setArg(8, buf_otherResources);
-        kernelRendering.setArg(9, buf_BVHnodes);
-        kernelRendering.setArg(10, buf_randStates);
-        kernelRendering.setArg(11, buf_pixels);
-        
-        std::vector<cl::Event> eventList;
-        cl::Event computeEvent;
-        cl::Event readEvent;
-        
-        cl::CommandQueue queue{context, device};
-        const int numTilesX = 16, numTilesY = 16;
-        const int numTiles = numTilesX * numTilesY;
-        cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
-        cl::NDRange localSize{8, 8};
-        
-        renderingKernelSetupTime =
-        system_clock::now() - startTimePoint;
-        printf("rendering kernel setup time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(renderingKernelSetupTime).count());
+        printf("BVH kernel setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
         //------------------------------------------------
         
         
         //------------------------------------------------
-        //ポストプロセスカーネルの生成
-        startTimePoint = system_clock::now();
+        //レンダリングプログラムの生成
+        stopwatch.start();
         
-        ifs.open("post_processing.cl");
-        ifs.clear();
-        ifs.seekg(0, std::ios::beg);
-        std::string rawStrPostProcessing{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
+        std::string rawStrRendering = stringFromFile("pathtracer.cl");
+        cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
+        
+        cl::Program programRendering{context, srcRendering};
+//        programRendering.build("");
+//        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
+//        printf("rendering kernel build log: \n");
+//        printf("%s\n", buildLog.c_str());
+        
+        printf("rendering kernel setup time: %lldmsec\n", stopwatch.stop());
+        printf("\n");
+        //------------------------------------------------
+        
+        
+        //------------------------------------------------
+        //ポストプロセスプログラムの生成
+        stopwatch.start();
+        
+        std::string rawStrPostProcessing = stringFromFile("post_processing.cl");
         cl::Program::Sources srcPostProcessing{1, std::make_pair(rawStrPostProcessing.c_str(), rawStrPostProcessing.length())};
-        ifs.close();
         
         cl::Program programPostProcessing{context, srcPostProcessing};
         programPostProcessing.build("");
@@ -378,43 +302,84 @@ int main(int argc, const char * argv[]) {
         printf("post-process kernel build log: \n");
         printf("%s\n", buildLog.c_str());
         
-        
-        cl::Buffer buf_intermediate0{context, CL_MEM_READ_WRITE, g_pixels.size() * sizeof(cl_float3)};
-        
-        uint32_t byteWidth = 3 * g_width + g_width % 4;
-        uint8_t* LDRPixels = (uint8_t*)malloc(byteWidth * g_height);
-        cl::Buffer buf_image{context, CL_MEM_WRITE_ONLY, (size_t)(byteWidth * g_height)};
-        
-        
-        cl::Kernel kernelClear{programPostProcessing, "clear"};
-        kernelClear.setArg(0, g_width);
-        kernelClear.setArg(1, g_height);
-        kernelClear.setArg(2, buf_intermediate0);
-        
-        cl::Kernel kernelPostProcess0{programPostProcessing, "scaling"};
-        kernelPostProcess0.setArg(0, g_width);
-        kernelPostProcess0.setArg(1, g_height);
-        kernelPostProcess0.setArg(2, iterations);
-        kernelPostProcess0.setArg(3, buf_pixels);
-        kernelPostProcess0.setArg(4, buf_intermediate0);
-        
-        cl::Kernel kernelToneMappng{programPostProcessing, "toneMapping"};
-        kernelToneMappng.setArg(0, g_width);
-        kernelToneMappng.setArg(1, g_height);
-        kernelToneMappng.setArg(2, byteWidth);
-        kernelToneMappng.setArg(3, buf_intermediate0);
-        kernelToneMappng.setArg(4, buf_image);
-        
-        postProcessKernelSetupTime = system_clock::now() - startTimePoint;
-        printf("post-process kernel setup time: %lldmsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(postProcessKernelSetupTime).count());
+        printf("post-process kernel setup time: %lldmsec\n", stopwatch.stop());
         printf("--------------------------------\n");
+        //------------------------------------------------
+        
+        
+        
+        //------------------------------------------------
+        //空間分割開始
+        stopwatch.start();
+        
+        struct AABB {
+            cl_float3 min;
+            cl_float3 max;
+            cl_float3 center;
+        };
+        
+        //各三角形のAABBを並列に求める。
+        cl::Kernel kernelCalcAABBs{programBuildAccel, "calcAABBs"};
+        cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
+        cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
+        cl::Buffer buf_AABBs{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(AABB), nullptr, nullptr};
+        {
+            kernelCalcAABBs.setArg(0, buf_vertices);
+            kernelCalcAABBs.setArg(1, buf_faces);
+            kernelCalcAABBs.setArg(2, scene.numFaces());
+            kernelCalcAABBs.setArg(3, buf_AABBs);
+            
+            cl::Event ev;
+            uint32_t localSize = 64;
+            uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            queue.enqueueNDRangeKernel(kernelCalcAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &ev);
+        }
+        cl::finish();
+        
+        //全体を囲むAABBを求める。
+        stopwatch.start();
+        cl::Kernel kernelMergeAABBs{programBuildAccel, "mergeAABBs"};
+        cl::Buffer buf_mergedAABBs;
+        {
+            uint32_t numAABBs = (uint32_t)scene.numFaces();
+            uint32_t localSize = 64;
+            while (true) {
+                uint32_t numMerged = (numAABBs + (localSize - 1)) / localSize;
+                uint32_t workSize = numMerged * localSize;
+                buf_mergedAABBs = cl::Buffer(context, CL_MEM_READ_WRITE, numMerged * sizeof(AABB), nullptr, nullptr);
+                
+                kernelMergeAABBs.setArg(0, buf_AABBs);
+                kernelMergeAABBs.setArg(1, numAABBs);
+                kernelMergeAABBs.setArg(2, buf_mergedAABBs);
+                
+                cl::Event ev;
+                queue.enqueueNDRangeKernel(kernelMergeAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &ev);
+                queue.enqueueBarrierWithWaitList();
+                
+                if (numMerged == 1)
+                    break;
+                
+                buf_AABBs = buf_mergedAABBs;
+                numAABBs = numMerged;
+            }
+        }
+        cl::finish();
+        printf("unioning AABB done! ... time: %lldusec\n", stopwatch.stop(StopWatch::Microseconds));
+        AABB entireAABB;
+        queue.enqueueReadBuffer(buf_mergedAABBs, CL_TRUE, 0, sizeof(AABB), &entireAABB);
+        
+        printf("spatial splitting done! ... time: %fsec\n", stopwatch.stop() * 0.001f);
         //------------------------------------------------
         
         
         //------------------------------------------------
         //レンダリング開始
-        system_clock::time_point renderingStartTimePoint;
-        renderingStartTimePoint = std::chrono::system_clock::now();
+        stopwatch.start();
+        
+        const int numTilesX = 16, numTilesY = 16;
+        const int numTiles = numTilesX * numTilesY;
+        cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
+        cl::NDRange localSize{8, 8};
         uint32_t k10mins = 1;
 #if SIMULATION
         printf("CPU equivalent code:\n");
@@ -445,23 +410,58 @@ int main(int argc, const char * argv[]) {
         buf_pixels = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr);
         kernelPostProcess0.setArg(3, buf_pixels);
 #else
+        cl::Buffer buf_normals;
+        if (scene.numNormals() == 0)
+            buf_normals = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
+        else
+            buf_normals = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numNormals() * sizeof(cl_float3), scene.rawNormals(), nullptr);
+        cl::Buffer buf_tangents;
+        if (scene.numTangents() == 0)
+            buf_tangents = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
+        else
+            buf_tangents = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numTangents() * sizeof(cl_float3), scene.rawTangents(), nullptr);
+        cl::Buffer buf_uvs;
+        if (scene.numUVs() == 0)
+            buf_uvs = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float2), nullptr, nullptr);
+        else
+            buf_uvs = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numUVs() * sizeof(cl_float2), scene.rawUVs(), nullptr);
+        cl::Buffer buf_lightInfos{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numLights() * sizeof(LightInfo), scene.rawLightInfos(), nullptr};
+        cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
+        cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
+        cl::Buffer buf_otherResources{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
+        cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
+        cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
+        cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
+        
+        cl::Kernel kernelRendering{programRendering, "pathtracing"};
+        kernelRendering.setArg(0, buf_vertices);
+        kernelRendering.setArg(1, buf_normals);
+        kernelRendering.setArg(2, buf_tangents);
+        kernelRendering.setArg(3, buf_uvs);
+        kernelRendering.setArg(4, buf_faces);
+        kernelRendering.setArg(5, buf_lightInfos);
+        kernelRendering.setArg(6, buf_materialsData);
+        kernelRendering.setArg(7, buf_texturesData);
+        kernelRendering.setArg(8, buf_otherResources);
+        kernelRendering.setArg(9, buf_BVHnodes);
+        kernelRendering.setArg(10, buf_randStates);
+        kernelRendering.setArg(11, buf_pixels);
+        
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);
             
-            startTimePoint = std::chrono::system_clock::now();
+            stopwatch.start();
             for (int j = 0; j < numTiles; ++j) {
                 cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
                 cl::Event ev;
                 queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
-//                ev.setCallback(CL_COMPLETE, completeTile);
+                //                ev.setCallback(CL_COMPLETE, completeTile);
             }
             queue.finish();
             
-            std::chrono::system_clock::duration passTime = std::chrono::system_clock::now() - startTimePoint;
-            printf(" %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(passTime).count() * 0.001f);
+            printf(" %fsec\n", stopwatch.stop() * 0.001f);
             
-            overallTime = system_clock::now() - programStartTimePoint;
-            int64_t runtime = std::chrono::duration_cast<std::chrono::seconds>(overallTime).count();
+            uint64_t runtime = stopwatch.elapsedFromRoot(StopWatch::Seconds);
             if (runtime > 60 * 10 * k10mins) {
                 std::time_t cTimeElapsed = system_clock::to_time_t(system_clock::now());
                 printf("%u x 10 minutes.\n", k10mins);
@@ -470,15 +470,39 @@ int main(int argc, const char * argv[]) {
             }
         }
 #endif
-        renderingTime = std::chrono::system_clock::now() - renderingStartTimePoint;
-        printf("rendering done! ... time: %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(renderingTime).count() * 0.001f);
+        printf("rendering done! ... time: %fsec\n", stopwatch.stop() * 0.001f);
         //------------------------------------------------
         
         
         //------------------------------------------------
         //ポストプロセッシング開始
-        startTimePoint = std::chrono::system_clock::now();
-    
+        stopwatch.start();
+        
+        cl::Buffer buf_intermediate0{context, CL_MEM_READ_WRITE, g_pixels.size() * sizeof(cl_float3)};
+        
+        uint32_t byteWidth = 3 * g_width + g_width % 4;
+        uint8_t* LDRPixels = (uint8_t*)malloc(byteWidth * g_height);
+        cl::Buffer buf_image{context, CL_MEM_WRITE_ONLY, (size_t)(byteWidth * g_height)};
+        
+        cl::Kernel kernelClear{programPostProcessing, "clear"};
+        kernelClear.setArg(0, g_width);
+        kernelClear.setArg(1, g_height);
+        kernelClear.setArg(2, buf_intermediate0);
+        
+        cl::Kernel kernelPostProcess0{programPostProcessing, "scaling"};
+        kernelPostProcess0.setArg(0, g_width);
+        kernelPostProcess0.setArg(1, g_height);
+        kernelPostProcess0.setArg(2, iterations);
+        kernelPostProcess0.setArg(3, buf_pixels);
+        kernelPostProcess0.setArg(4, buf_intermediate0);
+        
+        cl::Kernel kernelToneMappng{programPostProcessing, "toneMapping"};
+        kernelToneMappng.setArg(0, g_width);
+        kernelToneMappng.setArg(1, g_height);
+        kernelToneMappng.setArg(2, byteWidth);
+        kernelToneMappng.setArg(3, buf_intermediate0);
+        kernelToneMappng.setArg(4, buf_image);
+        
         queue.enqueueNDRangeKernel(kernelClear, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
         queue.finish();
         queue.enqueueNDRangeKernel(kernelPostProcess0, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
@@ -487,18 +511,19 @@ int main(int argc, const char * argv[]) {
         queue.finish();
         queue.enqueueReadBuffer(buf_image, CL_TRUE, 0, byteWidth * g_height, LDRPixels, nullptr, nullptr);
         
-        postProcessTime = std::chrono::system_clock::now() - startTimePoint;
-        printf("post-process done! ... time: %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(postProcessTime).count() * 0.001f);
+        printf("post-process done! ... time: %fsec\n", stopwatch.stop() * 0.001f);
         //------------------------------------------------
         
         saveBMP("output.bmp", LDRPixels, g_width, g_height);
         free(LDRPixels);
-//    } catch (cl::Error error) {
-//        char err_str[64];
-//        printErrorFromCode(error.err(), err_str);
-//        fprintf(stderr, "ERROR: %s @ ", err_str);
-//        fprintf(stderr, "%s\n", error.what());
-//    }
-
+#ifdef __CL_ENABLE_EXCEPTIONS
+    } catch (cl::Error error) {
+        char err_str[64];
+        printErrorFromCode(error.err(), err_str);
+        fprintf(stderr, "ERROR: %s @ ", err_str);
+        fprintf(stderr, "%s\n", error.what());
+    }
+#endif
+    
     return 0;
 }

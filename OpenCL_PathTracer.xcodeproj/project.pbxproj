@@ -42,6 +42,10 @@
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46B46F96194C4272005FD1EA /* material_structures.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
 		46B46F97194C457A005FD1EA /* material_structures.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
+		46B7EA9B19C0B23A00A75264 /* bvh_construction.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */; };
+		46B7EA9D19C0CBB900A75264 /* extra_atomics.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */; };
+		46B7EA9E19C2002700A75264 /* extra_atomics.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */; };
+		46B7EA9F19C2002700A75264 /* bvh_construction.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */; };
 		46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46B8879F1986A34600292F5F /* BMPExporter.cpp */; };
 		46BC78831981654800B30320 /* distribution.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78821981654800B30320 /* distribution.cl */; };
 		46BC78851981663F00B30320 /* scene.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78841981663F00B30320 /* scene.cl */; };
@@ -72,6 +76,8 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				46B7EA9E19C2002700A75264 /* extra_atomics.cl in CopyFiles */,
+				46B7EA9F19C2002700A75264 /* bvh_construction.cl in CopyFiles */,
 				46BC788619816C7500B30320 /* distribution.cl in CopyFiles */,
 				46BC788719816C7500B30320 /* scene.cl in CopyFiles */,
 				46CB87F71972F6CD00B99D06 /* texture_structures.cl in CopyFiles */,
@@ -148,6 +154,8 @@
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
 		46B46F94194C2AE2005FD1EA /* sim_material_structures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_material_structures.hpp; sourceTree = "<group>"; };
 		46B46F95194C4272005FD1EA /* material_structures.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = material_structures.cl; sourceTree = "<group>"; };
+		46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = bvh_construction.cl; sourceTree = "<group>"; };
+		46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = extra_atomics.cl; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
 		46B8879E19869B0F00292F5F /* BMPExporter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BMPExporter.h; sourceTree = "<group>"; };
 		46B8879F1986A34600292F5F /* BMPExporter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = BMPExporter.cpp; sourceTree = "<group>"; };
@@ -159,6 +167,7 @@
 		46BEA025197D532400FDBEA7 /* sim_texture_structures.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_texture_structures.hpp; sourceTree = "<group>"; };
 		46CB87F41972E6DE00B99D06 /* TextureStructures.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = TextureStructures.hpp; sourceTree = "<group>"; };
 		46CB87F51972F08000B99D06 /* texture_structures.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = texture_structures.cl; sourceTree = "<group>"; };
+		46DC8B6719C202FA00AAD776 /* StopWatch.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = StopWatch.hpp; sourceTree = "<group>"; };
 		46E860631928DE9600944028 /* camera.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = camera.cl; sourceTree = "<group>"; };
 		46E860651928E89A00944028 /* matrix.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = matrix.cl; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -255,6 +264,7 @@
 				46222A27191AB75300D71891 /* cl12.hpp */,
 				46222A2E191D0ECD00D71891 /* clUtility.hpp */,
 				4688CD55191E6CE200257766 /* clUtility.cpp */,
+				46DC8B6719C202FA00AAD776 /* StopWatch.hpp */,
 			);
 			path = CommonSources;
 			sourceTree = "<group>";
@@ -263,6 +273,7 @@
 			isa = PBXGroup;
 			children = (
 				462229FD191AB6B800D71891 /* global.cl */,
+				46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */,
 				46E860651928E89A00944028 /* matrix.cl */,
 				46BC78821981654800B30320 /* distribution.cl */,
 				46222A01191AB6B800D71891 /* rng.cl */,
@@ -270,6 +281,7 @@
 				46CB87F51972F08000B99D06 /* texture_structures.cl */,
 				46222A02191AB6B800D71891 /* texture.cl */,
 				462229FC191AB6B800D71891 /* bvh_traversal.cl */,
+				46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */,
 				46B46F95194C4272005FD1EA /* material_structures.cl */,
 				46222A00191AB6B800D71891 /* reflection.cl */,
 				462229FE191AB6B800D71891 /* light.cl */,
@@ -359,6 +371,7 @@
 				46BC78851981663F00B30320 /* scene.cl in Sources */,
 				462229E9191AB59D00D71891 /* main.cpp in Sources */,
 				462229FB191AB64300D71891 /* ImageLoader.cpp in Sources */,
+				46B7EA9D19C0CBB900A75264 /* extra_atomics.cl in Sources */,
 				46222A07191AB6B800D71891 /* pathtracer.cl in Sources */,
 				46222A0B191AB6B800D71891 /* post_processing.cl in Sources */,
 				46222A05191AB6B800D71891 /* global.cl in Sources */,
@@ -375,6 +388,7 @@
 				46222A04191AB6B800D71891 /* bvh_traversal.cl in Sources */,
 				46222A0A191AB6B800D71891 /* texture.cl in Sources */,
 				46BC78831981654800B30320 /* distribution.cl in Sources */,
+				46B7EA9B19C0B23A00A75264 /* bvh_construction.cl in Sources */,
 				46222A23191AB70100D71891 /* Point3f.cpp in Sources */,
 				46222A06191AB6B800D71891 /* light.cl in Sources */,
 				46E860661928E89A00944028 /* matrix.cl in Sources */,

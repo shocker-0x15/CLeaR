@@ -4,28 +4,14 @@
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-void atomic_add_f32(volatile global float* address, float value);
+#include "extra_atomics.cl"
+
 kernel void clear(uint width, uint height, global float3* buffer);
 kernel void scaling(uint width, uint height, uint spp, global float3* src, global float3* output);
 kernel void gaussianScattering(uint width, uint height, uint spp, global float3* src, global float3* output);
 kernel void bloom(uint width, uint height, uint spp, global float3* src, global float3* output);
 kernel void toneMapping(uint width, uint height, uint b_width, global float3* src, global uchar* dst);
 
-void atomic_add_f32(volatile global float* address, float value) {
-    uint oldval, newval, readback;
-    
-    oldval = as_uint(*address);
-    newval = as_uint(*address + value);
-//    *(float*)&oldval = *address;
-//    *(float*)&newval = (*(float*)&oldval + value);
-    while ((readback = atomic_cmpxchg((volatile global uint*)address, oldval, newval)) != oldval) {
-        oldval = readback;
-        newval = as_uint(as_float(oldval) + value);
-//        *(float*)&newval = (*(float*)&oldval + value);
-    }
-//    return as_float(oldval);
-//    return *(float*)&oldval;
-}
 
 kernel void clear(uint width, uint height, global float3* buffer) {
     *(buffer + width * get_global_id(1) + get_global_id(0)) = (float3)(0.0f, 0.0f, 0.0f);

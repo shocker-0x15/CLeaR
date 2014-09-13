@@ -11,7 +11,13 @@
 
 #include "cl12.hpp"
 
+void initCLUtility();
+
 void printErrorFromCode(cl_int err_code, char* err_str);
+
+void printDeviceInfo(const cl::Device &device, cl_device_info info);
+
+void getProfilingInfo(const cl::Event &ev, cl_ulong* cmdStart, cl_ulong* cmdEnd, cl_ulong* cmdSubmit = nullptr);
 
 cl_float2 makeCLfloat2(float x, float y);
 

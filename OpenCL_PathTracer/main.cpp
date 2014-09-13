@@ -11,7 +11,7 @@
 #include "LinearAlgebra.h"
 #include "XORShift.hpp"
 #include <fstream>
-//#define __CL_ENABLE_EXCEPTIONS
+#define __CL_ENABLE_EXCEPTIONS
 #include "cl12.hpp"
 #include "clUtility.hpp"
 #include "CreateFunctions.hpp"
@@ -212,6 +212,23 @@ void buildScene() {
     }
     scene.localToWorld.pop();
     
+    for (int i = 0; i < 100; ++i) {
+        float scale = 0.25f * (0.5f + rng.getFloat0cTo1o());
+        float angle = 2 * M_PI * rng.getFloat0cTo1o();
+        float tx = -5 + 10 * rng.getFloat0cTo1o();
+        float ty = -5 + 10 * rng.getFloat0cTo1o();
+        float tz = -5 + 10 * rng.getFloat0cTo1o();
+        Vector3f axis{rng.getFloat0cTo1o(), rng.getFloat0cTo1o(), rng.getFloat0cTo1o()};
+        axis = axis.normalize();
+        
+        scene.localToWorld.push();
+        {
+            scene.localToWorld *= LA::TranslateMatrix(tx, ty, tz) * LA::RotateMatrix(angle, axis.x, axis.y, axis.z) * LA::ScaleMatrix(scale, scale, scale);
+            loadModel("models/Pikachu.obj", &scene);
+        }
+        scene.localToWorld.pop();
+    }
+    
     scene.localToWorld.pop();
     
     scene.build();
@@ -221,9 +238,12 @@ int main(int argc, const char * argv[]) {
     using namespace std::chrono;
     
     StopWatch stopwatch;
+    StopWatchHiRes stopwatchHiRes;
     
     std::time_t ctimeLaunch = system_clock::to_time_t(stopwatch.start());
     printf("%s\n", std::ctime(&ctimeLaunch));
+    
+    initCLUtility();
     
 #define SIMULATION 0
     const uint32_t iterations = 16;
@@ -242,14 +262,22 @@ int main(int argc, const char * argv[]) {
         std::vector<cl::Device> devices;
         platform.getDevices(CL_DEVICE_TYPE_GPU, &devices);
         cl::Device device = devices[1];
-        std::string deviceName;
-        device.getInfo(CL_DEVICE_NAME, &deviceName);
+        
         printf("--------------------------------\n");
-        printf("%s\n\n", deviceName.c_str());
+        printDeviceInfo(device, CL_DEVICE_NAME);
+        printf("\n");
+        
+//        for (uint32_t info = 0x1000; info <= 0x104B; ++info) {
+//            printDeviceInfo(device, info);
+//        }
         
         cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0};
         cl::Context context{device, ctx_props};
-        cl::CommandQueue queue{context, device};
+        const bool profiling = true;
+        cl::CommandQueue queue{context, device, static_cast<cl_command_queue_properties>(profiling ? CL_QUEUE_PROFILING_ENABLE : 0)};
+        std::vector<cl::Event> events{50};
+        uint32_t evIdx;
+        cl_ulong tpCmdStart, tpCmdEnd, tpCmdSubmit;
         
         std::string buildLog;
         
@@ -310,7 +338,7 @@ int main(int argc, const char * argv[]) {
         
         //------------------------------------------------
         //空間分割開始
-        stopwatch.start();
+        stopwatchHiRes.start();
         
         struct AABB {
             cl_float3 min;
@@ -329,46 +357,58 @@ int main(int argc, const char * argv[]) {
             kernelCalcAABBs.setArg(2, scene.numFaces());
             kernelCalcAABBs.setArg(3, buf_AABBs);
             
-            cl::Event ev;
-            uint32_t localSize = 64;
+            uint32_t localSize = 128;
             uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
-            queue.enqueueNDRangeKernel(kernelCalcAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &ev);
+            queue.enqueueNDRangeKernel(kernelCalcAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
         }
         cl::finish();
+        if (profiling) {
+            events[0].wait();
+            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("calculating each AABB done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
+        }
         
         //全体を囲むAABBを求める。
-        stopwatch.start();
-        cl::Kernel kernelMergeAABBs{programBuildAccel, "mergeAABBs"};
-        cl::Buffer buf_mergedAABBs;
+        cl::Kernel kernelUnifyAABBs{programBuildAccel, "unifyAABBs"};
+        cl::Buffer buf_unifiedAABBs;
         {
             uint32_t numAABBs = (uint32_t)scene.numFaces();
-            uint32_t localSize = 64;
+            uint32_t localSize = 128;
+            evIdx = 0;
             while (true) {
                 uint32_t numMerged = (numAABBs + (localSize - 1)) / localSize;
                 uint32_t workSize = numMerged * localSize;
-                buf_mergedAABBs = cl::Buffer(context, CL_MEM_READ_WRITE, numMerged * sizeof(AABB), nullptr, nullptr);
+                buf_unifiedAABBs = cl::Buffer(context, CL_MEM_READ_WRITE, numMerged * sizeof(AABB), nullptr, nullptr);
                 
-                kernelMergeAABBs.setArg(0, buf_AABBs);
-                kernelMergeAABBs.setArg(1, numAABBs);
-                kernelMergeAABBs.setArg(2, buf_mergedAABBs);
+                kernelUnifyAABBs.setArg(0, buf_AABBs);
+                kernelUnifyAABBs.setArg(1, numAABBs);
+                kernelUnifyAABBs.setArg(2, buf_unifiedAABBs);
                 
-                cl::Event ev;
-                queue.enqueueNDRangeKernel(kernelMergeAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &ev);
+                queue.enqueueNDRangeKernel(kernelUnifyAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[evIdx++]);
                 queue.enqueueBarrierWithWaitList();
                 
                 if (numMerged == 1)
                     break;
                 
-                buf_AABBs = buf_mergedAABBs;
+                buf_AABBs = buf_unifiedAABBs;
                 numAABBs = numMerged;
             }
         }
         cl::finish();
-        printf("unioning AABB done! ... time: %lldusec\n", stopwatch.stop(StopWatch::Microseconds));
+        if (profiling) {
+            cl_ulong sumTimeUnion = 0, sumTimeUnionFromSubmit = 0;
+            for (uint32_t i = 0; i < evIdx; ++i) {
+                events[i].wait();
+                getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+                sumTimeUnion += tpCmdEnd - tpCmdStart;
+                sumTimeUnionFromSubmit += tpCmdEnd - tpCmdSubmit;
+            }
+            printf("unifying AABBs done! ... time: %fusec (%fusec)\n", sumTimeUnion * 0.001f, sumTimeUnionFromSubmit * 0.001f);
+        }
         AABB entireAABB;
-        queue.enqueueReadBuffer(buf_mergedAABBs, CL_TRUE, 0, sizeof(AABB), &entireAABB);
+        queue.enqueueReadBuffer(buf_unifiedAABBs, CL_TRUE, 0, sizeof(AABB), &entireAABB);
         
-        printf("spatial splitting done! ... time: %fsec\n", stopwatch.stop() * 0.001f);
+        printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
         //------------------------------------------------
         
         

@@ -32,8 +32,7 @@ typedef struct __attribute__((aligned(16))) {
 
 kernel void calcAABBs(const global point3* vertices, const global uchar* faces, uint numFaces,
                       global uchar* AABBs);
-#define blockSize 64
-kernel void mergeAABBs(const global uchar* AABBs, uint numAABBs, global uchar* mergedAABBs);
+kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* mergedAABBs);
 kernel void LinearBVHConstruction(const global uchar* AABBs, uint numPrimitives,
                                   point3 minEntireAABB, point3 maxEntireAABB, uint divLevel);
 
@@ -44,19 +43,19 @@ kernel void calcAABBs(const global point3* vertices, const global uchar* faces, 
     if (gid0 >= numFaces)
         return;
     
-    global AABB* box = (global AABB*)AABBs + gid0;
     const global Face* face = (const global Face*)faces + gid0;
     point3 p0 = *(vertices + face->p0);
     point3 p1 = *(vertices + face->p1);
     point3 p2 = *(vertices + face->p2);
-    point3 min = fmin(p0, fmin(p1, p2));
-    point3 max = fmax(p0, fmax(p1, p2));
-    box->min = min;
-    box->max = max;
-    box->center = (box->min + box->max) * 0.5f;
+    AABB box;
+    box.min = fmin(p0, fmin(p1, p2));
+    box.max = fmax(p0, fmax(p1, p2));
+    box.center = (box.min + box.max) * 0.5f;
+    *((global AABB*)AABBs + gid0) = box;
 }
 
-kernel void mergeAABBs(const global uchar* AABBs, uint numAABBs, global uchar* mergedAABBs) {
+kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* mergedAABBs) {
+    const uint blockSize = 128;
     const global AABB* gAABBs = (const global AABB*)AABBs;
     global AABB* gMergedAABBs = (global AABB*)mergedAABBs;
     
@@ -76,9 +75,29 @@ kernel void mergeAABBs(const global uchar* AABBs, uint numAABBs, global uchar* m
     }
     
     barrier(CLK_LOCAL_MEM_FENCE);
+
+//    // Interleaved Addressing
+//    for (uint i = 1; i < blockSize; i <<= 1) {
+//        if (lid0 % (2 * i) == 0) {
+//            lmin[lid0] = fmin(lmin[lid0], lmin[lid0 + i]);
+//            lmax[lid0] = fmax(lmax[lid0], lmax[lid0 + i]);
+//        }
+//        barrier(CLK_LOCAL_MEM_FENCE);
+//    }
     
-    for (uint i = 1; i < blockSize; i <<= 1) {
-        if (lid0 % (2 * i) == 0) {
+//    // Interleaved Addressing (Non-divergent)
+//    for (uint i = 1; i < blockSize; i <<= 1) {
+//        uint idx = 2 * i * lid0;
+//        if (idx < blockSize) {
+//            lmin[idx] = fmin(lmin[idx], lmin[idx + i]);
+//            lmax[idx] = fmax(lmax[idx], lmax[idx + i]);
+//        }
+//        barrier(CLK_LOCAL_MEM_FENCE);
+//    }
+    
+    // Sequential Addressing
+    for (uint i = blockSize / 2; i > 0; i >>= 1) {
+        if (lid0 < i) {
             lmin[lid0] = fmin(lmin[lid0], lmin[lid0 + i]);
             lmax[lid0] = fmax(lmax[lid0], lmax[lid0 + i]);
         }

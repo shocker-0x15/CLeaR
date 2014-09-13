@@ -7,6 +7,119 @@
 //
 
 #include "clUtility.hpp"
+#include <map>
+
+bool initialized = false;
+
+enum CLDeviceInfoType {
+    CLDeviceInfoType_uint,
+    CLDeviceInfoType_ulong,
+    CLDeviceInfoType_size_t,
+    CLDeviceInfoType_size_t_vec,
+    CLDeviceInfoType_bool,
+    CLDeviceInfoType_string,
+    CLDeviceInfoType_platform_id,
+    CLDeviceInfoType_device_id,
+    CLDeviceInfoType_command_queue_properties,
+    CLDeviceInfoType_device_fp_config,
+    CLDeviceInfoType_device_exec_capabilities,
+    CLDeviceInfoType_device_type,
+    CLDeviceInfoType_device_mem_cache_type,
+    CLDeviceInfoType_device_local_mem_type,
+    CLDeviceInfoType_device_partition_property_vec,
+    CLDeviceInfoType_device_affinity_domain
+};
+
+struct CLDeviceInfoMetaInfo {
+    CLDeviceInfoType infoType;
+    const char* name;
+};
+
+std::map<cl_device_info, CLDeviceInfoMetaInfo> clDeviceInfoMetaInfos;
+
+void initCLUtility() {
+    if (initialized)
+        return;
+    
+    clDeviceInfoMetaInfos[CL_DEVICE_ADDRESS_BITS] = {CLDeviceInfoType_uint, "CL_DEVICE_ADDRESS_BITS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_AVAILABLE] = {CLDeviceInfoType_bool, "CL_DEVICE_AVAILABLE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_BUILT_IN_KERNELS] = {CLDeviceInfoType_string, "CL_DEVICE_BUILT_IN_KERNELS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_COMPILER_AVAILABLE] = {CLDeviceInfoType_bool, "CL_DEVICE_COMPILER_AVAILABLE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_DOUBLE_FP_CONFIG] = {CLDeviceInfoType_device_fp_config, "CL_DEVICE_DOUBLE_FP_CONFIG"};
+    clDeviceInfoMetaInfos[CL_DEVICE_ENDIAN_LITTLE] = {CLDeviceInfoType_bool, "CL_DEVICE_ENDIAN_LITTLE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_ERROR_CORRECTION_SUPPORT] = {CLDeviceInfoType_bool, "CL_DEVICE_ERROR_CORRECTION_SUPPORT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_EXECUTION_CAPABILITIES] = {CLDeviceInfoType_device_exec_capabilities, "CL_DEVICE_EXECUTION_CAPABILITIES"};
+    clDeviceInfoMetaInfos[CL_DEVICE_EXTENSIONS] = {CLDeviceInfoType_string, "CL_DEVICE_EXTENSIONS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE] = {CLDeviceInfoType_uint, "CL_DEVICE_GLOBAL_MEM_CACHELINE_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_GLOBAL_MEM_CACHE_SIZE] = {CLDeviceInfoType_ulong, "CL_DEVICE_GLOBAL_MEM_CACHE_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_GLOBAL_MEM_CACHE_TYPE] = {CLDeviceInfoType_device_mem_cache_type, "CL_DEVICE_GLOBAL_MEM_CACHE_TYPE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_GLOBAL_MEM_SIZE] = {CLDeviceInfoType_ulong, "CL_DEVICE_GLOBAL_MEM_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_HALF_FP_CONFIG] = {CLDeviceInfoType_device_fp_config, "CL_DEVICE_HALF_FP_CONFIG"};
+    clDeviceInfoMetaInfos[CL_DEVICE_HOST_UNIFIED_MEMORY] = {CLDeviceInfoType_bool, "CL_DEVICE_HOST_UNIFIED_MEMORY"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE2D_MAX_HEIGHT] = {CLDeviceInfoType_size_t, "CL_DEVICE_IMAGE2D_MAX_HEIGHT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE2D_MAX_WIDTH] = {CLDeviceInfoType_size_t, "CL_DEVICE_IMAGE2D_MAX_WIDTH"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE3D_MAX_DEPTH] = {CLDeviceInfoType_size_t, "CL_DEVICE_IMAGE3D_MAX_DEPTH"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE3D_MAX_HEIGHT] = {CLDeviceInfoType_size_t, "CL_DEVICE_IMAGE3D_MAX_HEIGHT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE3D_MAX_WIDTH] = {CLDeviceInfoType_size_t, "CL_DEVICE_IMAGE3D_MAX_WIDTH"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT] = {CLDeviceInfoType_uint, "CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE_MAX_ARRAY_SIZE] = {CLDeviceInfoType_size_t, "CL_DEVICE_IMAGE_MAX_ARRAY_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE_MAX_BUFFER_SIZE] = {CLDeviceInfoType_size_t, "CL_DEVICE_IMAGE_MAX_BUFFER_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE_PITCH_ALIGNMENT] = {CLDeviceInfoType_uint, "CL_DEVICE_IMAGE_PITCH_ALIGNMENT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_IMAGE_SUPPORT] = {CLDeviceInfoType_bool, "CL_DEVICE_IMAGE_SUPPORT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_LINKER_AVAILABLE] = {CLDeviceInfoType_bool, "CL_DEVICE_LINKER_AVAILABLE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_LOCAL_MEM_SIZE] = {CLDeviceInfoType_ulong, "CL_DEVICE_LOCAL_MEM_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_LOCAL_MEM_TYPE] = {CLDeviceInfoType_device_local_mem_type, "CL_DEVICE_LOCAL_MEM_TYPE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_CLOCK_FREQUENCY] = {CLDeviceInfoType_uint, "CL_DEVICE_MAX_CLOCK_FREQUENCY"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_COMPUTE_UNITS] = {CLDeviceInfoType_uint, "CL_DEVICE_MAX_COMPUTE_UNITS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_CONSTANT_ARGS] = {CLDeviceInfoType_uint, "CL_DEVICE_MAX_CONSTANT_ARGS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE] = {CLDeviceInfoType_ulong, "CL_DEVICE_MAX_CONSTANT_BUFFER_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_MEM_ALLOC_SIZE] = {CLDeviceInfoType_ulong, "CL_DEVICE_MAX_MEM_ALLOC_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_PARAMETER_SIZE] = {CLDeviceInfoType_size_t, "CL_DEVICE_MAX_PARAMETER_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_READ_IMAGE_ARGS] = {CLDeviceInfoType_uint, "CL_DEVICE_MAX_READ_IMAGE_ARGS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_SAMPLERS] = {CLDeviceInfoType_uint, "CL_DEVICE_MAX_SAMPLERS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_WORK_GROUP_SIZE] = {CLDeviceInfoType_size_t, "CL_DEVICE_MAX_WORK_GROUP_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS] = {CLDeviceInfoType_uint, "CL_DEVICE_MAX_WORK_ITEM_DIMENSIONS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_WORK_ITEM_SIZES] = {CLDeviceInfoType_size_t_vec, "CL_DEVICE_MAX_WORK_ITEM_SIZES"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MAX_WRITE_IMAGE_ARGS] = {CLDeviceInfoType_uint, "CL_DEVICE_MAX_WRITE_IMAGE_ARGS"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MEM_BASE_ADDR_ALIGN] = {CLDeviceInfoType_uint, "CL_DEVICE_MEM_BASE_ADDR_ALIGN"};
+    clDeviceInfoMetaInfos[CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE] = {CLDeviceInfoType_uint, "CL_DEVICE_MIN_DATA_TYPE_ALIGN_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NAME] = {CLDeviceInfoType_string, "CL_DEVICE_NAME"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR] = {CLDeviceInfoType_uint, "CL_DEVICE_NATIVE_VECTOR_WIDTH_CHAR"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE] = {CLDeviceInfoType_uint, "CL_DEVICE_NATIVE_VECTOR_WIDTH_DOUBLE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT] = {CLDeviceInfoType_uint, "CL_DEVICE_NATIVE_VECTOR_WIDTH_FLOAT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF] = {CLDeviceInfoType_uint, "CL_DEVICE_NATIVE_VECTOR_WIDTH_HALF"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NATIVE_VECTOR_WIDTH_INT] = {CLDeviceInfoType_uint, "CL_DEVICE_NATIVE_VECTOR_WIDTH_INT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG] = {CLDeviceInfoType_uint, "CL_DEVICE_NATIVE_VECTOR_WIDTH_LONG"};
+    clDeviceInfoMetaInfos[CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT] = {CLDeviceInfoType_uint, "CL_DEVICE_NATIVE_VECTOR_WIDTH_SHORT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_OPENCL_C_VERSION] = {CLDeviceInfoType_string, "CL_DEVICE_OPENCL_C_VERSION"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PARENT_DEVICE] = {CLDeviceInfoType_device_id, "CL_DEVICE_PARENT_DEVICE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PARTITION_AFFINITY_DOMAIN] = {CLDeviceInfoType_device_affinity_domain, "CL_DEVICE_PARTITION_AFFINITY_DOMAIN"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PARTITION_MAX_SUB_DEVICES] = {CLDeviceInfoType_uint, "CL_DEVICE_PARTITION_MAX_SUB_DEVICES"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PARTITION_PROPERTIES] = {CLDeviceInfoType_device_partition_property_vec, "CL_DEVICE_PARTITION_PROPERTIES"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PARTITION_TYPE] = {CLDeviceInfoType_device_partition_property_vec, "CL_DEVICE_PARTITION_TYPE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PLATFORM] = {CLDeviceInfoType_platform_id, "CL_DEVICE_PLATFORM"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_INTEROP_USER_SYNC] = {CLDeviceInfoType_bool, "CL_DEVICE_PREFERRED_INTEROP_USER_SYNC"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR] = {CLDeviceInfoType_uint, "CL_DEVICE_PREFERRED_VECTOR_WIDTH_CHAR"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE] = {CLDeviceInfoType_uint, "CL_DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT] = {CLDeviceInfoType_uint, "CL_DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF] = {CLDeviceInfoType_uint, "CL_DEVICE_PREFERRED_VECTOR_WIDTH_HALF"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT] = {CLDeviceInfoType_uint, "CL_DEVICE_PREFERRED_VECTOR_WIDTH_INT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG] = {CLDeviceInfoType_uint, "CL_DEVICE_PREFERRED_VECTOR_WIDTH_LONG"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT] = {CLDeviceInfoType_uint, "CL_DEVICE_PREFERRED_VECTOR_WIDTH_SHORT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PRINTF_BUFFER_SIZE] = {CLDeviceInfoType_size_t, "CL_DEVICE_PRINTF_BUFFER_SIZE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PROFILE] = {CLDeviceInfoType_string, "CL_DEVICE_PROFILE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_PROFILING_TIMER_RESOLUTION] = {CLDeviceInfoType_size_t, "CL_DEVICE_PROFILING_TIMER_RESOLUTION"};
+    clDeviceInfoMetaInfos[CL_DEVICE_QUEUE_PROPERTIES] = {CLDeviceInfoType_command_queue_properties, "CL_DEVICE_QUEUE_PROPERTIES"};
+    clDeviceInfoMetaInfos[CL_DEVICE_REFERENCE_COUNT] = {CLDeviceInfoType_uint, "CL_DEVICE_REFERENCE_COUNT"};
+    clDeviceInfoMetaInfos[CL_DEVICE_SINGLE_FP_CONFIG] = {CLDeviceInfoType_device_fp_config, "CL_DEVICE_SINGLE_FP_CONFIG"};
+    clDeviceInfoMetaInfos[CL_DEVICE_TYPE] = {CLDeviceInfoType_device_type, "CL_DEVICE_TYPE"};
+    clDeviceInfoMetaInfos[CL_DEVICE_VENDOR] = {CLDeviceInfoType_string, "CL_DEVICE_VENDOR"};
+    clDeviceInfoMetaInfos[CL_DEVICE_VENDOR_ID] = {CLDeviceInfoType_uint, "CL_DEVICE_VENDOR_ID"};
+    clDeviceInfoMetaInfos[CL_DEVICE_VERSION] = {CLDeviceInfoType_string, "CL_DEVICE_VERSION"};
+    clDeviceInfoMetaInfos[CL_DRIVER_VERSION] = {CLDeviceInfoType_string, "CL_DRIVER_VERSION"};
+    
+    initialized = true;
+}
 
 void printErrorFromCode(cl_int err_code, char* err_str) {
     switch (err_code) {
@@ -190,6 +303,212 @@ void printErrorFromCode(cl_int err_code, char* err_str) {
         default:
             break;
     }
+}
+
+void printDeviceInfo(const cl::Device &device, cl_device_info info) {
+    if (!initialized) {
+        printf("not initialized. call initCLUtility().");
+    }
+    
+    printf("%s: ", clDeviceInfoMetaInfos[info].name);
+    
+    switch (clDeviceInfoMetaInfos[info].infoType) {
+        case CLDeviceInfoType_bool: {
+            cl_bool val;
+            device.getInfo(info, &val);
+            printf(val != 0 ? "YES" : "NO");
+            break;
+        }
+        case CLDeviceInfoType_uint: {
+            cl_uint val;
+            device.getInfo(info, &val);
+            printf("%u", val);
+            break;
+        }
+        case CLDeviceInfoType_ulong: {
+            cl_ulong val;
+            device.getInfo(info, &val);
+            printf("%llu", val);
+            break;
+        }
+        case CLDeviceInfoType_size_t: {
+            size_t val;
+            device.getInfo(info, &val);
+            printf("%lu", val);
+            break;
+        }
+        case CLDeviceInfoType_string: {
+            std::string val;
+            device.getInfo(info, &val);
+            printf("%s", val.c_str());
+            break;
+        }
+        case CLDeviceInfoType_size_t_vec: {
+            VECTOR_CLASS<size_t> val;
+            device.getInfo(info, &val);
+            for (uint32_t i = 0; i < val.size() - 1; ++i) {
+                printf("%lu, ", val[i]);
+            }
+            printf("%lu", val.back());
+            break;
+        }
+        case CLDeviceInfoType_device_id: {
+            cl_device_id val;
+            device.getInfo(info, &val);
+            printf("%#018llx", (uint64_t)val);
+            break;
+        }
+        case CLDeviceInfoType_platform_id: {
+            cl_platform_id val;
+            device.getInfo(info, &val);
+            printf("%#018llx", (uint64_t)val);
+            break;
+        }
+        case CLDeviceInfoType_device_type: {
+            cl_device_type val;
+            device.getInfo(info, &val);
+            switch (val) {
+                case CL_DEVICE_TYPE_CPU:
+                    printf("CPU");
+                    break;
+                case CL_DEVICE_TYPE_GPU:
+                    printf("GPU");
+                    break;
+                case CL_DEVICE_TYPE_ACCELERATOR:
+                    printf("Accelerator");
+                    break;
+                case CL_DEVICE_TYPE_CUSTOM:
+                    printf("Custom");
+                    break;
+                default:
+                    break;
+            }
+            break;
+        }
+        case CLDeviceInfoType_device_fp_config: {
+            cl_device_fp_config val;
+            device.getInfo(info, &val);
+            if ((val & CL_FP_DENORM) != 0)
+                printf("CL_FP_DENORM ");
+            if ((val & CL_FP_INF_NAN) != 0)
+                printf("CL_FP_INF_NAN ");
+            if ((val & CL_FP_ROUND_TO_NEAREST) != 0)
+                printf("CL_FP_ROUND_TO_NEAREST ");
+            if ((val & CL_FP_ROUND_TO_ZERO) != 0)
+                printf("CL_FP_ROUND_TO_ZERO ");
+            if ((val & CL_FP_ROUND_TO_INF) != 0)
+                printf("CL_FP_ROUND_TO_INF ");
+            if ((val & CL_FP_FMA) != 0)
+                printf("CL_FP_FMA ");
+            if ((val & CL_FP_SOFT_FLOAT) != 0)
+                printf("CL_FP_SOFT_FLOAT ");
+            if ((val & CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT) != 0)
+                printf("CL_FP_CORRECTLY_ROUNDED_DIVIDE_SQRT ");
+            break;
+        }
+        case CLDeviceInfoType_device_local_mem_type: {
+            cl_device_local_mem_type val;
+            device.getInfo(info, &val);
+            switch (val) {
+                case CL_LOCAL:
+                    printf("Local");
+                    break;
+                case CL_GLOBAL:
+                    printf("Global");
+                default:
+                    break;
+            }
+            break;
+        }
+        case CLDeviceInfoType_device_mem_cache_type: {
+            cl_device_mem_cache_type val;
+            device.getInfo(info, &val);
+            switch (val) {
+                case CL_NONE:
+                    printf("None");
+                    break;
+                case CL_READ_ONLY_CACHE:
+                    printf("Read Only Cache");
+                    break;
+                case CL_READ_WRITE_CACHE:
+                    printf("Read Write Cache");
+                    break;
+                default:
+                    break;
+            }
+            break;
+        }
+        case CLDeviceInfoType_device_exec_capabilities: {
+            cl_device_exec_capabilities val;
+            device.getInfo(info, &val);
+            if ((val & CL_EXEC_KERNEL) != 0)
+                printf("CL_EXEC_KERNEL ");
+            if ((val & CL_EXEC_NATIVE_KERNEL) != 0)
+                printf("CL_EXEC_NATIVE_KERNEL ");
+            break;
+        }
+        case CLDeviceInfoType_command_queue_properties: {
+            cl_command_queue_properties val;
+            device.getInfo(info, &val);
+            if ((val & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE) != 0)
+                printf("CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE ");
+            if ((val & CL_QUEUE_PROFILING_ENABLE) != 0)
+                printf("CL_QUEUE_PROFILING_ENABLE ");
+            break;
+        }
+        case CLDeviceInfoType_device_affinity_domain: {
+            cl_device_affinity_domain val;
+            device.getInfo(info, &val);
+            if ((val & CL_DEVICE_AFFINITY_DOMAIN_NUMA) != 0)
+                printf("CL_DEVICE_AFFINITY_DOMAIN_NUMA ");
+            if ((val & CL_DEVICE_AFFINITY_DOMAIN_L4_CACHE) != 0)
+                printf("CL_DEVICE_AFFINITY_DOMAIN_L4_CACHE ");
+            if ((val & CL_DEVICE_AFFINITY_DOMAIN_L3_CACHE) != 0)
+                printf("CL_DEVICE_AFFINITY_DOMAIN_L3_CACHE ");
+            if ((val & CL_DEVICE_AFFINITY_DOMAIN_L2_CACHE) != 0)
+                printf("CL_DEVICE_AFFINITY_DOMAIN_L2_CACHE ");
+            if ((val & CL_DEVICE_AFFINITY_DOMAIN_L1_CACHE) != 0)
+                printf("CL_DEVICE_AFFINITY_DOMAIN_L1_CACHE ");
+            if ((val & CL_DEVICE_AFFINITY_DOMAIN_NEXT_PARTITIONABLE) != 0)
+                printf("CL_DEVICE_AFFINITY_DOMAIN_NEXT_PARTITIONABLE ");
+            break;
+        }
+        case CLDeviceInfoType_device_partition_property_vec: {
+            VECTOR_CLASS<cl_device_partition_property> val;
+            device.getInfo(info, &val);
+            for (uint32_t i = 0; i < val.size(); ++i) {
+                switch (val[i]) {
+                    case CL_DEVICE_PARTITION_EQUALLY:
+                        printf("CL_DEVICE_PARTITION_EQUALLY");
+                        break;
+                    case CL_DEVICE_PARTITION_BY_COUNTS:
+                        printf("CL_DEVICE_PARTITION_BY_COUNTS");
+                        break;
+                    case CL_DEVICE_PARTITION_BY_COUNTS_LIST_END:
+                        printf("CL_DEVICE_PARTITION_BY_COUNTS_LIST_END");
+                        break;
+                    case CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN: 
+                        printf("CL_DEVICE_PARTITION_BY_AFFINITY_DOMAIN");
+                        break;
+                    default:
+                        break;
+                }
+                if (i < val.size() - 1)
+                    printf(", ");
+            }
+            break;
+        }
+        default:
+            break;
+    }
+    printf("\n");
+}
+
+void getProfilingInfo(const cl::Event &ev, cl_ulong* cmdStart, cl_ulong* cmdEnd, cl_ulong* cmdSubmit) {
+    ev.getProfilingInfo(CL_PROFILING_COMMAND_START, cmdStart);
+    ev.getProfilingInfo(CL_PROFILING_COMMAND_END, cmdEnd);
+    if (cmdSubmit)
+        ev.getProfilingInfo(CL_PROFILING_COMMAND_SUBMIT, cmdSubmit);
 }
 
 cl_float2 makeCLfloat2(float x, float y) {

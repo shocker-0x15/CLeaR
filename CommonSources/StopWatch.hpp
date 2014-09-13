@@ -16,23 +16,27 @@
 namespace {
     using namespace std::chrono;
     
-    class StopWatch {
-        std::vector<system_clock::time_point> m_startTPStack;
+    template <typename res>
+    class StopWatchTemplate {
+        std::vector<typename res::time_point> m_startTPStack;
     public:
         typedef enum {
+            Nanoseconds,
             Microseconds,
             Milliseconds,
             Seconds,
         } EDurationType;
         
-        system_clock::time_point start() {
-            system_clock::time_point startTimePoint = system_clock::now();
+        typename res::time_point start() {
+            typename res::time_point startTimePoint = res::now();
             m_startTPStack.push_back(startTimePoint);
             return startTimePoint;
         }
         
-        inline uint64_t durationCast(const system_clock::duration &duration, EDurationType dt) {
+        inline uint64_t durationCast(const typename res::duration &duration, EDurationType dt) {
             switch (dt) {
+                case Nanoseconds:
+                    return duration_cast<nanoseconds>(duration).count();
                 case Microseconds:
                     return duration_cast<microseconds>(duration).count();
                 case Milliseconds:
@@ -46,21 +50,24 @@ namespace {
         }
         
         uint64_t stop(EDurationType dt = EDurationType::Milliseconds) {
-            system_clock::duration duration = system_clock::now() - m_startTPStack.back();
+            typename res::duration duration = res::now() - m_startTPStack.back();
             m_startTPStack.pop_back();
             return durationCast(duration, dt);
         }
         
         uint64_t elapsed(EDurationType dt = EDurationType::Milliseconds) {
-            system_clock::duration duration = system_clock::now() - m_startTPStack.back();
+            typename res::duration duration = res::now() - m_startTPStack.back();
             return durationCast(duration, dt);
         }
         
         uint64_t elapsedFromRoot(EDurationType dt = EDurationType::Milliseconds) {
-            system_clock::duration duration = system_clock::now() - m_startTPStack.front();
+            typename res::duration duration = res::now() - m_startTPStack.front();
             return durationCast(duration, dt);
         }
     };
+    
+    typedef StopWatchTemplate<system_clock> StopWatch;
+    typedef StopWatchTemplate<high_resolution_clock> StopWatchHiRes;
 }
 
 #endif /* defined(__OpenCL_PathTracer__StopWatch__) */

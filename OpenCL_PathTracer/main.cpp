@@ -282,7 +282,7 @@ int main(int argc, const char * argv[]) {
         std::string buildLog;
         
         //------------------------------------------------
-        //空間分割プログラムの生成
+        // 空間分割プログラムの生成
         stopwatch.start();
         
         std::string rawStrBuildAccel = stringFromFile("bvh_construction.cl");
@@ -300,7 +300,7 @@ int main(int argc, const char * argv[]) {
         
         
         //------------------------------------------------
-        //レンダリングプログラムの生成
+        // レンダリングプログラムの生成
         stopwatch.start();
         
         std::string rawStrRendering = stringFromFile("pathtracer.cl");
@@ -318,7 +318,7 @@ int main(int argc, const char * argv[]) {
         
         
         //------------------------------------------------
-        //ポストプロセスプログラムの生成
+        // ポストプロセスプログラムの生成
         stopwatch.start();
         
         std::string rawStrPostProcessing = stringFromFile("post_processing.cl");
@@ -337,7 +337,7 @@ int main(int argc, const char * argv[]) {
         
         
         //------------------------------------------------
-        //空間分割開始
+        // 空間分割開始
         stopwatchHiRes.start();
         
         struct AABB {
@@ -346,7 +346,7 @@ int main(int argc, const char * argv[]) {
             cl_float3 center;
         };
         
-        //各三角形のAABBを並列に求める。
+        // 各三角形のAABBを並列に求める。
         cl::Kernel kernelCalcAABBs{programBuildAccel, "calcAABBs"};
         cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
         cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
@@ -368,8 +368,9 @@ int main(int argc, const char * argv[]) {
             printf("calculating each AABB done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
         }
         
-        //全体を囲むAABBを求める。
+        // 全体を囲むAABBを求める。
         cl::Kernel kernelUnifyAABBs{programBuildAccel, "unifyAABBs"};
+        cl::Buffer buf_srcAABBs = buf_AABBs;
         cl::Buffer buf_unifiedAABBs;
         {
             uint32_t numAABBs = (uint32_t)scene.numFaces();
@@ -380,7 +381,7 @@ int main(int argc, const char * argv[]) {
                 uint32_t workSize = numMerged * localSize;
                 buf_unifiedAABBs = cl::Buffer(context, CL_MEM_READ_WRITE, numMerged * sizeof(AABB), nullptr, nullptr);
                 
-                kernelUnifyAABBs.setArg(0, buf_AABBs);
+                kernelUnifyAABBs.setArg(0, buf_srcAABBs);
                 kernelUnifyAABBs.setArg(1, numAABBs);
                 kernelUnifyAABBs.setArg(2, buf_unifiedAABBs);
                 
@@ -390,7 +391,7 @@ int main(int argc, const char * argv[]) {
                 if (numMerged == 1)
                     break;
                 
-                buf_AABBs = buf_unifiedAABBs;
+                buf_srcAABBs = buf_unifiedAABBs;
                 numAABBs = numMerged;
             }
         }
@@ -407,6 +408,54 @@ int main(int argc, const char * argv[]) {
         }
         AABB entireAABB;
         queue.enqueueReadBuffer(buf_unifiedAABBs, CL_TRUE, 0, sizeof(AABB), &entireAABB);
+        
+        // モートンコードを求める。
+        cl::Kernel kernelCalcMortonCodes{programBuildAccel, "calcMortonCodes"};
+        cl::Buffer buf_MortonCodes{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint3), nullptr, nullptr};
+        cl::Buffer buf_Indices{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint), nullptr, nullptr};
+        {
+            cl_float3 sizeEntireAABB = {
+                entireAABB.max.s0 - entireAABB.min.s0,
+                entireAABB.max.s1 - entireAABB.min.s1,
+                entireAABB.max.s2 - entireAABB.min.s2
+            };
+            
+            kernelCalcMortonCodes.setArg(0, buf_AABBs);
+            kernelCalcMortonCodes.setArg(1, scene.numFaces());
+            kernelCalcMortonCodes.setArg(2, entireAABB.min);
+            kernelCalcMortonCodes.setArg(3, sizeEntireAABB);
+            kernelCalcMortonCodes.setArg(4, 10);
+            kernelCalcMortonCodes.setArg(5, buf_MortonCodes);
+            kernelCalcMortonCodes.setArg(6, buf_Indices);
+            
+            uint32_t localSize = 128;
+            uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            queue.enqueueNDRangeKernel(kernelCalcMortonCodes, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
+        }
+        cl::finish();
+        if (profiling) {
+            events[0].wait();
+            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("calculating each Morton code done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
+        }
+        
+        cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
+        {
+            kernelBlockwiseSort.setArg(0, buf_MortonCodes);
+            kernelBlockwiseSort.setArg(1, scene.numFaces());
+            kernelBlockwiseSort.setArg(2, 0);
+            kernelBlockwiseSort.setArg(3, buf_Indices);
+            
+            uint32_t localSize = 128;
+            uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            queue.enqueueNDRangeKernel(kernelBlockwiseSort, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
+        }
+        cl::finish();
+        if (profiling) {
+            events[0].wait();
+            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("blockwise sorting done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
+        }
         
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
         //------------------------------------------------

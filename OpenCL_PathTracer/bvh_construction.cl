@@ -33,8 +33,13 @@ typedef struct __attribute__((aligned(16))) {
 kernel void calcAABBs(const global point3* vertices, const global uchar* faces, uint numFaces,
                       global uchar* AABBs);
 kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* mergedAABBs);
-kernel void LinearBVHConstruction(const global uchar* AABBs, uint numPrimitives,
-                                  point3 minEntireAABB, point3 maxEntireAABB, uint divLevel);
+kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
+                            point3 minEntireAABB, point3 sizeEntireAABB, uint divLevel,
+                            global uint3* mortonCodes, global uint* indices);
+uint scan(local ushort* prefixSumNumOne, const uint blockSize, const uint lid);
+uint split(local ushort* prefixSumNumOne, const uint blockSize, const uint lid, uint pred);
+kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, uchar bitID,
+                          global uint* indices);
 
 
 kernel void calcAABBs(const global point3* vertices, const global uchar* faces, uint numFaces,
@@ -73,7 +78,6 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* m
         lmin[lid0] = (point3)(INFINITY, INFINITY, INFINITY);
         lmax[lid0] = -(point3)(INFINITY, INFINITY, INFINITY);
     }
-    
     barrier(CLK_LOCAL_MEM_FENCE);
 
 //    // Interleaved Addressing
@@ -113,8 +117,9 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* m
     }
 }
 
-kernel void LinearBVHConstruction(const global uchar* AABBs, uint numPrimitives,
-                                  point3 minEntireAABB, point3 maxEntireAABB, uint divLevel) {
+kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
+                            point3 minEntireAABB, point3 sizeEntireAABB, uint divLevel,
+                            global uint3* mortonCodes, global uint* indices) {
     const uint gid0 = get_global_id(0);
     if (gid0 >= numPrimitives)
         return;
@@ -122,6 +127,118 @@ kernel void LinearBVHConstruction(const global uchar* AABBs, uint numPrimitives,
     AABB box = *((const global AABB*)AABBs + gid0);
     
     uint numDiv = 1 << divLevel;
-    point3 normPos = (box.center - minEntireAABB) / (maxEntireAABB - minEntireAABB);
-    uint3 mortonCode = (uint3)(normPos * divLevel);
+    point3 normPos = (box.center - minEntireAABB) / sizeEntireAABB;
+    mortonCodes[gid0] = convert_uint3_rtz(normPos * numDiv);
+    indices[gid0] = gid0;
+}
+
+uint scan(local ushort* prefixSumNumOne, const uint blockSize, const uint lid) {
+    for (uint i = 2; i <= blockSize; i <<= 1) {
+        uint idx = (lid + 1) * i - 1;
+        if (idx < blockSize)
+            prefixSumNumOne[idx] += prefixSumNumOne[idx - (i >> 1)];
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    
+    prefixSumNumOne[blockSize - 1] = 0;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (uint i = blockSize; i >= 2; i >>= 1) {
+        uint idx1 = (lid + 1) * i - 1;
+        if (idx1 < blockSize) {
+            uint idx0 = idx1 - (i >> 1);
+            uint temp = prefixSumNumOne[idx0];
+            prefixSumNumOne[idx0] = prefixSumNumOne[idx1];
+            prefixSumNumOne[idx1] += temp;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    
+    return prefixSumNumOne[lid];
+}
+
+uint split(local ushort* prefixSumNumOne, const uint blockSize, const uint lid, uint pred) {
+    uint trueBefore = scan(prefixSumNumOne, blockSize, lid);
+    
+    local uint falseTotal;
+    if (lid == blockSize - 1)
+        falseTotal = blockSize - (trueBefore + pred);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if (pred)
+        return trueBefore + falseTotal;
+    else
+        return lid - trueBefore;
+}
+
+kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, uchar bitID,
+                          global uint* indices) {
+    const uint blockSize = 128;
+    
+    const uint lid0 = get_local_id(0);
+    const uint gid0 = get_global_id(0);
+    
+    local uchar mortonCodesInBlock[blockSize];
+    local ushort indicesInBlock[blockSize];
+    local ushort prefixSumNumOne[blockSize];
+    
+    if (gid0 < numPrimitives) {
+        uint idx = indices[gid0];
+        uchar3 extracted = convert_uchar3(mortonCodes[idx] >> bitID) & (uchar)(0x01);
+        mortonCodesInBlock[lid0] = extracted.x + (extracted.y << 1) + (extracted.z << 2);
+    }
+    else {
+        mortonCodesInBlock[lid0] = 0x07;
+    }
+    indicesInBlock[lid0] = lid0;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+//    if (get_group_id(0) == get_num_groups(0) - 1) {
+//        if (gid0 < numPrimitives) {
+//            uint idx = indicesInBlock[lid0];
+//            printf("b %04u, %u\n", lid0, mortonCodesInBlock[idx]);
+//        }
+//        else {
+//            printf("b %04u %08u, 111(NA, NA, NA)\n", lid0, 0);
+//        }
+//    }
+    
+    for (uint axis = 0; axis < 3; ++axis) {
+        prefixSumNumOne[lid0] = (mortonCodesInBlock[indicesInBlock[lid0]] >> axis) & 0x01;
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        uint dstIdx = split(prefixSumNumOne, blockSize, lid0, prefixSumNumOne[lid0]);
+        uint curIdx = indicesInBlock[lid0];
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        indicesInBlock[dstIdx] = curIdx;
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    
+    if (gid0 < numPrimitives) {
+        uint idx = indices[gid0 + indicesInBlock[lid0] - lid0];
+        barrier(CLK_GLOBAL_MEM_FENCE);
+        indices[gid0] = idx;
+    }
+    
+//    if (get_group_id(0) == get_num_groups(0) - 1) {
+//        if (gid0 < numPrimitives) {
+//            uint idx = indices[gid0];
+//            uint3 mc = mortonCodes[idx];
+//            printf("a %04u, %08u: %#010x %#010x %#010x\n", lid0, idx, mc.x, mc.y, mc.z);
+//        }
+//        else {
+//            printf("a %04u %08u, 111(NA, NA, NA)\n", lid0, 0);
+//        }
+//    }
+}
+
+kernel void calcBlockwiseHistograms(const global uint3* mortonCodes, uint numPrimitives, uchar bitID,
+                                    global uint* indices, global uint* histogram) {
+    const uint blockSize = 128;
+    const uint gid0 = get_global_id(0);
+    
+    uint currentMortonCode = 0;
+    for (uint i = 0; i < blockSize; ++i) {
+        uint3 rawMC = mortonCodes[gid0 * blockSize + i];
+    }
 }

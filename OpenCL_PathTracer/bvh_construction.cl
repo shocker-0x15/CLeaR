@@ -59,10 +59,10 @@ kernel void calcAABBs(const global point3* vertices, const global uchar* faces, 
     *((global AABB*)AABBs + gid0) = box;
 }
 
-kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* mergedAABBs) {
+kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* unifiedAABBs) {
     const uint blockSize = 128;
     const global AABB* gAABBs = (const global AABB*)AABBs;
-    global AABB* gMergedAABBs = (global AABB*)mergedAABBs;
+    global AABB* gUnifiedAABBs = (global AABB*)unifiedAABBs;
     
     local point3 lmin[blockSize];
     local point3 lmax[blockSize];
@@ -109,11 +109,11 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* m
     }
     
     if (lid0 == 0) {
-        AABB mergedAABB;
-        mergedAABB.min = lmin[0];
-        mergedAABB.max = lmax[0];
-        mergedAABB.center = (mergedAABB.min + mergedAABB.max) * 0.5f;
-        gMergedAABBs[get_group_id(0)] = mergedAABB;
+        AABB unifiedAABB;
+        unifiedAABB.min = lmin[0];
+        unifiedAABB.max = lmax[0];
+        unifiedAABB.center = (unifiedAABB.min + unifiedAABB.max) * 0.5f;
+        gUnifiedAABBs[get_group_id(0)] = unifiedAABB;
     }
 }
 
@@ -202,20 +202,21 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
 //        }
 //    }
     
+    uint curIdx = indicesInBlock[lid0];
     for (uint axis = 0; axis < 3; ++axis) {
-        prefixSumNumOne[lid0] = (mortonCodesInBlock[indicesInBlock[lid0]] >> axis) & 0x01;
+        prefixSumNumOne[lid0] = (mortonCodesInBlock[curIdx] >> axis) & 0x01;
         barrier(CLK_LOCAL_MEM_FENCE);
         
         uint dstIdx = split(prefixSumNumOne, blockSize, lid0, prefixSumNumOne[lid0]);
-        uint curIdx = indicesInBlock[lid0];
         barrier(CLK_LOCAL_MEM_FENCE);
         
         indicesInBlock[dstIdx] = curIdx;
         barrier(CLK_LOCAL_MEM_FENCE);
+        curIdx = indicesInBlock[lid0];
     }
     
     if (gid0 < numPrimitives) {
-        uint idx = indices[gid0 + indicesInBlock[lid0] - lid0];
+        uint idx = indices[gid0 + curIdx - lid0];
         barrier(CLK_GLOBAL_MEM_FENCE);
         indices[gid0] = idx;
     }

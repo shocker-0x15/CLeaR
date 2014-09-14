@@ -33,7 +33,7 @@ namespace {
             return startTimePoint;
         }
         
-        inline uint64_t durationCast(const typename res::duration &duration, EDurationType dt) {
+        inline uint64_t durationCast(const typename res::duration &duration, EDurationType dt) const {
             switch (dt) {
                 case Nanoseconds:
                     return duration_cast<nanoseconds>(duration).count();

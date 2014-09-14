@@ -42,7 +42,7 @@ std::string stringFromFile(const char* filename) {
     return std::string{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
 }
 
-void buildScene() {
+void buildScene(StopWatch &sw) {
     namespace LA = LinearAlgebra;
     
     std::vector<uint8_t>* refOthers = &scene.otherResouces;
@@ -231,7 +231,9 @@ void buildScene() {
     
     scene.localToWorld.pop();
     
+    sw.start();
     scene.build();
+    printf("building BVH done! ... time: %fmsec\n", sw.stop(StopWatch::Microseconds) * 0.001f);
 }
 
 int main(int argc, const char * argv[]) {
@@ -249,8 +251,8 @@ int main(int argc, const char * argv[]) {
     const uint32_t iterations = 16;
     
     stopwatch.start();
-    buildScene();
-    printf("build time: %lldmsec\n", stopwatch.stop());
+    buildScene(stopwatch);
+    printf("build time: %fsec\n", stopwatch.stop() * 0.001f);
     
     cl_int ret = CL_SUCCESS;
 #ifdef __CL_ENABLE_EXCEPTIONS

@@ -212,22 +212,22 @@ void buildScene(StopWatch &sw) {
     }
     scene.localToWorld.pop();
     
-    for (int i = 0; i < 100; ++i) {
-        float scale = 0.25f * (0.5f + rng.getFloat0cTo1o());
-        float angle = 2 * M_PI * rng.getFloat0cTo1o();
-        float tx = -5 + 10 * rng.getFloat0cTo1o();
-        float ty = -5 + 10 * rng.getFloat0cTo1o();
-        float tz = -5 + 10 * rng.getFloat0cTo1o();
-        Vector3f axis{rng.getFloat0cTo1o(), rng.getFloat0cTo1o(), rng.getFloat0cTo1o()};
-        axis = axis.normalize();
-        
-        scene.localToWorld.push();
-        {
-            scene.localToWorld *= LA::TranslateMatrix(tx, ty, tz) * LA::RotateMatrix(angle, axis.x, axis.y, axis.z) * LA::ScaleMatrix(scale, scale, scale);
-            loadModel("models/Pikachu.obj", &scene);
-        }
-        scene.localToWorld.pop();
-    }
+//    for (int i = 0; i < 100; ++i) {
+//        float scale = 0.25f * (0.5f + rng.getFloat0cTo1o());
+//        float angle = 2 * M_PI * rng.getFloat0cTo1o();
+//        float tx = -5 + 10 * rng.getFloat0cTo1o();
+//        float ty = -5 + 10 * rng.getFloat0cTo1o();
+//        float tz = -5 + 10 * rng.getFloat0cTo1o();
+//        Vector3f axis{rng.getFloat0cTo1o(), rng.getFloat0cTo1o(), rng.getFloat0cTo1o()};
+//        axis = axis.normalize();
+//        
+//        scene.localToWorld.push();
+//        {
+//            scene.localToWorld *= LA::TranslateMatrix(tx, ty, tz) * LA::RotateMatrix(angle, axis.x, axis.y, axis.z) * LA::ScaleMatrix(scale, scale, scale);
+//            loadModel("models/Pikachu.obj", &scene);
+//        }
+//        scene.localToWorld.pop();
+//    }
     
     scene.localToWorld.pop();
     
@@ -359,11 +359,11 @@ int main(int argc, const char * argv[]) {
             kernelCalcAABBs.setArg(2, scene.numFaces());
             kernelCalcAABBs.setArg(3, buf_AABBs);
             
-            uint32_t localSize = 128;
-            uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            const uint32_t localSize = 128;
+            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             queue.enqueueNDRangeKernel(kernelCalcAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
         }
-        cl::finish();
+        queue.finish();
         if (profiling) {
             events[0].wait();
             getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
@@ -376,11 +376,11 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_unifiedAABBs;
         {
             uint32_t numAABBs = (uint32_t)scene.numFaces();
-            uint32_t localSize = 128;
+            const uint32_t localSize = 128;
             evIdx = 0;
             while (true) {
-                uint32_t numMerged = (numAABBs + (localSize - 1)) / localSize;
-                uint32_t workSize = numMerged * localSize;
+                const uint32_t numMerged = (numAABBs + (localSize - 1)) / localSize;
+                const uint32_t workSize = numMerged * localSize;
                 buf_unifiedAABBs = cl::Buffer(context, CL_MEM_READ_WRITE, numMerged * sizeof(AABB), nullptr, nullptr);
                 
                 kernelUnifyAABBs.setArg(0, buf_srcAABBs);
@@ -397,7 +397,7 @@ int main(int argc, const char * argv[]) {
                 numAABBs = numMerged;
             }
         }
-        cl::finish();
+        queue.finish();
         if (profiling) {
             cl_ulong sumTimeUnion = 0, sumTimeUnionFromSubmit = 0;
             for (uint32_t i = 0; i < evIdx; ++i) {
@@ -414,7 +414,7 @@ int main(int argc, const char * argv[]) {
         // モートンコードを求める。
         cl::Kernel kernelCalcMortonCodes{programBuildAccel, "calcMortonCodes"};
         cl::Buffer buf_MortonCodes{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint3), nullptr, nullptr};
-        cl::Buffer buf_Indices{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint), nullptr, nullptr};
+        cl::Buffer buf_indices{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint), nullptr, nullptr};
         {
             cl_float3 sizeEntireAABB = {
                 entireAABB.max.s0 - entireAABB.min.s0,
@@ -428,36 +428,89 @@ int main(int argc, const char * argv[]) {
             kernelCalcMortonCodes.setArg(3, sizeEntireAABB);
             kernelCalcMortonCodes.setArg(4, 10);
             kernelCalcMortonCodes.setArg(5, buf_MortonCodes);
-            kernelCalcMortonCodes.setArg(6, buf_Indices);
+            kernelCalcMortonCodes.setArg(6, buf_indices);
             
-            uint32_t localSize = 128;
-            uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            const uint32_t localSize = 128;
+            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             queue.enqueueNDRangeKernel(kernelCalcMortonCodes, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
         }
-        cl::finish();
+        queue.finish();
         if (profiling) {
             events[0].wait();
             getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating each Morton code done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
         }
         
+        AABB* AABBs = (AABB*)malloc(scene.numFaces() * sizeof(AABB));
+        cl_uint3* mortonCodes = (cl_uint3*)malloc(scene.numFaces() * sizeof(cl_uint3));
+        cl_uint* indices = (cl_uint*)malloc(scene.numFaces() * sizeof(cl_uint));
+        queue.enqueueReadBuffer(buf_AABBs, CL_TRUE, 0, scene.numFaces() * sizeof(AABB), AABBs);
+        queue.enqueueReadBuffer(buf_MortonCodes, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint3), mortonCodes);
+        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
+        for (uint32_t i = 0; i < 256; ++i) {
+            cl_uint idx = indices[i];
+            cl_uint3 mc = mortonCodes[idx];
+            AABB aabb = AABBs[idx];
+            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
+                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
+        }
+        printf("--------------------------------\n");
+        
         cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
+        cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
         {
+            const uint32_t localSizeBlockwiseSort = 128;
+            const uint32_t numBlocks = (((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort);
+            const uint32_t workSizeBlockwiseSort = numBlocks * localSizeBlockwiseSort;
+            const uint32_t localSizeHistograms = 128;
+            const uint32_t workSizeHistograms = ((numBlocks + (localSizeHistograms - 1)) / localSizeHistograms) * localSizeHistograms;
+            cl::Buffer buf_histograms{context, CL_MEM_READ_WRITE, numBlocks * (1 << 3) * sizeof(uint32_t), nullptr, nullptr};
+            
             kernelBlockwiseSort.setArg(0, buf_MortonCodes);
             kernelBlockwiseSort.setArg(1, scene.numFaces());
-            kernelBlockwiseSort.setArg(2, 0);
-            kernelBlockwiseSort.setArg(3, buf_Indices);
+            kernelBlockwiseSort.setArg(3, buf_indices);
             
-            uint32_t localSize = 128;
-            uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
-            queue.enqueueNDRangeKernel(kernelBlockwiseSort, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
+            kernelCalcBlockwiseHistograms.setArg(0, buf_MortonCodes);
+            kernelCalcBlockwiseHistograms.setArg(1, scene.numFaces());
+            kernelCalcBlockwiseHistograms.setArg(3, buf_indices);
+            kernelCalcBlockwiseHistograms.setArg(4, numBlocks);
+            kernelCalcBlockwiseHistograms.setArg(5, buf_histograms);
+            
+            evIdx = 0;
+            for (uint32_t i = 0; i < 1; ++i) {
+                kernelBlockwiseSort.setArg(2, i);
+                
+                queue.enqueueNDRangeKernel(kernelBlockwiseSort, cl::NullRange, cl::NDRange{workSizeBlockwiseSort},
+                                           cl::NDRange{localSizeBlockwiseSort}, nullptr, &events[evIdx++]);
+                queue.enqueueBarrierWithWaitList();
+                
+                kernelCalcBlockwiseHistograms.setArg(2, i);
+                
+                queue.enqueueNDRangeKernel(kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange{workSizeHistograms},
+                                           cl::NDRange{localSizeHistograms}, nullptr, &events[evIdx++]);
+            }
+            queue.finish();
+            if (profiling) {
+                cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
+                for (uint32_t i = 0; i < evIdx; ++i) {
+                    events[i].wait();
+                    getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+                    sumTimeRadixSort += tpCmdEnd - tpCmdStart;
+                    sumTimeRadixSortFromSubmit += tpCmdEnd - tpCmdSubmit;
+                }
+                printf("blockwise sorting done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, sumTimeRadixSortFromSubmit * 0.001f);
+            }
         }
-        cl::finish();
-        if (profiling) {
-            events[0].wait();
-            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-            printf("blockwise sorting done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
+        
+        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
+        for (uint32_t i = 0; i < 256; ++i) {
+            cl_uint idx = indices[i];
+            cl_uint3 mc = mortonCodes[idx];
+            AABB aabb = AABBs[idx];
+            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
+                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
         }
+        printf("--------------------------------\n");
         
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
         //------------------------------------------------

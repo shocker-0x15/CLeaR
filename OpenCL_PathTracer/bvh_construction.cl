@@ -37,7 +37,7 @@ kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
                             point3 minEntireAABB, point3 sizeEntireAABB, uint divLevel,
                             global uint3* mortonCodes, global uint* indices);
 uint scan(local ushort* prefixSumNumOne, const uint lid);
-uint split(local ushort* prefixSumNumOne, const uint lid, uint pred);
+uint split(local ushort* prefixSumNumOne, local uint* falseTotal, const uint lid, uint pred);
 kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, uchar bitID,
                           global uint* indices);
 
@@ -141,13 +141,14 @@ uint scan(local ushort* prefixSumNumOne, const uint lid) {
         barrier(CLK_LOCAL_MEM_FENCE);
     }
     
-    prefixSumNumOne[SortSize - 1] = 0;
+    if (lid == 0)
+        prefixSumNumOne[lid] = 0;
     barrier(CLK_LOCAL_MEM_FENCE);
     for (uint i = SortSize; i >= 2; i >>= 1) {
         uint idx1 = (lid + 1) * i - 1;
         if (idx1 < SortSize) {
             uint idx0 = idx1 - (i >> 1);
-            uint temp = prefixSumNumOne[idx0];
+            ushort temp = prefixSumNumOne[idx0];
             prefixSumNumOne[idx0] = prefixSumNumOne[idx1];
             prefixSumNumOne[idx1] += temp;
         }
@@ -157,16 +158,15 @@ uint scan(local ushort* prefixSumNumOne, const uint lid) {
     return prefixSumNumOne[lid];
 }
 
-uint split(local ushort* prefixSumNumOne, const uint lid, uint pred) {
+uint split(local ushort* prefixSumNumOne, local uint* falseTotal, const uint lid, uint pred) {
     uint trueBefore = scan(prefixSumNumOne, lid);
     
-    local uint falseTotal;
     if (lid == SortSize - 1)
-        falseTotal = SortSize - (trueBefore + pred);
+        *falseTotal = SortSize - (trueBefore + pred);
     barrier(CLK_LOCAL_MEM_FENCE);
     
     if (pred)
-        return trueBefore + falseTotal;
+        return trueBefore + *falseTotal;
     else
         return lid - trueBefore;
 }
@@ -179,6 +179,7 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
     local uchar mortonCodesInBlock[SortSize];
     local ushort indicesInBlock[SortSize];
     local ushort prefixSumNumOne[SortSize];
+    local uint falseTotal;
     
     if (gid0 < numPrimitives) {
         uint idx = indices[gid0];
@@ -206,19 +207,17 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
         prefixSumNumOne[lid0] = (mortonCodesInBlock[curIdx] >> axis) & 0x01;
         barrier(CLK_LOCAL_MEM_FENCE);
         
-        uint dstIdx = split(prefixSumNumOne, lid0, prefixSumNumOne[lid0]);
-        barrier(CLK_LOCAL_MEM_FENCE);
+        uint dstIdx = split(prefixSumNumOne, &falseTotal, lid0, prefixSumNumOne[lid0]);
         
         indicesInBlock[dstIdx] = curIdx;
         barrier(CLK_LOCAL_MEM_FENCE);
         curIdx = indicesInBlock[lid0];
     }
-    
-    if (gid0 < numPrimitives) {
-        uint idx = indices[gid0 + curIdx - lid0];
-        barrier(CLK_GLOBAL_MEM_FENCE);
+
+    uint idx = (gid0 < numPrimitives) ? indices[gid0 + curIdx - lid0] : UINT_MAX;
+    barrier(CLK_GLOBAL_MEM_FENCE);
+    if (idx != UINT_MAX)
         indices[gid0] = idx;
-    }
     
 //    if (get_group_id(0) == get_num_groups(0) - 1) {
 //        if (gid0 < numPrimitives) {
@@ -260,11 +259,6 @@ kernel void calcBlockwiseHistograms(const global uint3* mortonCodes, uint numPri
             ++count;
             ++i;
         }
-        if (mc < mcOfBucket) {
-            printf("gid0:%u, i:%u, idxIdx:%u, idx:%u, mc:%u, mcOfBucket:%u\n", gid0, i, idxIdx, idx, mc, mcOfBucket);
-            break;
-        }
-            
         
         if (mc > mcOfBucket) {
             histogram[numBlocks * mcOfBucket + gid0] = count;

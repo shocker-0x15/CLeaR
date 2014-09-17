@@ -447,13 +447,13 @@ int main(int argc, const char * argv[]) {
         queue.enqueueReadBuffer(buf_AABBs, CL_TRUE, 0, scene.numFaces() * sizeof(AABB), AABBs);
         queue.enqueueReadBuffer(buf_MortonCodes, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint3), mortonCodes);
         queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
-        for (uint32_t i = 0; i < 256; ++i) {
-            cl_uint idx = indices[i];
-            cl_uint3 mc = mortonCodes[idx];
-            AABB aabb = AABBs[idx];
-            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
-                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
-        }
+//        for (uint32_t i = 0; i < 256; ++i) {
+//            cl_uint idx = indices[i];
+//            cl_uint3 mc = mortonCodes[idx];
+//            AABB aabb = AABBs[idx];
+//            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
+//                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
+//        }
         printf("--------------------------------\n");
         
         cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
@@ -484,10 +484,10 @@ int main(int argc, const char * argv[]) {
                                            cl::NDRange{localSizeBlockwiseSort}, nullptr, &events[evIdx++]);
                 queue.enqueueBarrierWithWaitList();
                 
-                kernelCalcBlockwiseHistograms.setArg(2, i);
-                
-                queue.enqueueNDRangeKernel(kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange{workSizeHistograms},
-                                           cl::NDRange{localSizeHistograms}, nullptr, &events[evIdx++]);
+//                kernelCalcBlockwiseHistograms.setArg(2, i);
+//                
+//                queue.enqueueNDRangeKernel(kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange{workSizeHistograms},
+//                                           cl::NDRange{localSizeHistograms}, nullptr, &events[evIdx++]);
             }
             queue.finish();
             if (profiling) {
@@ -503,12 +503,31 @@ int main(int argc, const char * argv[]) {
         }
         
         queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
-        for (uint32_t i = 0; i < 256; ++i) {
+        cl_uchar prevMortonCode = 0;
+        for (uint32_t i = 0; i < scene.numFaces(); ++i) {
             cl_uint idx = indices[i];
             cl_uint3 mc = mortonCodes[idx];
+            cl_uchar ex = ((mc.x & 0x01) << 0) + ((mc.y & 0x01) << 1) + ((mc.z & 0x01) << 2);
+            if (i % 128 == 0) {
+                prevMortonCode = 0;
+            }
+            else {
+                if (ex < prevMortonCode) {
+                    printf("error\n");
+                    for (uint32_t j = (i / 128) * 128; j < (i / 128) * 128 + 128; ++j) {
+                        cl_uint idx2 = indices[j];
+                        cl_uint3 mc2 = mortonCodes[idx2];
+                        AABB aabb2 = AABBs[idx2];
+                        printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx2, mc2.z & 0x01, mc2.y & 0x01, mc2.x & 0x01,
+                               mc2.z, mc2.y, mc2.x, aabb2.center.z, aabb2.center.y, aabb2.center.x);
+                    }
+                    printf("----\n");
+                }
+                prevMortonCode = ex;
+            }
             AABB aabb = AABBs[idx];
-            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
-                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
+//            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
+//                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
         }
         printf("--------------------------------\n");
         

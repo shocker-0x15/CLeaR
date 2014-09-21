@@ -29,18 +29,29 @@ typedef struct __attribute__((aligned(16))) {
     point3 center;
 } AABB;
 
+//----------------------------------------------------------------
 
 kernel void calcAABBs(const global point3* vertices, const global uchar* faces, uint numFaces,
                       global uchar* AABBs);
+
 kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* mergedAABBs);
+
 kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
                             point3 minEntireAABB, point3 sizeEntireAABB, uint divLevel,
                             global uint3* mortonCodes, global uint* indices);
+
 ushort scan(local ushort* prefixSumNumOne, const uint lid);
 uint split(local ushort* prefixSumNumOne, local ushort* falseTotal, const uint lid, ushort pred);
 kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, uchar bitID,
-                          global uint* indices);
+                          global uint* indices, global uchar* radixDigits);
 
+kernel void calcBlockwiseHistograms(const global uchar* radixDigits, uint numPrimitives,
+                                    uint numBlocks, global uint* histogram, global ushort* localOffsets);
+
+kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, const global uint* globalOffsets, const global ushort* localOffsets,
+                          const global uint* indicesSrc, global uint* indicesDst)
+
+//----------------------------------------------------------------
 
 kernel void calcAABBs(const global point3* vertices, const global uchar* faces, uint numFaces,
                       global uchar* AABBs) {
@@ -58,6 +69,8 @@ kernel void calcAABBs(const global point3* vertices, const global uchar* faces, 
     box.center = (box.min + box.max) * 0.5f;
     *((global AABB*)AABBs + gid0) = box;
 }
+
+
 
 kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* unifiedAABBs) {
     const uint blockSize = 128;
@@ -117,6 +130,8 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* u
     }
 }
 
+
+
 kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
                             point3 minEntireAABB, point3 sizeEntireAABB, uint divLevel,
                             global uint3* mortonCodes, global uint* indices) {
@@ -131,6 +146,8 @@ kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
     mortonCodes[gid0] = min(convert_uint3_rtz(normPos * numDiv), numDiv - 1);
     indices[gid0] = gid0;
 }
+
+
 
 #define SortSize 128
 ushort scan(local ushort* prefixSumNumOne, const uint lid) {
@@ -172,7 +189,7 @@ uint split(local ushort* prefixSumNumOne, local ushort* falseTotal, const uint l
 }
 
 kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, uchar bitID,
-                          global uint* indices) {
+                          global uint* indices, global uchar* radixDigits) {
     const uint lid0 = get_local_id(0);
     const uint gid0 = get_global_id(0);
     
@@ -183,21 +200,22 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
     
     if (gid0 < numPrimitives) {
         uint idx = indices[gid0];
-        uchar3 extracted = convert_uchar3(mortonCodes[idx] >> bitID) & (uchar)(0x01);
+        uchar3 extracted = convert_uchar3((mortonCodes[idx] >> bitID) & 0x01);
         mortonCodesInBlock[lid0] = extracted.x + (extracted.y << 1) + (extracted.z << 2);
     }
     else {
         mortonCodesInBlock[lid0] = 0x07;
     }
-    indicesInBlock[lid0] = lid0;
     barrier(CLK_LOCAL_MEM_FENCE);
     
     uint curIdx = lid0;
     for (uint axis = 0; axis < 3; ++axis) {
-        prefixSumNumOne[lid0] = (mortonCodesInBlock[curIdx] >> axis) & 0x01;
+        // このprivate変数にコピーしてsplit()との間にバリアを張ることで同期ミスを防ぐ。
+        uchar pred = (mortonCodesInBlock[curIdx] >> axis) & 0x01;
+        prefixSumNumOne[lid0] = pred;
         barrier(CLK_LOCAL_MEM_FENCE);
         
-        uint dstIdx = split(prefixSumNumOne, &falseTotal, lid0, prefixSumNumOne[lid0]);
+        uint dstIdx = split(prefixSumNumOne, &falseTotal, lid0, pred);
         
         indicesInBlock[dstIdx] = curIdx;
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -206,12 +224,16 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
 
     uint idx = (gid0 < numPrimitives) ? indices[(gid0 - lid0) + curIdx] : UINT_MAX;
     barrier(CLK_GLOBAL_MEM_FENCE);
-    if (idx != UINT_MAX)
+    if (idx != UINT_MAX) {
         indices[gid0] = idx;
+        radixDigits[gid0] = mortonCodesInBlock[curIdx];
+    }
 }
 
-kernel void calcBlockwiseHistograms(const global uint3* mortonCodes, uint numPrimitives, uchar bitID,
-                                    const global uint* indices, uint numBlocks, global uint* histogram) {
+
+
+kernel void calcBlockwiseHistograms(const global uchar* radixDigits, uint numPrimitives, 
+                                    uint numBlocks, global uint* histogram, global ushort* localOffsets) {
     const uint gid0 = get_global_id(0);
     if (gid0 >= numBlocks)
         return;
@@ -219,21 +241,21 @@ kernel void calcBlockwiseHistograms(const global uint3* mortonCodes, uint numPri
     uint i = 0;
     uint count = 0;
     uchar mcOfBucket = 0;
+    localOffsets[8 * gid0 + 0] = 0;
     while (true) {
-        uint idxIdx = SortSize * gid0 + i;
-        if (i >= SortSize || idxIdx >= numPrimitives) {
+        uint idx = SortSize * gid0 + i;
+        if (i >= SortSize || idx >= numPrimitives) {
             histogram[numBlocks * mcOfBucket + gid0] = count;
             ++mcOfBucket;
             while (mcOfBucket < 8) {
+                localOffsets[8 * gid0 + mcOfBucket] = i;
                 histogram[numBlocks * mcOfBucket + gid0] = 0;
                 ++mcOfBucket;
             }
             break;
         }
         
-        uint idx = indices[idxIdx];
-        uchar3 extracted = convert_uchar3(mortonCodes[idx] >> bitID) & (uchar)(0x01);
-        uchar mc = extracted.x + (extracted.y << 1) + (extracted.z << 2);
+        uchar mc = radixDigits[idx];
         if (mc == mcOfBucket) {
             ++count;
             ++i;
@@ -243,6 +265,24 @@ kernel void calcBlockwiseHistograms(const global uint3* mortonCodes, uint numPri
             histogram[numBlocks * mcOfBucket + gid0] = count;
             count = 0;
             ++mcOfBucket;
+            localOffsets[8 * gid0 + mcOfBucket] = i;
         }
     }
+}
+
+
+
+kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, const global uint* globalOffsets, const global ushort* localOffsets,
+                          const global uint* indicesSrc, global uint* indicesDst) {
+    const uint lid0 = get_local_id(0);
+    const uint gid0 = get_global_id(0);
+    
+    if (gid0 >= numPrimitives)
+        return;
+    
+    uint idxSrc = indicesSrc[gid0];
+    uchar digit = radixDigits[gid0];
+    uint gOffset = globalOffsets[get_num_groups(0) * digit + get_group_id(0)];
+    uint lOffset = localOffsets[8 * get_group_id(0) + digit];
+    indicesDst[gOffset + (lid0 - lOffset)] = idxSrc;
 }

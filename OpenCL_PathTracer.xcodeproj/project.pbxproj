@@ -37,6 +37,9 @@
 		46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46222A29191D04ED00D71891 /* ModelLoader.cpp */; };
 		4688CD57191E6CE200257766 /* clUtility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD55191E6CE200257766 /* clUtility.cpp */; };
 		4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD58191EA3F400257766 /* CreateFunctions.cpp */; };
+		4691A80A19CEC4CC0077D2B4 /* CLGenericKernels.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4691A80819CEC4CC0077D2B4 /* CLGenericKernels.cpp */; };
+		4691A80D19CEC62D0077D2B4 /* generic_kernels.cl in Sources */ = {isa = PBXBuildFile; fileRef = 4691A80B19CEC62D0077D2B4 /* generic_kernels.cl */; };
+		4691A80E19CEC6A70077D2B4 /* generic_kernels.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4691A80B19CEC62D0077D2B4 /* generic_kernels.cl */; };
 		46A690BF197456F400E54586 /* Scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46A690BE197456F400E54586 /* Scene.cpp */; };
 		46B46F9119460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */; };
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
@@ -76,6 +79,7 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				4691A80E19CEC6A70077D2B4 /* generic_kernels.cl in CopyFiles */,
 				46B7EA9E19C2002700A75264 /* extra_atomics.cl in CopyFiles */,
 				46B7EA9F19C2002700A75264 /* bvh_construction.cl in CopyFiles */,
 				46BC788619816C7500B30320 /* distribution.cl in CopyFiles */,
@@ -149,6 +153,9 @@
 		4649F3AA191EC64600C24459 /* sim_pathtracer.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = sim_pathtracer.hpp; sourceTree = "<group>"; };
 		4688CD55191E6CE200257766 /* clUtility.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = clUtility.cpp; sourceTree = "<group>"; };
 		4688CD58191EA3F400257766 /* CreateFunctions.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CreateFunctions.cpp; sourceTree = "<group>"; };
+		4691A80819CEC4CC0077D2B4 /* CLGenericKernels.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CLGenericKernels.cpp; sourceTree = "<group>"; };
+		4691A80919CEC4CC0077D2B4 /* CLGenericKernels.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CLGenericKernels.h; sourceTree = "<group>"; };
+		4691A80B19CEC62D0077D2B4 /* generic_kernels.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = generic_kernels.cl; sourceTree = "<group>"; };
 		46A690BE197456F400E54586 /* Scene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Scene.cpp; sourceTree = "<group>"; };
 		46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libIlmImf-Imf_2_1.21.dylib"; path = "../../../../../usr/local/lib/libIlmImf-Imf_2_1.21.dylib"; sourceTree = "<group>"; };
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
@@ -265,6 +272,8 @@
 				46222A2E191D0ECD00D71891 /* clUtility.hpp */,
 				4688CD55191E6CE200257766 /* clUtility.cpp */,
 				46DC8B6719C202FA00AAD776 /* StopWatch.hpp */,
+				4691A80919CEC4CC0077D2B4 /* CLGenericKernels.h */,
+				4691A80819CEC4CC0077D2B4 /* CLGenericKernels.cpp */,
 			);
 			path = CommonSources;
 			sourceTree = "<group>";
@@ -272,6 +281,7 @@
 		4649F3A1191EB9A100C24459 /* OpenCL */ = {
 			isa = PBXGroup;
 			children = (
+				4691A80B19CEC62D0077D2B4 /* generic_kernels.cl */,
 				462229FD191AB6B800D71891 /* global.cl */,
 				46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */,
 				46E860651928E89A00944028 /* matrix.cl */,
@@ -368,6 +378,8 @@
 				46A690BF197456F400E54586 /* Scene.cpp in Sources */,
 				462229F7191AB60200D71891 /* XORShift.cpp in Sources */,
 				46222A09191AB6B800D71891 /* rng.cl in Sources */,
+				4691A80D19CEC62D0077D2B4 /* generic_kernels.cl in Sources */,
+				4691A80A19CEC4CC0077D2B4 /* CLGenericKernels.cpp in Sources */,
 				46BC78851981663F00B30320 /* scene.cl in Sources */,
 				462229E9191AB59D00D71891 /* main.cpp in Sources */,
 				462229FB191AB64300D71891 /* ImageLoader.cpp in Sources */,

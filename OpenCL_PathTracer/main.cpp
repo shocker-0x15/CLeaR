@@ -8,20 +8,25 @@
 
 #include <cstdio>
 #include <vector>
+#include <fstream>
+
 #include "LinearAlgebra.h"
 #include "XORShift.hpp"
-#include <fstream>
+#include "StopWatch.hpp"
+
 #define __CL_ENABLE_EXCEPTIONS
 #include "cl12.hpp"
 #include "clUtility.hpp"
+#include "CLGenericKernels.h"
+
+#include "sim_pathtracer.hpp"
+
 #include "CreateFunctions.hpp"
 #include "ModelLoader.hpp"
 #include "BVH.hpp"
 #include "Scene.h"
-#include "StopWatch.hpp"
-#include "BMPExporter.h"
 
-#include "sim_pathtracer.hpp"
+#include "BMPExporter.h"
 
 void CL_CALLBACK completeTile(cl_event ev, cl_int exec_status, void* user_data) {
     printf("*");
@@ -236,6 +241,8 @@ void buildScene(StopWatch &sw) {
     printf("building BVH done! ... time: %fmsec\n", sw.stop(StopWatch::Microseconds) * 0.001f);
 }
 
+
+
 int main(int argc, const char * argv[]) {
     using namespace std::chrono;
     
@@ -277,11 +284,23 @@ int main(int argc, const char * argv[]) {
         cl::Context context{device, ctx_props};
         const bool profiling = true;
         cl::CommandQueue queue{context, device, static_cast<cl_command_queue_properties>(profiling ? CL_QUEUE_PROFILING_ENABLE : 0)};
-        std::vector<cl::Event> events{50};
+        std::vector<cl::Event> events{500};
         uint32_t evIdx;
         cl_ulong tpCmdStart, tpCmdEnd, tpCmdSubmit;
         
         std::string buildLog;
+        
+        //------------------------------------------------
+        // 汎用プログラムの生成
+        
+        stopwatch.start();
+        
+        CLGeneric::GlobalScan globalScan{context, device};
+        
+        printf("generic kernels setup time: %lldmsec\n", stopwatch.stop());
+        printf("\n");
+        
+        //------------------------------------------------
         
         //------------------------------------------------
         // 空間分割プログラムの生成
@@ -342,6 +361,8 @@ int main(int argc, const char * argv[]) {
         // 空間分割開始
         stopwatchHiRes.start();
         
+        uint32_t numBitsPerDim = 10;
+        
         struct AABB {
             cl_float3 min;
             cl_float3 max;
@@ -354,13 +375,13 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
         cl::Buffer buf_AABBs{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(AABB), nullptr, nullptr};
         {
+            const uint32_t localSize = 128;
+            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            
             kernelCalcAABBs.setArg(0, buf_vertices);
             kernelCalcAABBs.setArg(1, buf_faces);
             kernelCalcAABBs.setArg(2, scene.numFaces());
             kernelCalcAABBs.setArg(3, buf_AABBs);
-            
-            const uint32_t localSize = 128;
-            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             queue.enqueueNDRangeKernel(kernelCalcAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
         }
         queue.finish();
@@ -386,7 +407,6 @@ int main(int argc, const char * argv[]) {
                 kernelUnifyAABBs.setArg(0, buf_srcAABBs);
                 kernelUnifyAABBs.setArg(1, numAABBs);
                 kernelUnifyAABBs.setArg(2, buf_unifiedAABBs);
-                
                 queue.enqueueNDRangeKernel(kernelUnifyAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[evIdx++]);
                 queue.enqueueBarrierWithWaitList();
                 
@@ -422,16 +442,16 @@ int main(int argc, const char * argv[]) {
                 entireAABB.max.s2 - entireAABB.min.s2
             };
             
+            const uint32_t localSize = 128;
+            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            
             kernelCalcMortonCodes.setArg(0, buf_AABBs);
             kernelCalcMortonCodes.setArg(1, scene.numFaces());
             kernelCalcMortonCodes.setArg(2, entireAABB.min);
             kernelCalcMortonCodes.setArg(3, sizeEntireAABB);
-            kernelCalcMortonCodes.setArg(4, 10);
+            kernelCalcMortonCodes.setArg(4, numBitsPerDim);
             kernelCalcMortonCodes.setArg(5, buf_MortonCodes);
             kernelCalcMortonCodes.setArg(6, buf_indices);
-            
-            const uint32_t localSize = 128;
-            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             queue.enqueueNDRangeKernel(kernelCalcMortonCodes, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
         }
         queue.finish();
@@ -442,94 +462,158 @@ int main(int argc, const char * argv[]) {
         }
         
         AABB* AABBs = (AABB*)malloc(scene.numFaces() * sizeof(AABB));
-        cl_uint3* mortonCodes = (cl_uint3*)malloc(scene.numFaces() * sizeof(cl_uint3));
-        cl_uint* indices = (cl_uint*)malloc(scene.numFaces() * sizeof(cl_uint));
-        queue.enqueueReadBuffer(buf_AABBs, CL_TRUE, 0, scene.numFaces() * sizeof(AABB), AABBs);
+        cl_uint3* mortonCodes;
+        cl_uint* indices;
+        mortonCodes = (cl_uint3*)malloc(scene.numFaces() * sizeof(cl_uint3));
+        indices = (cl_uint*)malloc(scene.numFaces() * sizeof(cl_uint));
+//        queue.enqueueReadBuffer(buf_AABBs, CL_TRUE, 0, scene.numFaces() * sizeof(AABB), AABBs);
         queue.enqueueReadBuffer(buf_MortonCodes, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint3), mortonCodes);
-        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
-//        for (uint32_t i = 0; i < 256; ++i) {
+//        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
+//        for (uint32_t i = 0; i < scene.numFaces(); ++i) {
 //            cl_uint idx = indices[i];
 //            cl_uint3 mc = mortonCodes[idx];
-//            AABB aabb = AABBs[idx];
-//            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
-//                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
+//            printf("%08u: ", idx);
+//            for (int32_t j = numBitsPerDim - 1; j >= 0; --j) {
+//                printf("%u%u%u ", (mc.z >> j) & 0x01, (mc.y >> j) & 0x01, (mc.x >> j) & 0x01);
+//            }
+//            printf("\n");
 //        }
-        printf("--------------------------------\n");
+//        printf("--------------------------------\n");
         
         cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
         cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
+        cl::Kernel kernelGlobalScatter{programBuildAccel, "globalScatter"};
         {
+            // プリミティブ数に従ったワークサイズ。
             const uint32_t localSizeBlockwiseSort = 128;
-            const uint32_t numBlocks = (((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort);
-            const uint32_t workSizeBlockwiseSort = numBlocks * localSizeBlockwiseSort;
+            const uint32_t numPrimGroups = (((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort);
+            const uint32_t workSizeBlockwiseSort = numPrimGroups * localSizeBlockwiseSort;
+            cl::Buffer buf_radixDigits{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uchar), nullptr, nullptr};
+            
+            // プリミティブグループ数に従ったワークサイズ。
+            // 出力されるヒストグラムはプリミティブグループ数 * 8の要素数を持つ。
             const uint32_t localSizeHistograms = 128;
-            const uint32_t workSizeHistograms = ((numBlocks + (localSizeHistograms - 1)) / localSizeHistograms) * localSizeHistograms;
-            cl::Buffer buf_histograms{context, CL_MEM_READ_WRITE, numBlocks * (1 << 3) * sizeof(uint32_t), nullptr, nullptr};
+            const uint32_t numElementsHistograms = numPrimGroups * (1 << 3);
+            const uint32_t workSizeHistograms = ((numPrimGroups + (localSizeHistograms - 1)) / localSizeHistograms) * localSizeHistograms;
+            cl::Buffer buf_histograms{context, CL_MEM_READ_WRITE, numElementsHistograms * sizeof(uint32_t), nullptr, nullptr};
+            cl::Buffer buf_offsets{context, CL_MEM_READ_WRITE, numElementsHistograms * sizeof(uint16_t), nullptr, nullptr};
             
-            kernelBlockwiseSort.setArg(0, buf_MortonCodes);
-            kernelBlockwiseSort.setArg(1, scene.numFaces());
-            kernelBlockwiseSort.setArg(3, buf_indices);
-            
-            kernelCalcBlockwiseHistograms.setArg(0, buf_MortonCodes);
-            kernelCalcBlockwiseHistograms.setArg(1, scene.numFaces());
-            kernelCalcBlockwiseHistograms.setArg(3, buf_indices);
-            kernelCalcBlockwiseHistograms.setArg(4, numBlocks);
-            kernelCalcBlockwiseHistograms.setArg(5, buf_histograms);
+            cl::Buffer buf_indices_shadow{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint), nullptr, nullptr};
             
             evIdx = 0;
-            for (uint32_t i = 0; i < 1; ++i) {
+            for (uint32_t i = 0; i < numBitsPerDim; ++i) {
+                kernelBlockwiseSort.setArg(0, buf_MortonCodes);
+                kernelBlockwiseSort.setArg(1, scene.numFaces());
                 kernelBlockwiseSort.setArg(2, i);
-                
+                kernelBlockwiseSort.setArg(3, buf_indices);
+                kernelBlockwiseSort.setArg(4, buf_radixDigits);
                 queue.enqueueNDRangeKernel(kernelBlockwiseSort, cl::NullRange, cl::NDRange{workSizeBlockwiseSort},
                                            cl::NDRange{localSizeBlockwiseSort}, nullptr, &events[evIdx++]);
                 queue.enqueueBarrierWithWaitList();
+//                queue.finish();
+//                std::vector<cl_uchar> radixDigits;
+//                radixDigits.resize(scene.numFaces());
+//                std::vector<cl_uint> indices;
+//                indices.resize(scene.numFaces());
+//                queue.enqueueReadBuffer(buf_radixDigits, CL_TRUE, 0, scene.numFaces(), radixDigits.data());
+//                queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices.data());
+//                for (uint32_t j = 0; j < radixDigits.size(); ++j) {
+//                    printf("%u\n", radixDigits[j]);
+//                }
+//                for (uint32_t j = 0; j < scene.numFaces(); ++j) {
+//                    cl_uint idx = indices[j];
+//                    cl_uint3 mc = mortonCodes[idx];
+//                    printf("%08u: ", idx);
+//                    for (int32_t k = numBitsPerDim - 1; k >= 0; --k) {
+//                        printf("%u%u%u ", (mc.z >> k) & 0x01, (mc.y >> k) & 0x01, (mc.x >> k) & 0x01);
+//                    }
+//                    printf("\n");
+//                }
                 
-//                kernelCalcBlockwiseHistograms.setArg(2, i);
-//                
-//                queue.enqueueNDRangeKernel(kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange{workSizeHistograms},
-//                                           cl::NDRange{localSizeHistograms}, nullptr, &events[evIdx++]);
+                
+                kernelCalcBlockwiseHistograms.setArg(0, buf_radixDigits);
+                kernelCalcBlockwiseHistograms.setArg(1, scene.numFaces());
+                kernelCalcBlockwiseHistograms.setArg(2, numPrimGroups);
+                kernelCalcBlockwiseHistograms.setArg(3, buf_histograms);
+                kernelCalcBlockwiseHistograms.setArg(4, buf_offsets);
+                queue.enqueueNDRangeKernel(kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange{workSizeHistograms},
+                                           cl::NDRange{localSizeHistograms}, nullptr, &events[evIdx++]);
+                queue.enqueueBarrierWithWaitList();
+                
+                
+                std::vector<cl::Event> tempEvents;
+                globalScan.perform(queue, buf_histograms, numElementsHistograms, tempEvents);
+                for (uint32_t j = 0; j < tempEvents.size(); ++j)
+                    events[evIdx++] = tempEvents[j];
+                
+                
+                kernelGlobalScatter.setArg(0, buf_radixDigits);
+                kernelGlobalScatter.setArg(1, scene.numFaces());
+                kernelGlobalScatter.setArg(2, buf_histograms);
+                kernelGlobalScatter.setArg(3, buf_offsets);
+                kernelGlobalScatter.setArg(4, buf_indices);
+                kernelGlobalScatter.setArg(5, buf_indices_shadow);
+                queue.enqueueNDRangeKernel(kernelGlobalScatter, cl::NullRange, cl::NDRange{workSizeBlockwiseSort},
+                                           cl::NDRange{localSizeBlockwiseSort}, nullptr, &events[evIdx++]);
+                queue.enqueueBarrierWithWaitList();
+                
+                
+                cl::Buffer tempIndices = buf_indices;
+                buf_indices = buf_indices_shadow;
+                buf_indices_shadow = tempIndices;
             }
             queue.finish();
             if (profiling) {
                 cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
                 for (uint32_t i = 0; i < evIdx; ++i) {
                     events[i].wait();
-                    getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+                    getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
                     sumTimeRadixSort += tpCmdEnd - tpCmdStart;
                     sumTimeRadixSortFromSubmit += tpCmdEnd - tpCmdSubmit;
                 }
-                printf("blockwise sorting done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, sumTimeRadixSortFromSubmit * 0.001f);
+                printf("radix sorting done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, sumTimeRadixSortFromSubmit * 0.001f);
             }
+            
+//            cl_uint* histograms = (cl_uint*)malloc(sizeof(cl_uint) * numElementsHistograms);
+//            cl_ushort* offsets = (cl_ushort*)malloc(sizeof(cl_ushort) * numElementsHistograms);
+//            queue.enqueueReadBuffer(buf_histograms, CL_TRUE, 0, sizeof(cl_uint) * numElementsHistograms, histograms);
+//            queue.enqueueReadBuffer(buf_offsets, CL_TRUE, 0, sizeof(cl_ushort) * numElementsHistograms, offsets);
+//            printf("per block histograms\n");
+//            for (uint32_t i = 0; i < numPrimGroups; ++i) {
+//                printf("b: %05u: ", i);
+//                uint32_t sum = 0;
+//                for (uint32_t j = 0; j < (1 << 3) - 1; ++j) {
+//                    printf("%4u, ", histograms[numPrimGroups * j + i]);
+//                    sum += histograms[numPrimGroups * j + i];
+//                }
+//                printf("%4u", histograms[numPrimGroups * 7 + i]);
+//                sum += histograms[numPrimGroups * 7 + i];
+//                if (sum != 128)
+//                    printf(" error");
+//                printf("\n");
+//            }
+//            printf("per block offsets\n");
+//            for (uint32_t i = 0; i < numPrimGroups; ++i) {
+//                printf("b: %05u: ", i);
+//                for (uint32_t j = 0; j < (1 << 3) - 1; ++j) {
+//                    printf("%3u, ", offsets[(1 << 3) * i + j]);
+//                }
+//                printf("%3u", offsets[(1 << 3) * i + 7]);
+//                printf("\n");
+//            }
         }
         
-        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
-        cl_uchar prevMortonCode = 0;
-        for (uint32_t i = 0; i < scene.numFaces(); ++i) {
-            cl_uint idx = indices[i];
-            cl_uint3 mc = mortonCodes[idx];
-            cl_uchar ex = ((mc.x & 0x01) << 0) + ((mc.y & 0x01) << 1) + ((mc.z & 0x01) << 2);
-            if (i % 128 == 0) {
-                prevMortonCode = 0;
-            }
-            else {
-                if (ex < prevMortonCode) {
-                    printf("error\n");
-                    for (uint32_t j = (i / 128) * 128; j < (i / 128) * 128 + 128; ++j) {
-                        cl_uint idx2 = indices[j];
-                        cl_uint3 mc2 = mortonCodes[idx2];
-                        AABB aabb2 = AABBs[idx2];
-                        printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx2, mc2.z & 0x01, mc2.y & 0x01, mc2.x & 0x01,
-                               mc2.z, mc2.y, mc2.x, aabb2.center.z, aabb2.center.y, aabb2.center.x);
-                    }
-                    printf("----\n");
-                }
-                prevMortonCode = ex;
-            }
-            AABB aabb = AABBs[idx];
-//            printf("%08u: %u%u%u [%4u, %4u, %4u] (%f, %f, %f)\n", idx, mc.z & 0x01, mc.y & 0x01, mc.x & 0x01,
-//                   mc.z, mc.y, mc.x, aabb.center.z, aabb.center.y, aabb.center.x);
-        }
-        printf("--------------------------------\n");
+//        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
+//        for (uint32_t i = 0; i < scene.numFaces(); ++i) {
+//            cl_uint idx = indices[i];
+//            cl_uint3 mc = mortonCodes[idx];
+//            printf("%08u: ", idx);
+//            for (int32_t j = numBitsPerDim - 1; j >= 0; --j) {
+//                printf("%u%u%u ", (mc.z >> j) & 0x01, (mc.y >> j) & 0x01, (mc.x >> j) & 0x01);
+//            }
+//            printf("\n");
+//        }
+//        printf("--------------------------------\n");
         
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
         //------------------------------------------------

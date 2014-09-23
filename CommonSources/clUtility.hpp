@@ -19,6 +19,8 @@ void printDeviceInfo(const cl::Device &device, cl_device_info info);
 
 void getProfilingInfo(const cl::Event &ev, cl_ulong* cmdStart, cl_ulong* cmdEnd, cl_ulong* cmdSubmit = nullptr);
 
+std::string stringFromFile(const char* filename);
+
 cl_float2 makeCLfloat2(float x, float y);
 
 cl_float3 makeCLfloat3(float x, float y, float z);

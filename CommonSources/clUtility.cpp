@@ -8,6 +8,7 @@
 
 #include "clUtility.hpp"
 #include <map>
+#include <fstream>
 
 bool initialized = false;
 
@@ -509,6 +510,14 @@ void getProfilingInfo(const cl::Event &ev, cl_ulong* cmdStart, cl_ulong* cmdEnd,
     ev.getProfilingInfo(CL_PROFILING_COMMAND_END, cmdEnd);
     if (cmdSubmit)
         ev.getProfilingInfo(CL_PROFILING_COMMAND_SUBMIT, cmdSubmit);
+}
+
+std::string stringFromFile(const char* filename) {
+    std::ifstream ifs;
+    ifs.open(filename);
+    ifs.clear();
+    ifs.seekg(0, std::ios::beg);
+    return std::string{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
 }
 
 cl_float2 makeCLfloat2(float x, float y) {

@@ -11,14 +11,6 @@
 #include <fstream>
 
 namespace CLGeneric {
-    std::string stringFromFile(const char* filename) {
-        std::ifstream ifs;
-        ifs.open(filename);
-        ifs.clear();
-        ifs.seekg(0, std::ios::beg);
-        return std::string{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
-    }
-    
     GlobalScan::GlobalScan(cl::Context &context, cl::Device &device) : Technique(context, device) {
         std::string buildLog;
         std::string rawStrBuildAccel = stringFromFile("generic_kernels.cl");

@@ -49,7 +49,7 @@ kernel void calcBlockwiseHistograms(const global uchar* radixDigits, uint numPri
                                     uint numBlocks, global uint* histogram, global ushort* localOffsets);
 
 kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, const global uint* globalOffsets, const global ushort* localOffsets,
-                          const global uint* indicesSrc, global uint* indicesDst)
+                          const global uint* indicesSrc, global uint* indicesDst);
 
 //----------------------------------------------------------------
 
@@ -133,7 +133,7 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* u
 
 
 kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
-                            point3 minEntireAABB, point3 sizeEntireAABB, uint divLevel,
+                            point3 minEntireAABB, point3 sizeEntireAABB, uint bitsPerDim,
                             global uint3* mortonCodes, global uint* indices) {
     const uint gid0 = get_global_id(0);
     if (gid0 >= numPrimitives)
@@ -141,7 +141,7 @@ kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
         
     AABB box = *((const global AABB*)AABBs + gid0);
     
-    uint numDiv = 1 << divLevel;
+    uint numDiv = 1 << bitsPerDim;
     point3 normPos = (box.center - minEntireAABB) / sizeEntireAABB;
     mortonCodes[gid0] = min(convert_uint3_rtz(normPos * numDiv), numDiv - 1);
     indices[gid0] = gid0;
@@ -285,4 +285,97 @@ kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, c
     uint gOffset = globalOffsets[get_num_groups(0) * digit + get_group_id(0)];
     uint lOffset = localOffsets[8 * get_group_id(0) + digit];
     indicesDst[gOffset + (lid0 - lOffset)] = idxSrc;
+}
+
+
+
+kernel void calcSplitList(const global uint3* mortonCodes, uint bitsPerDim, const global uint* indices, uint numPrimitives,
+                          global uint2* splitList) {
+    const uint gid0 = get_global_id(0);
+    
+    if (gid0 >= numPrimitives - 1)
+        return;
+    
+    uint idx0 = indices[gid0];
+    uint idx1 = indices[gid0 + 1];
+    uint3 diffPosFromMSB = clz(mortonCodes[idx0] ^ mortonCodes[idx1]) - (32 - bitsPerDim);
+    uint diffLevel = min(diffPosFromMSB.z * 3 + 0, min(diffPosFromMSB.y * 3 + 1, diffPosFromMSB.x * 3 + 2));
+    
+    splitList[gid0] = (uint2)(diffLevel, gid0);
+}
+
+
+
+#define SplitListSortSize 128
+ushort scanSL(local ushort* prefixSumNumOne, const uint lid) {
+    for (uint i = 2; i <= SplitListSortSize; i <<= 1) {
+        uint idx = (lid + 1) * i - 1;
+        if (idx < SplitListSortSize)
+            prefixSumNumOne[idx] += prefixSumNumOne[idx - (i >> 1)];
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    
+    if (lid == 0)
+        prefixSumNumOne[SplitListSortSize - 1] = 0;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    for (uint i = SplitListSortSize; i >= 2; i >>= 1) {
+        uint idx1 = (lid + 1) * i - 1;
+        if (idx1 < SplitListSortSize) {
+            uint idx0 = idx1 - (i >> 1);
+            ushort temp = prefixSumNumOne[idx0];
+            prefixSumNumOne[idx0] = prefixSumNumOne[idx1];
+            prefixSumNumOne[idx1] += temp;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+    }
+    
+    return prefixSumNumOne[lid];
+}
+
+uint splitSL(local ushort* prefixSumNumOne, local ushort* falseTotal, const uint lid, ushort pred) {
+    ushort trueBefore = scan(prefixSumNumOne, lid);
+    
+    if (lid == SplitListSortSize - 1)
+        *falseTotal = SplitListSortSize - (trueBefore + pred);
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    if (pred)
+        return trueBefore + *falseTotal;
+    else
+        return lid - trueBefore;
+}
+
+kernel void blockwiseSplitListSort(global uint2* splitList, uint listSize, uint bitFrom, uint bitTo) {
+    const uint lid0 = get_local_id(0);
+    const uint gid0 = get_global_id(0);
+    
+    local uchar splitDepthsInBlock[SplitListSortSize];
+    local ushort indicesInBlock[SplitListSortSize];
+    local ushort prefixSumNumOne[SplitListSortSize];
+    local ushort falseTotal;
+    
+    splitDepthsInBlock[lid0] = (gid0 < listSize) ? splitList[gid0].s0 : 0xFF;
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    uint curIdx = lid0;
+    for (uint bit = bitFrom; bit <= bitTo; ++bit) {
+        // このprivate変数にコピーしてsplit()との間にバリアを張ることで同期ミスを防ぐ。
+        uchar pred = (splitDepthsInBlock[curIdx] >> bit) & 0x01;
+        prefixSumNumOne[lid0] = pred;
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
+        uint dstIdx = splitSL(prefixSumNumOne, &falseTotal, lid0, pred);
+        
+        indicesInBlock[dstIdx] = curIdx;
+        barrier(CLK_LOCAL_MEM_FENCE);
+        curIdx = indicesInBlock[lid0];
+    }
+    
+    bool valid = gid0 < listSize;
+    uint2 splitLine;
+    if (valid)
+        splitLine = splitList[(gid0 - lid0) + curIdx];
+    barrier(CLK_GLOBAL_MEM_FENCE);
+    if (valid)
+        splitList[gid0] = splitLine;
 }

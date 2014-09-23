@@ -39,14 +39,6 @@ Scene scene;
 std::vector<uint32_t> g_randStates{};
 std::vector<cl_float3> g_pixels{};
 
-std::string stringFromFile(const char* filename) {
-    std::ifstream ifs;
-    ifs.open(filename);
-    ifs.clear();
-    ifs.seekg(0, std::ios::beg);
-    return std::string{std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>()};
-}
-
 void buildScene(StopWatch &sw) {
     namespace LA = LinearAlgebra;
     
@@ -461,13 +453,13 @@ int main(int argc, const char * argv[]) {
             printf("calculating each Morton code done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
         }
         
-        AABB* AABBs = (AABB*)malloc(scene.numFaces() * sizeof(AABB));
-        cl_uint3* mortonCodes;
-        cl_uint* indices;
-        mortonCodes = (cl_uint3*)malloc(scene.numFaces() * sizeof(cl_uint3));
-        indices = (cl_uint*)malloc(scene.numFaces() * sizeof(cl_uint));
+//        AABB* AABBs = (AABB*)malloc(scene.numFaces() * sizeof(AABB));
+//        cl_uint3* mortonCodes;
+//        cl_uint* indices;
+//        mortonCodes = (cl_uint3*)malloc(scene.numFaces() * sizeof(cl_uint3));
+//        indices = (cl_uint*)malloc(scene.numFaces() * sizeof(cl_uint));
 //        queue.enqueueReadBuffer(buf_AABBs, CL_TRUE, 0, scene.numFaces() * sizeof(AABB), AABBs);
-        queue.enqueueReadBuffer(buf_MortonCodes, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint3), mortonCodes);
+//        queue.enqueueReadBuffer(buf_MortonCodes, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint3), mortonCodes);
 //        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
 //        for (uint32_t i = 0; i < scene.numFaces(); ++i) {
 //            cl_uint idx = indices[i];
@@ -480,6 +472,7 @@ int main(int argc, const char * argv[]) {
 //        }
 //        printf("--------------------------------\n");
         
+        // モートンコードにしたがってradixソート。
         cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
         cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
         cl::Kernel kernelGlobalScatter{programBuildAccel, "globalScatter"};
@@ -510,25 +503,6 @@ int main(int argc, const char * argv[]) {
                 queue.enqueueNDRangeKernel(kernelBlockwiseSort, cl::NullRange, cl::NDRange{workSizeBlockwiseSort},
                                            cl::NDRange{localSizeBlockwiseSort}, nullptr, &events[evIdx++]);
                 queue.enqueueBarrierWithWaitList();
-//                queue.finish();
-//                std::vector<cl_uchar> radixDigits;
-//                radixDigits.resize(scene.numFaces());
-//                std::vector<cl_uint> indices;
-//                indices.resize(scene.numFaces());
-//                queue.enqueueReadBuffer(buf_radixDigits, CL_TRUE, 0, scene.numFaces(), radixDigits.data());
-//                queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices.data());
-//                for (uint32_t j = 0; j < radixDigits.size(); ++j) {
-//                    printf("%u\n", radixDigits[j]);
-//                }
-//                for (uint32_t j = 0; j < scene.numFaces(); ++j) {
-//                    cl_uint idx = indices[j];
-//                    cl_uint3 mc = mortonCodes[idx];
-//                    printf("%08u: ", idx);
-//                    for (int32_t k = numBitsPerDim - 1; k >= 0; --k) {
-//                        printf("%u%u%u ", (mc.z >> k) & 0x01, (mc.y >> k) & 0x01, (mc.x >> k) & 0x01);
-//                    }
-//                    printf("\n");
-//                }
                 
                 
                 kernelCalcBlockwiseHistograms.setArg(0, buf_radixDigits);
@@ -573,34 +547,59 @@ int main(int argc, const char * argv[]) {
                 }
                 printf("radix sorting done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, sumTimeRadixSortFromSubmit * 0.001f);
             }
+        }
+        
+        // ソート済みのモートンコード列から分割箇所のリストを求める。
+        cl::Kernel kernelCalcSplitList{programBuildAccel, "calcSplitList"};
+        cl::Buffer buf_splitList{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(cl_uint2), nullptr, nullptr};
+        {
+            const uint32_t localSize = 128;
+            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             
-//            cl_uint* histograms = (cl_uint*)malloc(sizeof(cl_uint) * numElementsHistograms);
-//            cl_ushort* offsets = (cl_ushort*)malloc(sizeof(cl_ushort) * numElementsHistograms);
-//            queue.enqueueReadBuffer(buf_histograms, CL_TRUE, 0, sizeof(cl_uint) * numElementsHistograms, histograms);
-//            queue.enqueueReadBuffer(buf_offsets, CL_TRUE, 0, sizeof(cl_ushort) * numElementsHistograms, offsets);
-//            printf("per block histograms\n");
-//            for (uint32_t i = 0; i < numPrimGroups; ++i) {
-//                printf("b: %05u: ", i);
-//                uint32_t sum = 0;
-//                for (uint32_t j = 0; j < (1 << 3) - 1; ++j) {
-//                    printf("%4u, ", histograms[numPrimGroups * j + i]);
-//                    sum += histograms[numPrimGroups * j + i];
-//                }
-//                printf("%4u", histograms[numPrimGroups * 7 + i]);
-//                sum += histograms[numPrimGroups * 7 + i];
-//                if (sum != 128)
-//                    printf(" error");
-//                printf("\n");
-//            }
-//            printf("per block offsets\n");
-//            for (uint32_t i = 0; i < numPrimGroups; ++i) {
-//                printf("b: %05u: ", i);
-//                for (uint32_t j = 0; j < (1 << 3) - 1; ++j) {
-//                    printf("%3u, ", offsets[(1 << 3) * i + j]);
-//                }
-//                printf("%3u", offsets[(1 << 3) * i + 7]);
-//                printf("\n");
-//            }
+            kernelCalcSplitList.setArg(0, buf_MortonCodes);
+            kernelCalcSplitList.setArg(1, numBitsPerDim);
+            kernelCalcSplitList.setArg(2, buf_indices);
+            kernelCalcSplitList.setArg(3, scene.numFaces());
+            kernelCalcSplitList.setArg(4, buf_splitList);
+            queue.enqueueNDRangeKernel(kernelCalcSplitList, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0]);
+        }
+        queue.finish();
+        if (profiling) {
+            events[0].wait();
+            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("calculating split list done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
+        }
+        
+        // 分割リストを深さに従ってradixソートする。
+        cl::Kernel kernelBlockwiseSplitListSort{programBuildAccel, "blockwiseSplitListSort"};
+        {
+            const uint32_t localSizeBlockwiseSort = 128;
+            const uint32_t numBlocks = ((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort;
+            const uint32_t workSizeBlockwiseSort = numBlocks * localSizeBlockwiseSort;
+            
+            for (uint32_t i = 0; i < 2; ++i) {
+                kernelBlockwiseSplitListSort.setArg(0, buf_MortonCodes);
+                kernelBlockwiseSplitListSort.setArg(1, numBitsPerDim);
+                kernelBlockwiseSplitListSort.setArg(2, buf_indices);
+                kernelBlockwiseSplitListSort.setArg(3, scene.numFaces());
+                kernelBlockwiseSplitListSort.setArg(4, buf_splitList);
+                queue.enqueueNDRangeKernel(kernelBlockwiseSplitListSort, cl::NullRange, cl::NDRange(workSizeBlockwiseSort),
+                                           cl::NDRange(localSizeBlockwiseSort), nullptr, &events[0]);
+            }
+        }
+        queue.finish();
+        if (profiling) {
+            events[0].wait();
+            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("radix sorting of split list done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
+        }
+        
+        std::vector<cl_uint2> splitList;
+        splitList.resize(scene.numFaces() - 1);
+        queue.enqueueReadBuffer(buf_splitList, CL_TRUE, 0, splitList.size() * sizeof(cl_uint2), splitList.data());
+        for (uint32_t i = 0; i < splitList.size(); ++i) {
+            if (splitList[i].s0 != 3 * numBitsPerDim)
+                printf("%u: %u\n", splitList[i].s1, splitList[i].s0);
         }
         
 //        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
@@ -613,7 +612,7 @@ int main(int argc, const char * argv[]) {
 //            }
 //            printf("\n");
 //        }
-//        printf("--------------------------------\n");
+        printf("--------------------------------\n");
         
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
         //------------------------------------------------

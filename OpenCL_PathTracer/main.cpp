@@ -32,6 +32,7 @@ void CL_CALLBACK completeTile(cl_event ev, cl_int exec_status, void* user_data) 
     printf("*");
 }
 
+
 XORShiftRandom32 rng{215363872};
 const int g_width = 1024;
 const int g_height = 1024;
@@ -370,11 +371,8 @@ int main(int argc, const char * argv[]) {
             const uint32_t localSize = 128;
             const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             
-            kernelCalcAABBs.setArg(0, buf_vertices);
-            kernelCalcAABBs.setArg(1, buf_faces);
-            kernelCalcAABBs.setArg(2, scene.numFaces());
-            kernelCalcAABBs.setArg(3, buf_AABBs);
-            queue.enqueueNDRangeKernel(kernelCalcAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
+            cl::enqueueNDRangeKernel(queue, kernelCalcAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
+                                     buf_vertices, buf_faces, scene.numFaces(), buf_AABBs);
         }
         queue.finish();
         if (profiling) {
@@ -396,10 +394,8 @@ int main(int argc, const char * argv[]) {
                 const uint32_t workSize = numMerged * localSize;
                 buf_unifiedAABBs = cl::Buffer(context, CL_MEM_READ_WRITE, numMerged * sizeof(AABB), nullptr, nullptr);
                 
-                kernelUnifyAABBs.setArg(0, buf_srcAABBs);
-                kernelUnifyAABBs.setArg(1, numAABBs);
-                kernelUnifyAABBs.setArg(2, buf_unifiedAABBs);
-                queue.enqueueNDRangeKernel(kernelUnifyAABBs, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[evIdx++]);
+                cl::enqueueNDRangeKernel(queue, kernelUnifyAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[evIdx++],
+                                         buf_srcAABBs, numAABBs, buf_unifiedAABBs);
                 queue.enqueueBarrierWithWaitList();
                 
                 if (numMerged == 1)
@@ -437,14 +433,8 @@ int main(int argc, const char * argv[]) {
             const uint32_t localSize = 128;
             const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             
-            kernelCalcMortonCodes.setArg(0, buf_AABBs);
-            kernelCalcMortonCodes.setArg(1, scene.numFaces());
-            kernelCalcMortonCodes.setArg(2, entireAABB.min);
-            kernelCalcMortonCodes.setArg(3, sizeEntireAABB);
-            kernelCalcMortonCodes.setArg(4, numBitsPerDim);
-            kernelCalcMortonCodes.setArg(5, buf_MortonCodes);
-            kernelCalcMortonCodes.setArg(6, buf_indices);
-            queue.enqueueNDRangeKernel(kernelCalcMortonCodes, cl::NullRange, cl::NDRange{workSize}, cl::NDRange{localSize}, nullptr, &events[0]);
+            cl::enqueueNDRangeKernel(queue, kernelCalcMortonCodes, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
+                                     buf_AABBs, scene.numFaces(), entireAABB.min, sizeEntireAABB, numBitsPerDim, buf_MortonCodes, buf_indices);
         }
         queue.finish();
         if (profiling) {
@@ -495,42 +485,25 @@ int main(int argc, const char * argv[]) {
             
             evIdx = 0;
             for (uint32_t i = 0; i < numBitsPerDim; ++i) {
-                kernelBlockwiseSort.setArg(0, buf_MortonCodes);
-                kernelBlockwiseSort.setArg(1, scene.numFaces());
-                kernelBlockwiseSort.setArg(2, i);
-                kernelBlockwiseSort.setArg(3, buf_indices);
-                kernelBlockwiseSort.setArg(4, buf_radixDigits);
-                queue.enqueueNDRangeKernel(kernelBlockwiseSort, cl::NullRange, cl::NDRange{workSizeBlockwiseSort},
-                                           cl::NDRange{localSizeBlockwiseSort}, nullptr, &events[evIdx++]);
+                cl::enqueueNDRangeKernel(queue, kernelBlockwiseSort, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
+                                         nullptr, &events[evIdx++],
+                                         buf_MortonCodes, scene.numFaces(), i, buf_indices, buf_radixDigits);
                 queue.enqueueBarrierWithWaitList();
                 
-                
-                kernelCalcBlockwiseHistograms.setArg(0, buf_radixDigits);
-                kernelCalcBlockwiseHistograms.setArg(1, scene.numFaces());
-                kernelCalcBlockwiseHistograms.setArg(2, numPrimGroups);
-                kernelCalcBlockwiseHistograms.setArg(3, buf_histograms);
-                kernelCalcBlockwiseHistograms.setArg(4, buf_offsets);
-                queue.enqueueNDRangeKernel(kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange{workSizeHistograms},
-                                           cl::NDRange{localSizeHistograms}, nullptr, &events[evIdx++]);
+                cl::enqueueNDRangeKernel(queue, kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange(workSizeHistograms), cl::NDRange(localSizeHistograms),
+                                         nullptr, &events[evIdx++],
+                                         buf_radixDigits, scene.numFaces(), numPrimGroups, buf_histograms, buf_offsets);
                 queue.enqueueBarrierWithWaitList();
-                
                 
                 std::vector<cl::Event> tempEvents;
                 globalScan.perform(queue, buf_histograms, numElementsHistograms, tempEvents);
                 for (uint32_t j = 0; j < tempEvents.size(); ++j)
                     events[evIdx++] = tempEvents[j];
                 
-                
-                kernelGlobalScatter.setArg(0, buf_radixDigits);
-                kernelGlobalScatter.setArg(1, scene.numFaces());
-                kernelGlobalScatter.setArg(2, buf_histograms);
-                kernelGlobalScatter.setArg(3, buf_offsets);
-                kernelGlobalScatter.setArg(4, buf_indices);
-                kernelGlobalScatter.setArg(5, buf_indices_shadow);
-                queue.enqueueNDRangeKernel(kernelGlobalScatter, cl::NullRange, cl::NDRange{workSizeBlockwiseSort},
-                                           cl::NDRange{localSizeBlockwiseSort}, nullptr, &events[evIdx++]);
+                cl::enqueueNDRangeKernel(queue, kernelGlobalScatter, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
+                                         nullptr, &events[evIdx++],
+                                         buf_radixDigits, scene.numFaces(), buf_histograms, buf_offsets, buf_indices, buf_indices_shadow);
                 queue.enqueueBarrierWithWaitList();
-                
                 
                 cl::Buffer tempIndices = buf_indices;
                 buf_indices = buf_indices_shadow;
@@ -556,12 +529,8 @@ int main(int argc, const char * argv[]) {
             const uint32_t localSize = 128;
             const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
             
-            kernelCalcSplitList.setArg(0, buf_MortonCodes);
-            kernelCalcSplitList.setArg(1, numBitsPerDim);
-            kernelCalcSplitList.setArg(2, buf_indices);
-            kernelCalcSplitList.setArg(3, scene.numFaces());
-            kernelCalcSplitList.setArg(4, buf_splitList);
-            queue.enqueueNDRangeKernel(kernelCalcSplitList, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0]);
+            cl::enqueueNDRangeKernel(queue, kernelCalcSplitList, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
+                                     buf_MortonCodes, numBitsPerDim, buf_indices, scene.numFaces(), buf_splitList);
         }
         queue.finish();
         if (profiling) {
@@ -576,6 +545,8 @@ int main(int argc, const char * argv[]) {
             const uint32_t localSizeBlockwiseSort = 128;
             const uint32_t numBlocks = ((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort;
             const uint32_t workSizeBlockwiseSort = numBlocks * localSizeBlockwiseSort;
+            
+            
             
             for (uint32_t i = 0; i < 2; ++i) {
                 kernelBlockwiseSplitListSort.setArg(0, buf_MortonCodes);
@@ -612,7 +583,7 @@ int main(int argc, const char * argv[]) {
 //            }
 //            printf("\n");
 //        }
-        printf("--------------------------------\n");
+//        printf("--------------------------------\n");
         
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
         //------------------------------------------------

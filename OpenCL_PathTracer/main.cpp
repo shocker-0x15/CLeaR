@@ -285,14 +285,12 @@ int main(int argc, const char * argv[]) {
         
         //------------------------------------------------
         // 汎用プログラムの生成
-        
         stopwatch.start();
         
         CLGeneric::GlobalScan globalScan{context, device};
         
         printf("generic kernels setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
-        
         //------------------------------------------------
         
         //------------------------------------------------
@@ -308,10 +306,20 @@ int main(int argc, const char * argv[]) {
         printf("build accel kernel build log: \n");
         printf("%s\n", buildLog.c_str());
         
+        cl::Kernel kernelCalcAABBs{programBuildAccel, "calcAABBs"};
+        cl::Kernel kernelUnifyAABBs{programBuildAccel, "unifyAABBs"};
+        cl::Kernel kernelCalcMortonCodes{programBuildAccel, "calcMortonCodes"};
+        cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
+        cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
+        cl::Kernel kernelGlobalScatter{programBuildAccel, "globalScatter"};
+        cl::Kernel kernelCalcSplitList{programBuildAccel, "calcSplitList"};
+        cl::Kernel kernelBlockSLSort{programBuildAccel, "blockwiseSplitListSort"};
+        cl::Kernel kernelCalcBlockSLHistograms{programBuildAccel, "calcBlockwiseSplitListHistograms"};
+        cl::Kernel kernelGlobalScatterSL{programBuildAccel, "globalScatterSplitList"};
+        
         printf("BVH kernel setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
         //------------------------------------------------
-        
         
         //------------------------------------------------
         // レンダリングプログラムの生成
@@ -329,7 +337,6 @@ int main(int argc, const char * argv[]) {
         printf("rendering kernel setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
         //------------------------------------------------
-        
         
         //------------------------------------------------
         // ポストプロセスプログラムの生成
@@ -349,7 +356,6 @@ int main(int argc, const char * argv[]) {
         //------------------------------------------------
         
         
-        
         //------------------------------------------------
         // 空間分割開始
         stopwatchHiRes.start();
@@ -363,7 +369,6 @@ int main(int argc, const char * argv[]) {
         };
         
         // 各三角形のAABBを並列に求める。
-        cl::Kernel kernelCalcAABBs{programBuildAccel, "calcAABBs"};
         cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
         cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
         cl::Buffer buf_AABBs{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(AABB), nullptr, nullptr};
@@ -382,7 +387,6 @@ int main(int argc, const char * argv[]) {
         }
         
         // 全体を囲むAABBを求める。
-        cl::Kernel kernelUnifyAABBs{programBuildAccel, "unifyAABBs"};
         cl::Buffer buf_srcAABBs = buf_AABBs;
         cl::Buffer buf_unifiedAABBs;
         {
@@ -420,7 +424,6 @@ int main(int argc, const char * argv[]) {
         queue.enqueueReadBuffer(buf_unifiedAABBs, CL_TRUE, 0, sizeof(AABB), &entireAABB);
         
         // モートンコードを求める。
-        cl::Kernel kernelCalcMortonCodes{programBuildAccel, "calcMortonCodes"};
         cl::Buffer buf_MortonCodes{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint3), nullptr, nullptr};
         cl::Buffer buf_indices{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(cl_uint), nullptr, nullptr};
         {
@@ -463,9 +466,6 @@ int main(int argc, const char * argv[]) {
 //        printf("--------------------------------\n");
         
         // モートンコードにしたがってradixソート。
-        cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
-        cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
-        cl::Kernel kernelGlobalScatter{programBuildAccel, "globalScatter"};
         {
             // プリミティブ数に従ったワークサイズ。
             const uint32_t localSizeBlockwiseSort = 128;
@@ -523,11 +523,10 @@ int main(int argc, const char * argv[]) {
         }
         
         // ソート済みのモートンコード列から分割箇所のリストを求める。
-        cl::Kernel kernelCalcSplitList{programBuildAccel, "calcSplitList"};
         cl::Buffer buf_splitList{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(cl_uint2), nullptr, nullptr};
         {
             const uint32_t localSize = 128;
-            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
+            const uint32_t workSize = (((uint32_t)(scene.numFaces() - 1) + (localSize - 1)) / localSize) * localSize;
             
             cl::enqueueNDRangeKernel(queue, kernelCalcSplitList, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
                                      buf_MortonCodes, numBitsPerDim, buf_indices, scene.numFaces(), buf_splitList);
@@ -540,38 +539,70 @@ int main(int argc, const char * argv[]) {
         }
         
         // 分割リストを深さに従ってradixソートする。
-        cl::Kernel kernelBlockwiseSplitListSort{programBuildAccel, "blockwiseSplitListSort"};
         {
             const uint32_t localSizeBlockwiseSort = 128;
-            const uint32_t numBlocks = ((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort;
+            const uint32_t numBlocks = ((uint32_t)(scene.numFaces() - 1) + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort;
             const uint32_t workSizeBlockwiseSort = numBlocks * localSizeBlockwiseSort;
+            cl::Buffer buf_radixDigits{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(cl_uchar), nullptr, nullptr};
             
+            const uint32_t localSizeHistograms = 128;
+            const uint32_t numElementsHistograms = numBlocks * (1 << 4);
+            const uint32_t workSizeHistograms = ((numBlocks + (localSizeHistograms - 1)) / localSizeHistograms) * localSizeHistograms;
+            cl::Buffer buf_histograms{context, CL_MEM_READ_WRITE, numElementsHistograms * sizeof(uint32_t), nullptr, nullptr};
+            cl::Buffer buf_offsets{context, CL_MEM_READ_WRITE, numElementsHistograms * sizeof(uint16_t), nullptr, nullptr};
             
+            cl::Buffer buf_splitList_shadow{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(cl_uint2), nullptr, nullptr};
             
-            for (uint32_t i = 0; i < 2; ++i) {
-                kernelBlockwiseSplitListSort.setArg(0, buf_MortonCodes);
-                kernelBlockwiseSplitListSort.setArg(1, numBitsPerDim);
-                kernelBlockwiseSplitListSort.setArg(2, buf_indices);
-                kernelBlockwiseSplitListSort.setArg(3, scene.numFaces());
-                kernelBlockwiseSplitListSort.setArg(4, buf_splitList);
-                queue.enqueueNDRangeKernel(kernelBlockwiseSplitListSort, cl::NullRange, cl::NDRange(workSizeBlockwiseSort),
-                                           cl::NDRange(localSizeBlockwiseSort), nullptr, &events[0]);
+            uint32_t numBitsDepth = 0;
+            for (uint32_t i = numBitsPerDim * 3; i > 0; i >>= 1)
+                ++numBitsDepth;
+            
+            evIdx = 0;
+            for (uint32_t bitFrom = 0; bitFrom < numBitsDepth; bitFrom += 4) {
+                uint32_t bitTo = std::min(bitFrom + 3, numBitsDepth - 1);
+                cl::enqueueNDRangeKernel(queue, kernelBlockSLSort, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
+                                         nullptr, &events[evIdx++],
+                                         buf_splitList, (uint32_t)scene.numFaces() - 1, bitFrom, bitTo, buf_radixDigits);
+                queue.enqueueBarrierWithWaitList();
+                
+                cl::enqueueNDRangeKernel(queue, kernelCalcBlockSLHistograms, cl::NullRange, cl::NDRange(workSizeHistograms), cl::NDRange(localSizeHistograms),
+                                         nullptr, &events[evIdx++],
+                                         buf_radixDigits, scene.numFaces() - 1, 1 << 4, numBlocks, buf_histograms, buf_offsets);
+                queue.enqueueBarrierWithWaitList();
+                
+                std::vector<cl::Event> tempEvents;
+                globalScan.perform(queue, buf_histograms, numElementsHistograms, tempEvents);
+                for (uint32_t j = 0; j < tempEvents.size(); ++j)
+                    events[evIdx++] = tempEvents[j];
+                
+                cl::enqueueNDRangeKernel(queue, kernelGlobalScatterSL, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
+                                         nullptr, &events[evIdx++],
+                                         buf_radixDigits, scene.numFaces() - 1, 1 << 4, buf_histograms, buf_offsets, buf_splitList, buf_splitList_shadow);
+                queue.enqueueBarrierWithWaitList();
+                
+                cl::Buffer tempList = buf_splitList;
+                buf_splitList = buf_splitList_shadow;
+                buf_splitList_shadow = tempList;
+            }
+            queue.finish();
+            if (profiling) {
+                cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
+                for (uint32_t i = 0; i < evIdx; ++i) {
+                    events[i].wait();
+                    getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+                    sumTimeRadixSort += tpCmdEnd - tpCmdStart;
+                    sumTimeRadixSortFromSubmit += tpCmdEnd - tpCmdSubmit;
+                }
+                printf("radix sorting of split list done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, sumTimeRadixSortFromSubmit * 0.001f);
             }
         }
-        queue.finish();
-        if (profiling) {
-            events[0].wait();
-            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-            printf("radix sorting of split list done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
-        }
         
-        std::vector<cl_uint2> splitList;
-        splitList.resize(scene.numFaces() - 1);
-        queue.enqueueReadBuffer(buf_splitList, CL_TRUE, 0, splitList.size() * sizeof(cl_uint2), splitList.data());
-        for (uint32_t i = 0; i < splitList.size(); ++i) {
-            if (splitList[i].s0 != 3 * numBitsPerDim)
-                printf("%u: %u\n", splitList[i].s1, splitList[i].s0);
-        }
+//        std::vector<cl_uint2> splitList;
+//        splitList.resize(scene.numFaces() - 1);
+//        queue.enqueueReadBuffer(buf_splitList, CL_TRUE, 0, splitList.size() * sizeof(cl_uint2), splitList.data());
+//        for (uint32_t i = 0; i < splitList.size(); ++i) {
+//            printf("%5u: %2u %#010x\n", splitList[i].s1, splitList[i].s0, splitList[i].s0);
+//        }
         
 //        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
 //        for (uint32_t i = 0; i < scene.numFaces(); ++i) {

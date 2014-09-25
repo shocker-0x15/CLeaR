@@ -51,6 +51,20 @@ kernel void calcBlockwiseHistograms(const global uchar* radixDigits, uint numPri
 kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, const global uint* globalOffsets, const global ushort* localOffsets,
                           const global uint* indicesSrc, global uint* indicesDst);
 
+kernel void calcSplitList(const global uint3* mortonCodes, uint bitsPerDim, const global uint* indices, uint numPrimitives,
+                          global uint2* splitList);
+
+ushort scanSL(local ushort* prefixSumNumOne, const uint lid);
+uint splitSL(local ushort* prefixSumNumOne, local ushort* falseTotal, const uint lid, ushort pred);
+kernel void blockwiseSplitListSort(global uint2* splitList, uint listSize, uint bitFrom, uint bitTo,
+                                   global uchar* radixDigits);
+
+kernel void calcBlockwiseSplitListHistograms(const global uchar* radixDigits, uint listSize, uint numBuckets,
+                                             uint numBlocks, global uint* histogram, global ushort* localOffsets);
+
+kernel void globalScatterSplitList(const global uchar* radixDigits, uint listSize, uint numBuckets, const global uint* globalOffsets, const global ushort* localOffsets,
+                                   const global uint2* splitListSrc, global uint2* splitListDst);
+
 //----------------------------------------------------------------
 
 kernel void calcAABBs(const global point3* vertices, const global uchar* faces, uint numFaces,
@@ -345,7 +359,8 @@ uint splitSL(local ushort* prefixSumNumOne, local ushort* falseTotal, const uint
         return lid - trueBefore;
 }
 
-kernel void blockwiseSplitListSort(global uint2* splitList, uint listSize, uint bitFrom, uint bitTo) {
+kernel void blockwiseSplitListSort(global uint2* splitList, uint listSize, uint bitFrom, uint bitTo,
+                                   global uchar* radixDigits) {
     const uint lid0 = get_local_id(0);
     const uint gid0 = get_global_id(0);
     
@@ -354,11 +369,14 @@ kernel void blockwiseSplitListSort(global uint2* splitList, uint listSize, uint 
     local ushort prefixSumNumOne[SplitListSortSize];
     local ushort falseTotal;
     
-    splitDepthsInBlock[lid0] = (gid0 < listSize) ? splitList[gid0].s0 : 0xFF;
+    if (gid0 < listSize)
+        splitDepthsInBlock[lid0] = (splitList[gid0].s0 >> bitFrom) & ((1 << (bitTo - bitFrom + 1)) - 1);
+    else
+        splitDepthsInBlock[lid0] = 0xFF;
     barrier(CLK_LOCAL_MEM_FENCE);
     
     uint curIdx = lid0;
-    for (uint bit = bitFrom; bit <= bitTo; ++bit) {
+    for (uint bit = 0; bit <= (bitTo - bitFrom); ++bit) {
         // このprivate変数にコピーしてsplit()との間にバリアを張ることで同期ミスを防ぐ。
         uchar pred = (splitDepthsInBlock[curIdx] >> bit) & 0x01;
         prefixSumNumOne[lid0] = pred;
@@ -376,6 +394,65 @@ kernel void blockwiseSplitListSort(global uint2* splitList, uint listSize, uint 
     if (valid)
         splitLine = splitList[(gid0 - lid0) + curIdx];
     barrier(CLK_GLOBAL_MEM_FENCE);
-    if (valid)
+    if (valid) {
         splitList[gid0] = splitLine;
+        radixDigits[gid0] = splitDepthsInBlock[curIdx];
+    }
+}
+
+
+
+kernel void calcBlockwiseSplitListHistograms(const global uchar* radixDigits, uint listSize, uint numBuckets,
+                                             uint numBlocks, global uint* histogram, global ushort* localOffsets) {
+    const uint gid0 = get_global_id(0);
+    if (gid0 >= numBlocks)
+        return;
+    
+    uint i = 0;
+    uint count = 0;
+    uchar mcOfBucket = 0;
+    localOffsets[numBuckets * gid0 + 0] = 0;
+    while (true) {
+        uint idx = SplitListSortSize * gid0 + i;
+        if (i >= SplitListSortSize || idx >= listSize) {
+            histogram[numBlocks * mcOfBucket + gid0] = count;
+            ++mcOfBucket;
+            while (mcOfBucket < numBuckets) {
+                localOffsets[numBuckets * gid0 + mcOfBucket] = i;
+                histogram[numBlocks * mcOfBucket + gid0] = 0;
+                ++mcOfBucket;
+            }
+            break;
+        }
+        
+        uchar mc = radixDigits[idx];
+        if (mc == mcOfBucket) {
+            ++count;
+            ++i;
+        }
+        
+        if (mc > mcOfBucket) {
+            histogram[numBlocks * mcOfBucket + gid0] = count;
+            count = 0;
+            ++mcOfBucket;
+            localOffsets[numBuckets * gid0 + mcOfBucket] = i;
+        }
+    }
+}
+
+
+
+kernel void globalScatterSplitList(const global uchar* radixDigits, uint listSize, uint numBuckets, const global uint* globalOffsets, const global ushort* localOffsets,
+                                   const global uint2* splitListSrc, global uint2* splitListDst) {
+    const uint lid0 = get_local_id(0);
+    const uint gid0 = get_global_id(0);
+    
+    if (gid0 >= listSize)
+        return;
+    
+    uint2 listSrc = splitListSrc[gid0];
+    uchar digit = radixDigits[gid0];
+    uint gOffset = globalOffsets[get_num_groups(0) * digit + get_group_id(0)];
+    uint lOffset = localOffsets[numBuckets * get_group_id(0) + digit];
+    splitListDst[gOffset + (lid0 - lOffset)] = listSrc;
 }

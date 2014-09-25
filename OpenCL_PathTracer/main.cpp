@@ -378,9 +378,10 @@ int main(int argc, const char * argv[]) {
             
             cl::enqueueNDRangeKernel(queue, kernelCalcAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
                                      buf_vertices, buf_faces, scene.numFaces(), buf_AABBs);
+            queue.enqueueBarrierWithWaitList();
         }
-        queue.finish();
         if (profiling) {
+            queue.finish();
             events[0].wait();
             getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating each AABB done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
@@ -409,8 +410,8 @@ int main(int argc, const char * argv[]) {
                 numAABBs = numMerged;
             }
         }
-        queue.finish();
         if (profiling) {
+            queue.finish();
             cl_ulong sumTimeUnion = 0, sumTimeUnionFromSubmit = 0;
             for (uint32_t i = 0; i < evIdx; ++i) {
                 events[i].wait();
@@ -438,9 +439,10 @@ int main(int argc, const char * argv[]) {
             
             cl::enqueueNDRangeKernel(queue, kernelCalcMortonCodes, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
                                      buf_AABBs, scene.numFaces(), entireAABB.min, sizeEntireAABB, numBitsPerDim, buf_MortonCodes, buf_indices);
+            queue.enqueueBarrierWithWaitList();
         }
-        queue.finish();
         if (profiling) {
+            queue.finish();
             events[0].wait();
             getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating each Morton code done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
@@ -509,8 +511,8 @@ int main(int argc, const char * argv[]) {
                 buf_indices = buf_indices_shadow;
                 buf_indices_shadow = tempIndices;
             }
-            queue.finish();
             if (profiling) {
+                queue.finish();
                 cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
                 for (uint32_t i = 0; i < evIdx; ++i) {
                     events[i].wait();
@@ -531,8 +533,8 @@ int main(int argc, const char * argv[]) {
             cl::enqueueNDRangeKernel(queue, kernelCalcSplitList, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
                                      buf_MortonCodes, numBitsPerDim, buf_indices, scene.numFaces(), buf_splitList);
         }
-        queue.finish();
         if (profiling) {
+            queue.finish();
             events[0].wait();
             getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating split list done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
@@ -584,8 +586,8 @@ int main(int argc, const char * argv[]) {
                 buf_splitList = buf_splitList_shadow;
                 buf_splitList_shadow = tempList;
             }
-            queue.finish();
             if (profiling) {
+                queue.finish();
                 cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
                 for (uint32_t i = 0; i < evIdx; ++i) {
                     events[i].wait();

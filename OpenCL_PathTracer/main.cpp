@@ -184,8 +184,8 @@ void buildScene(StopWatch &sw) {
     mc.createMatteMaterial("mat_light", nullptr, "R_light", "sigma_lambert");
     mc.createDiffuseLightProperty("light_top", "M_top");
     
-    //    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
-    //    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+//    scene.addFace(Face::make_P(0, 1, 2, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
+//    scene.addFace(Face::make_P(0, 2, 3, scene.idxOfMat("mat_light"), scene.idxOfLight("light_top")));
     scene.endObject();
     
     scene.localToWorld.push();
@@ -284,44 +284,6 @@ int main(int argc, const char * argv[]) {
         std::string buildLog;
         
         //------------------------------------------------
-        // 汎用プログラムの生成
-        stopwatch.start();
-        
-        CLGeneric::GlobalScan globalScan{context, device};
-        
-        printf("generic kernels setup time: %lldmsec\n", stopwatch.stop());
-        printf("\n");
-        //------------------------------------------------
-        
-        //------------------------------------------------
-        // 空間分割プログラムの生成
-        stopwatch.start();
-        
-        std::string rawStrBuildAccel = stringFromFile("bvh_construction.cl");
-        cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
-        
-        cl::Program programBuildAccel{context, srcBuildAccel};
-        programBuildAccel.build("");
-        programBuildAccel.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
-        printf("build accel kernel build log: \n");
-        printf("%s\n", buildLog.c_str());
-        
-        cl::Kernel kernelCalcAABBs{programBuildAccel, "calcAABBs"};
-        cl::Kernel kernelUnifyAABBs{programBuildAccel, "unifyAABBs"};
-        cl::Kernel kernelCalcMortonCodes{programBuildAccel, "calcMortonCodes"};
-        cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
-        cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
-        cl::Kernel kernelGlobalScatter{programBuildAccel, "globalScatter"};
-        cl::Kernel kernelCalcSplitList{programBuildAccel, "calcSplitList"};
-        cl::Kernel kernelBlockSLSort{programBuildAccel, "blockwiseSplitListSort"};
-        cl::Kernel kernelCalcBlockSLHistograms{programBuildAccel, "calcBlockwiseSplitListHistograms"};
-        cl::Kernel kernelGlobalScatterSL{programBuildAccel, "globalScatterSplitList"};
-        
-        printf("BVH kernel setup time: %lldmsec\n", stopwatch.stop());
-        printf("\n");
-        //------------------------------------------------
-        
-        //------------------------------------------------
         // レンダリングプログラムの生成
         stopwatch.start();
         
@@ -329,12 +291,12 @@ int main(int argc, const char * argv[]) {
         cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
         
         cl::Program programRendering{context, srcRendering};
-//        programRendering.build("");
-//        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
-//        printf("rendering kernel build log: \n");
-//        printf("%s\n", buildLog.c_str());
+        programRendering.build("");
+        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
+        printf("rendering program build log: \n");
+        printf("%s\n", buildLog.c_str());
         
-        printf("rendering kernel setup time: %lldmsec\n", stopwatch.stop());
+        printf("rendering program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
         //------------------------------------------------
         
@@ -348,10 +310,10 @@ int main(int argc, const char * argv[]) {
         cl::Program programPostProcessing{context, srcPostProcessing};
         programPostProcessing.build("");
         programPostProcessing.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
-        printf("post-process kernel build log: \n");
+        printf("post-process program build log: \n");
         printf("%s\n", buildLog.c_str());
         
-        printf("post-process kernel setup time: %lldmsec\n", stopwatch.stop());
+        printf("post-process program setup time: %lldmsec\n", stopwatch.stop());
         printf("--------------------------------\n");
         //------------------------------------------------
         
@@ -660,6 +622,8 @@ int main(int argc, const char * argv[]) {
         buf_pixels = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr);
         kernelPostProcess0.setArg(3, buf_pixels);
 #else
+        cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
+        cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
         cl::Buffer buf_normals;
         if (scene.numNormals() == 0)
             buf_normals = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
@@ -684,18 +648,6 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
         cl::Kernel kernelRendering{programRendering, "pathtracing"};
-        kernelRendering.setArg(0, buf_vertices);
-        kernelRendering.setArg(1, buf_normals);
-        kernelRendering.setArg(2, buf_tangents);
-        kernelRendering.setArg(3, buf_uvs);
-        kernelRendering.setArg(4, buf_faces);
-        kernelRendering.setArg(5, buf_lightInfos);
-        kernelRendering.setArg(6, buf_materialsData);
-        kernelRendering.setArg(7, buf_texturesData);
-        kernelRendering.setArg(8, buf_otherResources);
-        kernelRendering.setArg(9, buf_BVHnodes);
-        kernelRendering.setArg(10, buf_randStates);
-        kernelRendering.setArg(11, buf_pixels);
         
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);
@@ -704,8 +656,11 @@ int main(int argc, const char * argv[]) {
             for (int j = 0; j < numTiles; ++j) {
                 cl::NDRange offset{*tile * (j % numTilesX), *(tile + 1) * (j / numTilesX)};
                 cl::Event ev;
-                queue.enqueueNDRangeKernel(kernelRendering, offset, tile, localSize, nullptr, &ev);
-                //                ev.setCallback(CL_COMPLETE, completeTile);
+                cl::enqueueNDRangeKernel(queue, kernelRendering, offset, tile, localSize, nullptr, &ev,
+                                         buf_vertices, buf_normals, buf_tangents, buf_uvs, buf_faces,
+                                         buf_lightInfos, buf_materialsData, buf_texturesData, buf_otherResources,
+                                         buf_BVHnodes, buf_randStates, buf_pixels);
+//                ev.setCallback(CL_COMPLETE, completeTile);
             }
             queue.finish();
             
@@ -735,29 +690,17 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_image{context, CL_MEM_WRITE_ONLY, (size_t)(byteWidth * g_height)};
         
         cl::Kernel kernelClear{programPostProcessing, "clear"};
-        kernelClear.setArg(0, g_width);
-        kernelClear.setArg(1, g_height);
-        kernelClear.setArg(2, buf_intermediate0);
-        
         cl::Kernel kernelPostProcess0{programPostProcessing, "scaling"};
-        kernelPostProcess0.setArg(0, g_width);
-        kernelPostProcess0.setArg(1, g_height);
-        kernelPostProcess0.setArg(2, iterations);
-        kernelPostProcess0.setArg(3, buf_pixels);
-        kernelPostProcess0.setArg(4, buf_intermediate0);
-        
         cl::Kernel kernelToneMappng{programPostProcessing, "toneMapping"};
-        kernelToneMappng.setArg(0, g_width);
-        kernelToneMappng.setArg(1, g_height);
-        kernelToneMappng.setArg(2, byteWidth);
-        kernelToneMappng.setArg(3, buf_intermediate0);
-        kernelToneMappng.setArg(4, buf_image);
         
-        queue.enqueueNDRangeKernel(kernelClear, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
+        cl::enqueueNDRangeKernel(queue, kernelClear, cl::NullRange, cl::NDRange(g_width, g_height), cl::NullRange, nullptr, nullptr,
+                                 g_width, g_height, buf_intermediate0);
         queue.finish();
-        queue.enqueueNDRangeKernel(kernelPostProcess0, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
+        cl::enqueueNDRangeKernel(queue, kernelPostProcess0, cl::NullRange, cl::NDRange(g_width, g_height), cl::NullRange, nullptr, nullptr,
+                                 g_width, g_height, iterations, buf_pixels, buf_intermediate0);
         queue.finish();
-        queue.enqueueNDRangeKernel(kernelToneMappng, cl::NullRange, cl::NDRange{g_width, g_height}, cl::NullRange, nullptr, nullptr);
+        cl::enqueueNDRangeKernel(queue, kernelToneMappng, cl::NullRange, cl::NDRange(g_width, g_height), cl::NullRange, nullptr, nullptr,
+                                 g_width, g_height, byteWidth, buf_intermediate0, buf_image);
         queue.finish();
         queue.enqueueReadBuffer(buf_image, CL_TRUE, 0, byteWidth * g_height, LDRPixels, nullptr, nullptr);
         

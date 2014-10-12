@@ -599,12 +599,12 @@ int main(int argc, const char * argv[]) {
             }
         }
         
-//        std::vector<cl_uint2> splitList;
-//        splitList.resize(scene.numFaces() - 1);
-//        queue.enqueueReadBuffer(buf_splitList, CL_TRUE, 0, splitList.size() * sizeof(cl_uint2), splitList.data());
-//        for (uint32_t i = 0; i < splitList.size(); ++i) {
-//            printf("%5u: %2u %#010x\n", splitList[i].s1, splitList[i].s0, splitList[i].s0);
-//        }
+        std::vector<cl_uint2> splitList;
+        splitList.resize(scene.numFaces() - 1);
+        queue.enqueueReadBuffer(buf_splitList, CL_TRUE, 0, splitList.size() * sizeof(cl_uint2), splitList.data());
+        for (uint32_t i = 0; i < splitList.size(); ++i) {
+            printf("%5u: %2u %#010x\n", splitList[i].s1, splitList[i].s0, splitList[i].s0);
+        }
         
 //        queue.enqueueReadBuffer(buf_indices, CL_TRUE, 0, scene.numFaces() * sizeof(cl_uint), indices);
 //        for (uint32_t i = 0; i < scene.numFaces(); ++i) {

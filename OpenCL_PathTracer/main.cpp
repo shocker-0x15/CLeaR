@@ -313,6 +313,7 @@ int main(int argc, const char * argv[]) {
         cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
         cl::Kernel kernelGlobalScatter{programBuildAccel, "globalScatter"};
         cl::Kernel kernelConstructBinaryRadixTree{programBuildAccel, "constructBinaryRadixTree"};
+        cl::Kernel kernelCalcNodeAABBs{programBuildAccel, "calcNodeAABBs"};
         
         printf("BVH kernel setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
@@ -385,9 +386,9 @@ int main(int argc, const char * argv[]) {
         }
         
         // 全体を囲むAABBを求める。
-        cl::Buffer buf_srcAABBs = buf_AABBs;
         cl::Buffer buf_unifiedAABBs;
         {
+            cl::Buffer buf_srcAABBs = buf_AABBs;
             uint32_t numAABBs = (uint32_t)scene.numFaces();
             const uint32_t localSize = 128;
             evIdx = 0;
@@ -521,14 +522,22 @@ int main(int argc, const char * argv[]) {
             }
         }
         
-        struct BVHNode {
+        // 48bytes
+        struct InternalNode {
             cl_float3 min;
             cl_float3 max;
             cl_uchar leftIsChild, rightIsChild; uint8_t dum0[2];
-            cl_uint c1, c2;
+            cl_uint c1, c2; uint8_t dum1[4];
         };
-        cl::Buffer buf_internalNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(BVHNode), nullptr, nullptr};
-        cl::Buffer buf_parentIdxs{context, CL_MEM_READ_WRITE, (2 * scene.numFaces() - 1) * sizeof(BVHNode), nullptr, nullptr};
+        // 48bytes
+        struct LeafNode {
+            cl_float3 min;
+            cl_float3 max;
+            uint objIdx; uint8_t dum0[12];
+        };
+        // BVHの木構造を計算する。
+        cl::Buffer buf_internalNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(InternalNode), nullptr, nullptr};
+        cl::Buffer buf_parentIdxs{context, CL_MEM_READ_WRITE, (2 * scene.numFaces() - 1) * sizeof(InternalNode), nullptr, nullptr};
         {
             const uint32_t localSize = 64;
             const uint32_t workSize = ((uint32_t(scene.numFaces()) + (localSize - 1)) / localSize) * localSize;
@@ -542,13 +551,37 @@ int main(int argc, const char * argv[]) {
             getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("constructing BVH tree done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
         }
-
-        std::vector<BVHNode> bvhNodes;
-        bvhNodes.resize(scene.numFaces() - 1);
-        queue.enqueueReadBuffer(buf_internalNodes, CL_TRUE, 0, (scene.numFaces() - 1) * sizeof(BVHNode), bvhNodes.data());
-        for (uint i = 0; i < bvhNodes.size(); ++i) {
-            printf("left: %u:%5u, right: %u:%5u\n", bvhNodes[i].leftIsChild, bvhNodes[i].c1, bvhNodes[i].rightIsChild, bvhNodes[i].c2);
+        
+        // 各ノードのAABBを計算する。
+        cl::Buffer buf_leafNodes{context, CL_MEM_READ_WRITE, scene.numFaces() * sizeof(LeafNode), nullptr, nullptr};
+        {
+            const uint32_t localSize = 64;
+            const uint32_t workSize = ((uint32_t(scene.numFaces()) + (localSize - 1)) / localSize) * localSize;
+            cl::enqueueNDRangeKernel(queue, kernelCalcNodeAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
+                                     buf_internalNodes, buf_leafNodes, buf_AABBs, buf_indices, scene.numFaces(), buf_parentIdxs);
+            queue.enqueueBarrierWithWaitList();
         }
+        if (profiling) {
+            queue.finish();
+            events[0].wait();
+            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, (tpCmdEnd - tpCmdSubmit) * 0.001f);
+        }
+//        std::vector<LeafNode> leafNodes;
+//        leafNodes.resize(scene.numFaces());
+//        queue.enqueueReadBuffer(buf_leafNodes, CL_TRUE, 0, scene.numFaces() * sizeof(LeafNode), leafNodes.data());
+//        for (uint32_t i = 0; i < leafNodes.size(); ++i) {
+//            printf("obj: %5u, min:(%f, %f, %f), max:(%f, %f, %f)\n",
+//                   leafNodes[i].objIdx,
+//                   leafNodes[i].min.x, leafNodes[i].min.y, leafNodes[i].min.z,
+//                   leafNodes[i].max.x, leafNodes[i].max.y, leafNodes[i].max.z);
+//        }
+//        std::vector<BVHNode> bvhNodes;
+//        bvhNodes.resize(scene.numFaces() - 1);
+//        queue.enqueueReadBuffer(buf_internalNodes, CL_TRUE, 0, (scene.numFaces() - 1) * sizeof(BVHNode), bvhNodes.data());
+//        for (uint i = 0; i < bvhNodes.size(); ++i) {
+//            printf("left: %u:%5u, right: %u:%5u\n", bvhNodes[i].leftIsChild, bvhNodes[i].c1, bvhNodes[i].rightIsChild, bvhNodes[i].c2);
+//        }
 //        std::vector<cl_uint2> nodeRanges;
 //        nodeRanges.resize(scene.numFaces() - 1);
 //        queue.enqueueReadBuffer(buf_nodeRanges, CL_TRUE, 0, (scene.numFaces() - 1) * sizeof(cl_uint2), nodeRanges.data());

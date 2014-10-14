@@ -29,13 +29,15 @@ typedef struct __attribute__((aligned(16))) {
     point3 center;
 } AABB;
 
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     point3 min;
     point3 max;
     bool leftIsChild, rightIsChild; uchar dum0[2];
     uint c1, c2;
-} BVHNode;
+} InternalNode;
 
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     point3 min;
     point3 max;
@@ -69,6 +71,9 @@ char _numCommonBits(const global uint3* mortonCodes, const global uint* indices,
 inline char signInt8(char val);
 kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, const global uint* indices, uint numPrimitives,
                                      global uchar* iNodes, global uint* parentIdxs);
+
+kernel void calcNodeAABBs(global uchar* iNodes, global uchar* lNodes, global uchar* AABBs, const global uint* indices, uint numPrimitives,
+                          global uint* parentIdxs);
 
 //----------------------------------------------------------------
 
@@ -383,7 +388,7 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
     }
     splitPos = gid0 + splitPos * d + min(d, (char)0);
     
-    global BVHNode* iNode = (global BVHNode*)iNodes + gid0;
+    global InternalNode* iNode = (global InternalNode*)iNodes + gid0;
     bool leftIsChild = min(gid0, otherEnd) == splitPos;
     iNode->leftIsChild = leftIsChild;
     iNode->c1 = splitPos;
@@ -400,8 +405,16 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
         *(parentIdxs + numPrimitives + splitPos + 1) = gid0;
 }
 
-kernel void calcNodeAABBs(global uchar* iNodes, global uint* parentIdxs, uint numPrimitives) {
+kernel void calcNodeAABBs(global uchar* iNodes, global uchar* lNodes, global uchar* AABBs, const global uint* indices, uint numPrimitives,
+                          global uint* parentIdxs) {
     const uint gid0 = get_global_id(0);
     if (gid0 >= numPrimitives)
         return;
+    
+    global LeafNode* lNode = (global LeafNode*)lNodes + gid0;
+    uint objIdx = indices[gid0];
+    global AABB* lAABB = (global AABB*)AABBs + objIdx;
+    lNode->min = lAABB->min;
+    lNode->max = lAABB->max;
+    lNode->objIdx = objIdx;
 }

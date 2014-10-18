@@ -177,6 +177,11 @@ namespace cl {
         kernel.setArg(11, t11);
         return queue.enqueueNDRangeKernel(kernel, offset, global, local, events, event);
     }
+    
+    Buffer createSubBuffer(Buffer &buffer,
+                           cl_mem_flags flags, cl_buffer_create_type buffer_create_type,
+                           uint64_t origin, uint64_t align, uint64_t size,
+                           uint64_t* next = nullptr, cl_int * err = nullptr);
 }
 
 std::string stringFromFile(const char* filename);

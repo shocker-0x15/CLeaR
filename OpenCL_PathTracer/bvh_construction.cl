@@ -69,11 +69,10 @@ kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, c
 char _numCommonBits(const global uint3* mortonCodes, const global uint* indices, uint numPrimitives, uint bitsPerDim,
                     const uint3* mc_i, int _idx0, int _idx1);
 inline char signInt8(char val);
-kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, const global uint* indices, uint numPrimitives,
-                                     global uchar* iNodes, global uint* parentIdxs);
+kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, global uchar* AABBs, const global uint* indices, uint numPrimitives,
+                                     global uchar* iNodes, global uchar* lNodes, global uint* parentIdxs, global uint* counters);
 
-kernel void calcNodeAABBs(global uchar* iNodes, global uchar* lNodes, global uchar* AABBs, const global uint* indices, uint numPrimitives,
-                          global uint* parentIdxs);
+kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uchar* lNodes, uint numPrimitives, global uint* parentIdxs);
 
 //----------------------------------------------------------------
 
@@ -351,18 +350,31 @@ inline char signInt8(char val) {
     return val > 0 ? 1 : (val < 0 ? -1 : 0);
 }
 
-kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, const global uint* indices, uint numPrimitives,
-                                     global uchar* iNodes, global uint* parentIdxs) {
+kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, global uchar* AABBs, const global uint* indices, uint numPrimitives,
+                                     global uchar* iNodes, global uchar* lNodes, global uint* parentIdxs, global uint* counters) {
     const uint gid0 = get_global_id(0);
-    if (gid0 >= numPrimitives - 1)
+    if (gid0 >= numPrimitives)
         return;
     
-    uint3 mc_i = mortonCodes[indices[gid0]];
+    global LeafNode* lNode = (global LeafNode*)lNodes + gid0;
+    uint objIdx = indices[gid0];
+    global AABB* lAABB = (global AABB*)AABBs + objIdx;
+    lNode->min = lAABB->min;
+    lNode->max = lAABB->max;
+    lNode->objIdx = objIdx;
     
-    char d = signInt8(numCommonBits(gid0, (int)gid0 + 1) - numCommonBits(gid0, (int)gid0 - 1));
+    if (gid0 >= numPrimitives - 1)
+        return;
+    counters[gid0] = 0;
+    
+    uint3 mc_i = mortonCodes[objIdx];
+    
+    char commonR = numCommonBits(gid0, (int)gid0 + 1);
+    char commonL = numCommonBits(gid0, (int)gid0 - 1);
+    char d = signInt8(commonR - commonL);
     
     // ノードの幅の上限を求める。
-    char minNumComBits = numCommonBits(gid0, (int)gid0 - d);
+    char minNumComBits = d > 0 ? commonL : commonR;
     uint lMax = 2;
     while (numCommonBits(gid0, (int)gid0 + lMax * d) > minNumComBits)
         lMax <<= 1;
@@ -405,16 +417,77 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
         *(parentIdxs + numPrimitives + splitPos + 1) = gid0;
 }
 
-kernel void calcNodeAABBs(global uchar* iNodes, global uchar* lNodes, global uchar* AABBs, const global uint* indices, uint numPrimitives,
-                          global uint* parentIdxs) {
+#define CALC_NODE_AABB_GROUP_SIZE 64
+kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uchar* lNodes, uint numPrimitives, global uint* parentIdxs) {
     const uint gid0 = get_global_id(0);
+    const uint lid0 = get_local_id(0);
     if (gid0 >= numPrimitives)
         return;
     
+//    uint localCounters[CALC_NODE_AABB_GROUP_SIZE];
+//    localCounters[lid0] = 0;
+    
     global LeafNode* lNode = (global LeafNode*)lNodes + gid0;
-    uint objIdx = indices[gid0];
-    global AABB* lAABB = (global AABB*)AABBs + objIdx;
-    lNode->min = lAABB->min;
-    lNode->max = lAABB->max;
-    lNode->objIdx = objIdx;
+    uint selfIdx = gid0;
+    point3 min = lNode->min;
+    point3 max = lNode->max;
+    
+    //----------------------------------------------------------------
+    // 1段階目はLeafNodeから登るため、若干処理が異なる。
+    uint tgtIdx = *(parentIdxs + gid0);
+    if (atomic_inc(counters + tgtIdx) == 0)
+        return;
+    
+    global InternalNode* tgtINode = (global InternalNode*)iNodes + tgtIdx;
+    bool leftIsChild = tgtINode->leftIsChild;
+    bool rightIsChild = tgtINode->rightIsChild;
+    uint lIdx = tgtINode->c1;
+    uint rIdx = tgtINode->c2;
+    if (lIdx == selfIdx && leftIsChild) {
+        min = fmin(min, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->min : ((global InternalNode*)iNodes + rIdx)->min);
+        max = fmax(max, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->max : ((global InternalNode*)iNodes + rIdx)->max);
+    }
+    else {
+        min = fmin(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->min : ((global InternalNode*)iNodes + lIdx)->min, min);
+        max = fmax(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->max : ((global InternalNode*)iNodes + lIdx)->max, max);
+    }
+    tgtINode->min = min;
+    tgtINode->max = max;
+    
+    if (tgtIdx == 0)
+        return;
+    
+    selfIdx = tgtIdx;
+    tgtIdx = *(parentIdxs + numPrimitives + tgtIdx);
+    //----------------------------------------------------------------
+    
+    //----------------------------------------------------------------
+    // 2段階目以降はInternalNodeを繰り返しルートに向けて登る。
+    while (true) {
+        if (atomic_inc(counters + tgtIdx) == 0)
+            return;
+        
+        global InternalNode* tgtINode = (global InternalNode*)iNodes + tgtIdx;
+        bool leftIsChild = tgtINode->leftIsChild;
+        bool rightIsChild = tgtINode->rightIsChild;
+        uint lIdx = tgtINode->c1;
+        uint rIdx = tgtINode->c2;
+        if (lIdx == selfIdx) {
+            min = fmin(min, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->min : ((global InternalNode*)iNodes + rIdx)->min);
+            max = fmax(max, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->max : ((global InternalNode*)iNodes + rIdx)->max);
+        }
+        else {
+            min = fmin(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->min : ((global InternalNode*)iNodes + lIdx)->min, min);
+            max = fmax(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->max : ((global InternalNode*)iNodes + lIdx)->max, max);
+        }
+        tgtINode->min = min;
+        tgtINode->max = max;
+        
+        if (tgtIdx == 0)
+            return;
+        
+        selfIdx = tgtIdx;
+        tgtIdx = *(parentIdxs + numPrimitives + tgtIdx);
+    }
+    //----------------------------------------------------------------
 }

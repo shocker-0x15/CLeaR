@@ -512,6 +512,20 @@ void getProfilingInfo(const cl::Event &ev, cl_ulong* cmdStart, cl_ulong* cmdEnd,
         ev.getProfilingInfo(CL_PROFILING_COMMAND_SUBMIT, cmdSubmit);
 }
 
+namespace cl {
+    Buffer createSubBuffer(Buffer &buffer,
+                           cl_mem_flags flags, cl_buffer_create_type buffer_create_type,
+                           uint64_t origin, uint64_t align, uint64_t size,
+                           uint64_t* next, cl_int* err) {
+        cl_buffer_region region;
+        region.origin = (origin + (align - 1)) & ~(align - 1);
+        region.size = size;
+        if (next)
+        *next = region.origin + region.size;
+        return buffer.createSubBuffer(flags, buffer_create_type, &region, err);
+    }
+}
+
 std::string stringFromFile(const char* filename) {
     std::ifstream ifs;
     ifs.open(filename);

@@ -35,7 +35,7 @@ kernel void localScan(global uint* elements, uint numElements, global uint* bloc
         uint idx1 = (lid0 + 1) * i - 1;
         if (idx1 < localScanSize) {
             uint idx0 = idx1 - (i >> 1);
-            ushort temp = blockPrefixSum[idx0];
+            uint temp = blockPrefixSum[idx0];
             blockPrefixSum[idx0] = blockPrefixSum[idx1];
             blockPrefixSum[idx1] += temp;
         }

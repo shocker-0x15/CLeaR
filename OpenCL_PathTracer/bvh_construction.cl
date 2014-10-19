@@ -394,7 +394,7 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
         uint t = (uint)ceil(l * scale);
         if (numCommonBits(gid0, (int)gid0 + (splitPos + t) * d) > numComBitsNode)
             splitPos += t;
-        if (t == 1)
+        if (t <= 1)
             break;
         scale *= 0.5f;
     }

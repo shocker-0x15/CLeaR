@@ -210,7 +210,7 @@ void buildScene(StopWatch &sw) {
     }
     scene.localToWorld.pop();
     
-//    for (int i = 0; i < 100; ++i) {
+//    for (int i = 0; i < 20; ++i) {
 //        float scale = 0.25f * (0.5f + rng.getFloat0cTo1o());
 //        float angle = 2 * M_PI * rng.getFloat0cTo1o();
 //        float tx = -5 + 10 * rng.getFloat0cTo1o();
@@ -423,7 +423,7 @@ int main(int argc, const char * argv[]) {
     BVHLOOP:
         stopwatchHiRes.start();
         
-        uint32_t numBitsPerDim = 10;
+        uint32_t numBitsPerDim = 20;
         
         // 各三角形のAABBを並列に求める。
         if (profiling)
@@ -598,6 +598,7 @@ int main(int argc, const char * argv[]) {
         ++ibvh;
         if (ibvh >= 5)
             goto BVHEND;
+        printf("\n");
         goto BVHLOOP;
     BVHEND:
         

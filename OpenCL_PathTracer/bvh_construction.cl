@@ -231,13 +231,14 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
     const uint gid0 = get_global_id(0);
     
     local uchar radixDigitsInBlock[LOCAL_SORT_SIZE];
-    local ushort indicesInBlock[LOCAL_SORT_SIZE];
+    local uint indicesInBlock[LOCAL_SORT_SIZE];
     local ushort radixBits[LOCAL_SORT_SIZE];
     local ushort falseTotal;
     
-    // ローカル変数にモートンコードから抽出したradix digitを格納する。
+    // ローカル変数にインデックスとモートンコードから抽出したradix digitを格納する。
     if (gid0 < numPrimitives) {
         uint idx = indices[gid0];
+        indicesInBlock[lid0] = idx;
         uchar3 extracted = convert_uchar3((mortonCodes[idx] >> bitID) & 0x01);
         radixDigitsInBlock[lid0] = extracted.x + (extracted.y << 1) + (extracted.z << 2);
     }
@@ -246,26 +247,24 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
     }
     barrier(CLK_LOCAL_MEM_FENCE);
     
-    uint curIdx = lid0;
     for (uint axis = 0; axis < 3; ++axis) {
-        // このprivate変数にコピーしてsplit()との間にバリアを張ることで同期ミスを防ぐ。
-        uchar pred = (radixDigitsInBlock[curIdx] >> axis) & 0x01;
+        // predにコピーしてsplit()との間にバリアを張ることでsplit()がinline化されることによる同期ミスを防ぐ。
+        uchar curDigit = radixDigitsInBlock[lid0];
+        uint curIdx = indicesInBlock[lid0];
+        uchar pred = (curDigit >> axis) & 0x01;
         radixBits[lid0] = pred;
         barrier(CLK_LOCAL_MEM_FENCE);
         
         uint dstIdx = split(radixBits, &falseTotal, lid0, pred);
-        
         indicesInBlock[dstIdx] = curIdx;
+        radixDigitsInBlock[dstIdx] = curDigit;
         barrier(CLK_LOCAL_MEM_FENCE);
-        curIdx = indicesInBlock[lid0];
     }
 
-    // ソートされたローカルインデックスを基にして、グローバルのインデックスを入れ替える。
-    uint idx = (gid0 < numPrimitives) ? indices[(gid0 - lid0) + curIdx] : UINT_MAX;
-    barrier(CLK_GLOBAL_MEM_FENCE);
-    if (idx != UINT_MAX) {
-        indices[gid0] = idx;
-        radixDigits[gid0] = radixDigitsInBlock[curIdx];
+    // グローバル変数に書き戻す。
+    if (gid0 < numPrimitives) {
+        indices[gid0] = indicesInBlock[lid0];
+        radixDigits[gid0] = radixDigitsInBlock[lid0];
     }
 }
 

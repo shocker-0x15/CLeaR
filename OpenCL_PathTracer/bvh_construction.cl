@@ -180,7 +180,7 @@ kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
 
 
 
-#define LOCAL_SORT_SIZE 128
+#define LOCAL_SORT_SIZE 64
 
 // ローカル変数のprefix sumを計算する。
 ushort scan(local ushort* bitArray, const uint lid) {

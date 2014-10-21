@@ -394,7 +394,7 @@ int main(int argc, const char * argv[]) {
                                                             nextAddress, sizeof(cl_uint), scene.numFaces() * sizeof(cl_uint), &nextAddress);
         
         // プリミティブ数に従ったワークサイズ。
-        const uint32_t localSizeBlockwiseSort = 128;
+        const uint32_t localSizeBlockwiseSort = 64;
         const uint32_t numPrimGroups = (((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort);
         const uint32_t workSizeBlockwiseSort = numPrimGroups * localSizeBlockwiseSort;
         cl::Buffer buf_radixDigits = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,

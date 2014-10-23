@@ -38,6 +38,11 @@ namespace CLGeneric {
         
         void perform(cl::CommandQueue &queue,
                      cl::Buffer &bufElements, uint32_t numElements, std::vector<cl::Event> &events);
+        
+        void createWorkingBuffers(uint32_t numElements, cl::Buffer &pool, uint64_t offset, std::vector<cl::Buffer>* buffers, uint64_t* nextAddress);
+        void perform(cl::CommandQueue &queue,
+                     cl::Buffer &bufElements, uint32_t numElements, const std::vector<cl::Buffer> &workingBuffers,
+                     std::vector<cl::Event> &events);
     };
 }
 

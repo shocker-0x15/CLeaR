@@ -48,8 +48,8 @@ namespace CLGeneric {
             m_kernelLocalScan.setArg(0, bufElementsStack[depth - 1]);
             m_kernelLocalScan.setArg(1, numElements);
             m_kernelLocalScan.setArg(2, bufBlockSums);
-            queue.enqueueNDRangeKernel(m_kernelLocalScan, cl::NullRange, cl::NDRange{workSize},
-                                       cl::NDRange{blockSize}, nullptr, &events.back());
+            queue.enqueueNDRangeKernel(m_kernelLocalScan, cl::NullRange, cl::NDRange(workSize),
+                                       cl::NDRange(blockSize), nullptr, &events.back());
             queue.enqueueBarrierWithWaitList();
             
             numElements = numBlocks;
@@ -71,8 +71,72 @@ namespace CLGeneric {
             m_kernelAddOffset.setArg(0, bufElementsStack[depth]);
             m_kernelAddOffset.setArg(1, bufElementsStack[depth - 1]);
             m_kernelAddOffset.setArg(2, numElements);
-            queue.enqueueNDRangeKernel(m_kernelAddOffset, cl::NullRange, cl::NDRange{workSize},
-                                       cl::NDRange{blockSize}, nullptr, &events.back());
+            queue.enqueueNDRangeKernel(m_kernelAddOffset, cl::NullRange, cl::NDRange(workSize),
+                                       cl::NDRange(blockSize), nullptr, &events.back());
+            queue.enqueueBarrierWithWaitList();
+        }
+    }
+    
+    void GlobalScan::createWorkingBuffers(uint32_t numElements, cl::Buffer &pool, uint64_t offset, std::vector<cl::Buffer>* buffers, uint64_t* nextAddress) {
+        const uint32_t blockSize = 128;
+        
+        uint32_t numElems = numElements;
+        cl_buffer_region region = {offset, 0};
+        while (numElems > 1) {
+            numElems = ((numElems + (blockSize - 1))) / blockSize;
+            region.origin += region.size;
+            region.size = numElems * sizeof(uint32_t);
+            buffers->push_back(pool.createSubBuffer(CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, &region));
+        }
+        *nextAddress = region.origin + region.size;
+    }
+    
+    void GlobalScan::perform(cl::CommandQueue &queue,
+                             cl::Buffer &bufElements, uint32_t numElements, const std::vector<cl::Buffer> &workingBuffers,
+                             std::vector<cl::Event> &events) {
+        const uint32_t blockSize = 128;
+        
+        cl::Buffer bufElementsStack[5];
+        uint32_t numElemsStack[5];
+        uint32_t depth = 0;
+        bufElementsStack[depth] = bufElements;
+        numElemsStack[depth] = numElements;
+        ++depth;
+        while (numElements > 1) {
+            events.emplace_back();
+            
+            uint32_t numBlocks = ((numElements + (blockSize - 1))) / blockSize;
+            uint32_t workSize = numBlocks * blockSize;
+            const cl::Buffer &bufBlockSums = workingBuffers[depth - 1];
+            
+            m_kernelLocalScan.setArg(0, bufElementsStack[depth - 1]);
+            m_kernelLocalScan.setArg(1, numElements);
+            m_kernelLocalScan.setArg(2, bufBlockSums);
+            queue.enqueueNDRangeKernel(m_kernelLocalScan, cl::NullRange, cl::NDRange(workSize),
+                                       cl::NDRange(blockSize), nullptr, &events.back());
+            queue.enqueueBarrierWithWaitList();
+            
+            numElements = numBlocks;
+            numBlocks = ((numElements + (blockSize - 1))) / blockSize;
+            bufElementsStack[depth] = bufBlockSums;
+            numElemsStack[depth] = numElements;
+            ++depth;
+        }
+        
+        --depth;
+        while (depth > 1) {
+            events.emplace_back();
+            
+            --depth;
+            numElements = numElemsStack[depth - 1];
+            uint32_t numBlocks = ((numElements + (blockSize - 1))) / blockSize;
+            uint32_t workSize = numBlocks * blockSize;
+            
+            m_kernelAddOffset.setArg(0, bufElementsStack[depth]);
+            m_kernelAddOffset.setArg(1, bufElementsStack[depth - 1]);
+            m_kernelAddOffset.setArg(2, numElements);
+            queue.enqueueNDRangeKernel(m_kernelAddOffset, cl::NullRange, cl::NDRange(workSize),
+                                       cl::NDRange(blockSize), nullptr, &events.back());
             queue.enqueueBarrierWithWaitList();
         }
     }

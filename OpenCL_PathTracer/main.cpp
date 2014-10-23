@@ -410,6 +410,9 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_offsets = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
                                                      nextAddress, sizeof(cl_uint), numElementsHistograms * sizeof(cl_ushort), &nextAddress);
         
+        std::vector<cl::Buffer> bufs_globalScan;
+        globalScan.createWorkingBuffers(numElementsHistograms, buf_genericPool, nextAddress, &bufs_globalScan, &nextAddress);
+        
         cl::Buffer buf_internalNodes = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
                                                            nextBufIndices, 16, (scene.numFaces() - 1) * sizeof(InternalNode), &nextAddress);
         cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
@@ -532,7 +535,7 @@ int main(int argc, const char * argv[]) {
                 queue.enqueueBarrierWithWaitList();
                 
                 std::vector<cl::Event> tempEvents;
-                globalScan.perform(queue, buf_histograms, numElementsHistograms, tempEvents);
+                globalScan.perform(queue, buf_histograms, numElementsHistograms, bufs_globalScan, tempEvents);
                 for (uint32_t j = 0; j < tempEvents.size(); ++j)
                     events[evIdx++] = tempEvents[j];
                 

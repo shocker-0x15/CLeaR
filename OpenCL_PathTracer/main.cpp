@@ -17,7 +17,7 @@
 #define __CL_ENABLE_EXCEPTIONS
 #include "cl12.hpp"
 #include "clUtility.hpp"
-#include "CLGenericKernels.h"
+#include "LBVHBuilder.h"
 
 #include "sim_pathtracer.hpp"
 
@@ -84,7 +84,7 @@ void buildScene(StopWatch &sw) {
     cl_float16 f16Val;
     memcpy(&f16Val, &rasterToCamera, sizeof(cl_float16));
     perspectiveCamera.rasterToCamera = f16Val;
-    scene.setCamera(addDataAligned(refOthers, perspectiveCamera, 64));
+    scene.setCamera(CLUtil::addDataAligned(refOthers, perspectiveCamera, 64));
     
     
     g_randStates.resize(g_width * g_height * 4);
@@ -113,7 +113,7 @@ void buildScene(StopWatch &sw) {
     };
     EnvironmentHead envHead;
     envHead.offsetEnvLightProperty = (uint32_t)scene.idxOfLight("IBL");
-    scene.setEnvironment(addDataAligned(refOthers, envHead, 4));
+    scene.setEnvironment(CLUtil::addDataAligned(refOthers, envHead, 4));
     
     scene.localToWorld = LA::RotateMatrix(-M_PI * 0.3f, 0, 1, 0);
     scene.localToWorld.push();
@@ -245,7 +245,7 @@ int main(int argc, const char * argv[]) {
     std::time_t ctimeLaunch = system_clock::to_time_t(stopwatch.start());
     printf("%s\n", std::ctime(&ctimeLaunch));
     
-    initCLUtility();
+    CLUtil::init();
     
 #define SIMULATION 0
     const uint32_t iterations = 16;
@@ -266,7 +266,7 @@ int main(int argc, const char * argv[]) {
         cl::Device device = devices[1];
         
         printf("--------------------------------\n");
-        printDeviceInfo(device, CL_DEVICE_NAME);
+        CLUtil::printDeviceInfo(device, CL_DEVICE_NAME);
         printf("\n");
         
 //        for (uint32_t info = 0x1000; info <= 0x104B; ++info) {
@@ -277,45 +277,17 @@ int main(int argc, const char * argv[]) {
         cl::Context context{device, ctx_props};
         const bool profiling = true;
         cl::CommandQueue queue{context, device, static_cast<cl_command_queue_properties>(profiling ? CL_QUEUE_PROFILING_ENABLE : 0)};
-        std::vector<cl::Event> events{500};
-        uint32_t evIdx;
-        cl_ulong tpCmdStart, tpCmdEnd, tpCmdSubmit;
+        std::vector<cl::Event> events;
         
         std::string buildLog;
-        
-        //------------------------------------------------
-        // 汎用プログラムの生成
-        stopwatch.start();
-        
-        CLGeneric::GlobalScan globalScan{context, device};
-        
-        printf("generic kernels setup time: %lldmsec\n", stopwatch.stop());
-        printf("\n");
-        //------------------------------------------------
         
         //------------------------------------------------
         // 空間分割プログラムの生成
         stopwatch.start();
         
-        std::string rawStrBuildAccel = stringFromFile("bvh_construction.cl");
-        cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
+        LBVHBuilder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
         
-        cl::Program programBuildAccel{context, srcBuildAccel};
-        programBuildAccel.build("");
-        programBuildAccel.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
-        printf("build accel kernel build log: \n");
-        printf("%s\n", buildLog.c_str());
-        
-        cl::Kernel kernelCalcAABBs{programBuildAccel, "calcAABBs"};
-        cl::Kernel kernelUnifyAABBs{programBuildAccel, "unifyAABBs"};
-        cl::Kernel kernelCalcMortonCodes{programBuildAccel, "calcMortonCodes"};
-        cl::Kernel kernelBlockwiseSort{programBuildAccel, "blockwiseSort"};
-        cl::Kernel kernelCalcBlockwiseHistograms{programBuildAccel, "calcBlockwiseHistograms"};
-        cl::Kernel kernelGlobalScatter{programBuildAccel, "globalScatter"};
-        cl::Kernel kernelConstructBinaryRadixTree{programBuildAccel, "constructBinaryRadixTree"};
-        cl::Kernel kernelCalcNodeAABBs{programBuildAccel, "calcNodeAABBs"};
-        
-        printf("BVH kernel setup time: %lldmsec\n", stopwatch.stop());
+        printf("LBVH build program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
         //------------------------------------------------
         
@@ -323,7 +295,7 @@ int main(int argc, const char * argv[]) {
         // レンダリングプログラムの生成
         stopwatch.start();
         
-        std::string rawStrRendering = stringFromFile("pathtracer.cl");
+        std::string rawStrRendering = CLUtil::stringFromFile("pathtracer.cl");
         cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
         
         cl::Program programRendering{context, srcRendering};
@@ -340,7 +312,7 @@ int main(int argc, const char * argv[]) {
         // ポストプロセスプログラムの生成
         stopwatch.start();
         
-        std::string rawStrPostProcessing = stringFromFile("post_processing.cl");
+        std::string rawStrPostProcessing = CLUtil::stringFromFile("post_processing.cl");
         cl::Program::Sources srcPostProcessing{1, std::make_pair(rawStrPostProcessing.c_str(), rawStrPostProcessing.length())};
         
         cl::Program programPostProcessing{context, srcPostProcessing};
@@ -357,244 +329,23 @@ int main(int argc, const char * argv[]) {
         //------------------------------------------------
         // 空間分割開始
         // 48bytes
-        struct AABB {
-            cl_float3 min;
-            cl_float3 max;
-            cl_float3 center;
-        };
-        // 48bytes
-        struct InternalNode {
-            cl_float3 min;
-            cl_float3 max;
-            cl_uchar leftIsChild, rightIsChild; uint8_t dum0[2];
-            cl_uint c1, c2; uint8_t dum1[4];
-        };
-        // 48bytes
-        struct LeafNode {
-            cl_float3 min;
-            cl_float3 max;
-            uint objIdx; uint8_t dum0[12];
-        };
         
         cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
         cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
-        cl::Buffer buf_genericPool{context, CL_MEM_READ_WRITE, 128 * 1024 * 1024 * sizeof(uint8_t), nullptr, nullptr};
+        cl::Buffer buf_LBVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(InternalNode) + scene.numFaces() * sizeof(LeafNode), nullptr, nullptr};
         
-        uint64_t nextAddress = 0;
-        cl::Buffer buf_AABBs = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                   nextAddress, 16, scene.numFaces() * sizeof(AABB), &nextAddress);
-        cl::Buffer buf_MortonCodes = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                         nextAddress, sizeof(cl_uint3), scene.numFaces() * sizeof(cl_uint3), &nextAddress);
-        uint64_t nextBufMortonCodes = nextAddress;
-        cl::Buffer buf_indices = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                     nextAddress, sizeof(cl_uint), scene.numFaces() * sizeof(cl_uint), &nextAddress);
-        uint64_t nextBufIndices = nextAddress;
+        uint64_t nextAddress;
+        cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_LBVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                      0, 16, scene.numFaces() * sizeof(LeafNode), &nextAddress, nullptr);
+        cl::Buffer buf_internalNodes = cl::createSubBuffer(buf_LBVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                          nextAddress, 16, (scene.numFaces() - 1) * sizeof(InternalNode), nullptr, nullptr);
         
-        cl::Buffer buf_indices_shadow = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                            nextAddress, sizeof(cl_uint), scene.numFaces() * sizeof(cl_uint), &nextAddress);
-        
-        // プリミティブ数に従ったワークサイズ。
-        const uint32_t localSizeBlockwiseSort = 64;
-        const uint32_t numPrimGroups = (((uint32_t)scene.numFaces() + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort);
-        const uint32_t workSizeBlockwiseSort = numPrimGroups * localSizeBlockwiseSort;
-        cl::Buffer buf_radixDigits = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                         nextAddress, sizeof(cl_uint), scene.numFaces() * sizeof(cl_uchar), &nextAddress);
-        
-        // プリミティブグループ数に従ったワークサイズ。
-        // 出力されるヒストグラムはプリミティブグループ数 * 8の要素数を持つ。
-        const uint32_t localSizeHistograms = 128;
-        const uint32_t numElementsHistograms = numPrimGroups * (1 << 3);
-        const uint32_t workSizeHistograms = ((numPrimGroups + (localSizeHistograms - 1)) / localSizeHistograms) * localSizeHistograms;
-        cl::Buffer buf_histograms = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                        nextAddress, sizeof(cl_uint), numElementsHistograms * sizeof(cl_uint), &nextAddress);
-        cl::Buffer buf_offsets = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                     nextAddress, sizeof(cl_uint), numElementsHistograms * sizeof(cl_ushort), &nextAddress);
-        
-        std::vector<cl::Buffer> bufs_globalScan;
-        globalScan.createWorkingBuffers(numElementsHistograms, buf_genericPool, nextAddress, &bufs_globalScan, &nextAddress);
-        
-        cl::Buffer buf_internalNodes = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                           nextBufIndices, 16, (scene.numFaces() - 1) * sizeof(InternalNode), &nextAddress);
-        cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                       nextAddress, 16, scene.numFaces() * sizeof(LeafNode), &nextAddress);
-        cl::Buffer buf_parentIdxs = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                        nextAddress, 4, (2 * scene.numFaces() - 1) * sizeof(cl_uint), &nextAddress);
-        cl::Buffer buf_counters = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                      nextAddress, 4, (scene.numFaces() - 1) * sizeof(cl_uint), &nextAddress);
-        
+        // 計測のために5回ループ。
         uint32_t ibvh = 0;
     BVHLOOP:
         stopwatchHiRes.start();
         
-        uint32_t numBitsPerDim = 20;
-        
-        // 各三角形のAABBを並列に求める。
-        if (profiling)
-            stopwatchHiRes.start();
-        {
-            const uint32_t localSize = 128;
-            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
-            
-            cl::enqueueNDRangeKernel(queue, kernelCalcAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
-                                     buf_vertices, buf_faces, scene.numFaces(), buf_AABBs);
-            queue.enqueueBarrierWithWaitList();
-        }
-        if (profiling) {
-            queue.finish();
-            events[0].wait();
-            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-            printf("calculating each AABB done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
-        }
-        
-        // 全体を囲むAABBを求める。
-        if (profiling)
-            stopwatchHiRes.start();
-        cl::Buffer buf_unifiedAABBs;
-        {
-            cl::Buffer buf_srcAABBs = buf_AABBs;
-            uint32_t numAABBs = (uint32_t)scene.numFaces();
-            const uint32_t localSize = 128;
-            uint32_t numMerged = (numAABBs + (localSize - 1)) / localSize;
-            
-            cl::Buffer buf_AABBPools[2];
-            buf_AABBPools[0] = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                   0, 16, numMerged * sizeof(AABB), &nextAddress);
-            buf_AABBPools[1] = cl::createSubBuffer(buf_genericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                   nextAddress, 16, numMerged * sizeof(AABB), &nextAddress);
-            
-            evIdx = 0;
-            while (true) {
-                buf_unifiedAABBs = buf_AABBPools[evIdx % 2];
-                
-                uint32_t workSize = numMerged * localSize;
-                
-                cl::enqueueNDRangeKernel(queue, kernelUnifyAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[evIdx++],
-                                         buf_srcAABBs, numAABBs, buf_unifiedAABBs);
-                queue.enqueueBarrierWithWaitList();
-                
-                if (numMerged == 1)
-                    break;
-                
-                buf_srcAABBs = buf_unifiedAABBs;
-                numAABBs = numMerged;
-                numMerged = (numAABBs + (localSize - 1)) / localSize;
-            }
-        }
-        if (profiling) {
-            queue.finish();
-            cl_ulong sumTimeUnion = 0, sumTimeUnionFromSubmit = 0;
-            for (uint32_t i = 0; i < evIdx; ++i) {
-                events[i].wait();
-                getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-                sumTimeUnion += tpCmdEnd - tpCmdStart;
-                sumTimeUnionFromSubmit += tpCmdEnd - tpCmdSubmit;
-            }
-            printf("unifying AABBs done! ... time: %fusec (%fusec)\n", sumTimeUnion * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
-        }
-        AABB entireAABB;
-        queue.enqueueReadBuffer(buf_unifiedAABBs, CL_TRUE, 0, sizeof(AABB), &entireAABB);
-        
-        // モートンコードを求める。
-        if (profiling)
-            stopwatchHiRes.start();
-        {
-            cl_float3 sizeEntireAABB = {
-                entireAABB.max.s0 - entireAABB.min.s0,
-                entireAABB.max.s1 - entireAABB.min.s1,
-                entireAABB.max.s2 - entireAABB.min.s2
-            };
-            
-            const uint32_t localSize = 128;
-            const uint32_t workSize = (((uint32_t)scene.numFaces() + (localSize - 1)) / localSize) * localSize;
-            
-            cl::enqueueNDRangeKernel(queue, kernelCalcMortonCodes, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
-                                     buf_AABBs, scene.numFaces(), entireAABB.min, sizeEntireAABB, numBitsPerDim, buf_MortonCodes, buf_indices);
-            queue.enqueueBarrierWithWaitList();
-        }
-        if (profiling) {
-            queue.finish();
-            events[0].wait();
-            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-            printf("calculating each Morton code done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
-        }
-        
-        // モートンコードにしたがってradixソート。
-        if (profiling)
-            stopwatchHiRes.start();
-        {
-            evIdx = 0;
-            for (uint32_t i = 0; i < numBitsPerDim; ++i) {
-                cl::enqueueNDRangeKernel(queue, kernelBlockwiseSort, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
-                                         nullptr, &events[evIdx++],
-                                         buf_MortonCodes, scene.numFaces(), i, buf_indices, buf_radixDigits);
-                queue.enqueueBarrierWithWaitList();
-                
-                cl::enqueueNDRangeKernel(queue, kernelCalcBlockwiseHistograms, cl::NullRange, cl::NDRange(workSizeHistograms), cl::NDRange(localSizeHistograms),
-                                         nullptr, &events[evIdx++],
-                                         buf_radixDigits, scene.numFaces(), numPrimGroups, buf_histograms, buf_offsets);
-                queue.enqueueBarrierWithWaitList();
-                
-                std::vector<cl::Event> tempEvents;
-                globalScan.perform(queue, buf_histograms, numElementsHistograms, bufs_globalScan, tempEvents);
-                for (uint32_t j = 0; j < tempEvents.size(); ++j)
-                    events[evIdx++] = tempEvents[j];
-                
-                cl::enqueueNDRangeKernel(queue, kernelGlobalScatter, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
-                                         nullptr, &events[evIdx++],
-                                         buf_radixDigits, scene.numFaces(), buf_histograms, buf_offsets, buf_indices, buf_indices_shadow);
-                queue.enqueueBarrierWithWaitList();
-                
-                cl::Buffer tempIndices = buf_indices;
-                buf_indices = buf_indices_shadow;
-                buf_indices_shadow = tempIndices;
-            }
-            if (profiling) {
-                queue.finish();
-                cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
-                for (uint32_t i = 0; i < evIdx; ++i) {
-                    events[i].wait();
-                    getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-                    sumTimeRadixSort += tpCmdEnd - tpCmdStart;
-                    sumTimeRadixSortFromSubmit += tpCmdEnd - tpCmdSubmit;
-                }
-                printf("radix sorting done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
-            }
-        }
-        
-        // BVHの木構造を計算する。
-        if (profiling)
-            stopwatchHiRes.start();
-        {
-            const uint32_t localSize = 64;
-            const uint32_t workSize = ((uint32_t(scene.numFaces()) + (localSize - 1)) / localSize) * localSize;
-            cl::enqueueNDRangeKernel(queue, kernelConstructBinaryRadixTree, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
-                                     buf_MortonCodes, numBitsPerDim, buf_AABBs, buf_indices, scene.numFaces(),
-                                     buf_internalNodes, buf_leafNodes, buf_parentIdxs, buf_counters);
-            queue.enqueueBarrierWithWaitList();
-        }
-        if (profiling) {
-            queue.finish();
-            events[0].wait();
-            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-            printf("constructing BVH tree done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
-        }
-        
-        // 各ノードのAABBを計算する。
-        if (profiling)
-            stopwatchHiRes.start();
-        {
-            const uint32_t localSize = 64;
-            const uint32_t workSize = ((uint32_t(scene.numFaces()) + (localSize - 1)) / localSize) * localSize;
-            cl::enqueueNDRangeKernel(queue, kernelCalcNodeAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSize), nullptr, &events[0],
-                                     buf_internalNodes, buf_counters, buf_leafNodes, scene.numFaces(), buf_parentIdxs);
-            queue.enqueueBarrierWithWaitList();
-        }
-        if (profiling) {
-            queue.finish();
-            events[0].wait();
-            getProfilingInfo(events[0], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-            printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
-        }
+        BVHBuilder.perform(queue, buf_vertices, buf_faces, (uint32_t)scene.numFaces(), 20, buf_leafNodes, buf_internalNodes, events);
         
         queue.finish();
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
@@ -748,7 +499,7 @@ int main(int argc, const char * argv[]) {
 #ifdef __CL_ENABLE_EXCEPTIONS
     } catch (cl::Error error) {
         char err_str[64];
-        printErrorFromCode(error.err(), err_str);
+        CLUtil::printErrorFromCode(error.err(), err_str);
         fprintf(stderr, "ERROR: %s @ ", err_str);
         fprintf(stderr, "%s\n", error.what());
     }

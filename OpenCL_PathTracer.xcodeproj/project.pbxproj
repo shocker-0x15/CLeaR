@@ -35,6 +35,7 @@
 		46222A24191AB70100D71891 /* Vector3f.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46222A1D191AB70100D71891 /* Vector3f.cpp */; };
 		46222A25191AB70100D71891 /* Vector4f.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46222A1F191AB70100D71891 /* Vector4f.cpp */; };
 		46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46222A29191D04ED00D71891 /* ModelLoader.cpp */; };
+		4628616519FB9EEC00D506CB /* LBVHBuilder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4628616319FB9EEC00D506CB /* LBVHBuilder.cpp */; };
 		4688CD57191E6CE200257766 /* clUtility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD55191E6CE200257766 /* clUtility.cpp */; };
 		4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD58191EA3F400257766 /* CreateFunctions.cpp */; };
 		4691A80A19CEC4CC0077D2B4 /* CLGenericKernels.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4691A80819CEC4CC0077D2B4 /* CLGenericKernels.cpp */; };
@@ -140,6 +141,8 @@
 		46222A30191D1D5D00D71891 /* Scene.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Scene.h; sourceTree = "<group>"; };
 		4622DFE1193A183100CF2A3B /* sim_matrix.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_matrix.hpp; sourceTree = "<group>"; };
 		4622DFE2193A350A00CF2A3B /* sim_camera.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_camera.hpp; sourceTree = "<group>"; };
+		4628616319FB9EEC00D506CB /* LBVHBuilder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = LBVHBuilder.cpp; sourceTree = "<group>"; };
+		4628616419FB9EEC00D506CB /* LBVHBuilder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = LBVHBuilder.h; sourceTree = "<group>"; };
 		463B7A8519AF959900C610F2 /* toFloat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = toFloat.h; sourceTree = "<group>"; };
 		463B7A8619AF963000C610F2 /* HalfToFloat.hpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.h; path = HalfToFloat.hpp; sourceTree = "<group>"; };
 		464794231993D76700E35B28 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = text; path = README.md; sourceTree = "<group>"; };
@@ -228,6 +231,8 @@
 				46222A30191D1D5D00D71891 /* Scene.h */,
 				46A690BE197456F400E54586 /* Scene.cpp */,
 				462229F8191AB62700D71891 /* BVH.hpp */,
+				4628616419FB9EEC00D506CB /* LBVHBuilder.h */,
+				4628616319FB9EEC00D506CB /* LBVHBuilder.cpp */,
 				46222A2A191D04ED00D71891 /* ModelLoader.hpp */,
 				46222A29191D04ED00D71891 /* ModelLoader.cpp */,
 				46BC78811981612800B30320 /* Distribution.hpp */,
@@ -394,6 +399,7 @@
 				46222A08191AB6B800D71891 /* reflection.cl in Sources */,
 				46CB87F61972F08000B99D06 /* texture_structures.cl in Sources */,
 				46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */,
+				4628616519FB9EEC00D506CB /* LBVHBuilder.cpp in Sources */,
 				46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */,
 				4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */,
 				46222A25191AB70100D71891 /* Vector4f.cpp in Sources */,

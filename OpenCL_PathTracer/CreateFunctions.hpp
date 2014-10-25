@@ -36,11 +36,11 @@ public:
         strcpy(matName, name);
         numBxDFs = 0;
         std::vector<uint8_t>* matData = &scene->materialsData;
-        matHead = addDataAligned<cl_uchar>(matData, 0);
+        matHead = CLUtil::addDataAligned<cl_uchar>(matData, 0);
         scene->addMaterial(matHead, name);
         bool hasBump = bump != nullptr;
-        addDataAligned<cl_uchar>(matData, hasBump);
-        addDataAligned<cl_uint>(matData, hasBump ? (cl_uint)scene->idxOfTex(bump) : 0);
+        CLUtil::addDataAligned<cl_uchar>(matData, hasBump);
+        CLUtil::addDataAligned<cl_uint>(matData, hasBump ? (cl_uint)scene->idxOfTex(bump) : 0);
     }
     
     void endMaterial() {
@@ -50,7 +50,7 @@ public:
     
     void beginLightProperty(const char* name) {
         numEEDFs = 0;
-        litHead = addDataAligned<cl_uchar>(&scene->materialsData, 0);
+        litHead = CLUtil::addDataAligned<cl_uchar>(&scene->materialsData, 0);
         scene->addLightProp(litHead, name);
     }
     

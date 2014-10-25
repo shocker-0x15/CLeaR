@@ -267,7 +267,7 @@ public:
     
     void calcLightPowerDistribution() {
         auto refOthers = &otherResouces;
-        uint64_t lpDistHead = fillZerosAligned(refOthers, sizeof(Discrete1D), 4);
+        uint64_t lpDistHead = CLUtil::fillZerosAligned(refOthers, sizeof(Discrete1D), 4);
         Discrete1D dist;
         dist.head._type = DistributionType::Discrete1D;
         dist.numItems = (cl_uint)lightPowers.size();
@@ -282,8 +282,8 @@ public:
             CDF[i] /= sum;
             PMF[i] = lightPowers[i] / sum;
         }
-        uint64_t lpCDFHead = addDataAligned(refOthers, CDF.data(), sizeof(float) * CDF.size(), sizeof(float));
-        uint64_t lpPMFHead = addDataAligned(refOthers, PMF.data(), sizeof(float) * PMF.size(), sizeof(float));
+        uint64_t lpCDFHead = CLUtil::addDataAligned(refOthers, CDF.data(), sizeof(float) * CDF.size(), sizeof(float));
+        uint64_t lpPMFHead = CLUtil::addDataAligned(refOthers, PMF.data(), sizeof(float) * PMF.size(), sizeof(float));
         dist.offsetCDF = (int32_t)lpCDFHead - (int32_t)lpDistHead;
         dist.offsetPMF = (int32_t)lpPMFHead - (int32_t)lpDistHead;
         memcpy(refOthers->data() + lpDistHead, &dist, sizeof(Discrete1D));

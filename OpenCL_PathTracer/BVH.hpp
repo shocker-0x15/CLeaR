@@ -48,13 +48,13 @@ struct BBox {
     }
     
     void unionP(const cl_float3 &p) {
-        min = minCLfloat3(min, p);
-        max = maxCLfloat3(max, p);
+        min = CLUtil::minCLfloat3(min, p);
+        max = CLUtil::maxCLfloat3(max, p);
     }
     
     void unionBB(const BBox &b) {
-        min = minCLfloat3(min, b.min);
-        max = maxCLfloat3(max, b.max);
+        min = CLUtil::minCLfloat3(min, b.min);
+        max = CLUtil::maxCLfloat3(max, b.max);
     }
 };
 

@@ -22,7 +22,7 @@ void MaterialCreator::createFloat3ConstantTexture(const char* name, float s0, fl
     f3Const.value.s0 = s0;
     f3Const.value.s1 = s1;
     f3Const.value.s2 = s2;
-    bool ret = scene->addTexture(addDataAligned(texData, f3Const, 16), name);
+    bool ret = scene->addTexture(CLUtil::addDataAligned(texData, f3Const, 16), name);
     assert(ret);
 }
 
@@ -31,7 +31,7 @@ void MaterialCreator::createFloatConstantTexture(const char* name, float val) {
     FloatConstantTexture fConst;
     fConst.texType = TextureType::FloatConstant;
     fConst.value = val;
-    bool ret = scene->addTexture(addDataAligned(texData, fConst, 4), name);
+    bool ret = scene->addTexture(CLUtil::addDataAligned(texData, fConst, 4), name);
     assert(ret);
 }
 
@@ -43,8 +43,8 @@ void MaterialCreator::createImageTexture(const char* name, const char* filename)
         assert(ret);
     }
     else {
-        uint64_t texHead = fillZerosAligned(texData, sizeof(ImageTexture), 4);
-        uint64_t imageHead = align(texData, 128);
+        uint64_t texHead = CLUtil::fillZerosAligned(texData, sizeof(ImageTexture), 4);
+        uint64_t imageHead = CLUtil::align(texData, 128);
         uint32_t w, h;
         ColorChannel::Value colorType;
         bool ret = loadImage(filename, texData, &w, &h, &colorType, false);
@@ -70,8 +70,8 @@ void MaterialCreator::createImageTexture(const char* name, const char* filename)
 
 void MaterialCreator::createNormalMapTexture(const char* name, const char* filename) {
     std::vector<uint8_t>* texData = &scene->texturesData;
-    uint64_t texHead = fillZerosAligned(texData, sizeof(NormalMapTexture), 4);
-    uint64_t imageHead = align(texData, 128);
+    uint64_t texHead = CLUtil::fillZerosAligned(texData, sizeof(NormalMapTexture), 4);
+    uint64_t imageHead = CLUtil::align(texData, 128);
     uint32_t w, h;
     ColorChannel::Value colorType;
     bool ret = loadImage(filename, texData, &w, &h, &colorType, true);
@@ -96,7 +96,7 @@ void MaterialCreator::createFloat3CheckerBoardTexture(const char* name, float c0
     f3Checker.c[1].s0 = c1r;
     f3Checker.c[1].s1 = c1g;
     f3Checker.c[1].s2 = c1b;
-    bool ret = scene->addTexture(addDataAligned(texData, f3Checker, 16), name);
+    bool ret = scene->addTexture(CLUtil::addDataAligned(texData, f3Checker, 16), name);
     assert(ret);
 }
 
@@ -107,7 +107,7 @@ void MaterialCreator::createFloat3CheckerBoardBumpTexture(const char* name, floa
     f3CheckerBump.head.procedureType = ColorProcedureType::CheckerBoardBump;
     f3CheckerBump.width = width;
     f3CheckerBump.reverse = (cl_uchar)reverse;
-    bool ret = scene->addTexture(addDataAligned(texData, f3CheckerBump, 4), name);
+    bool ret = scene->addTexture(CLUtil::addDataAligned(texData, f3CheckerBump, 4), name);
     assert(ret);
 }
 
@@ -118,7 +118,7 @@ void MaterialCreator::createFloatCheckerBoardTexture(const char* name, float v0,
     fChecker.head.procedureType = ColorProcedureType::CheckerBoard;
     fChecker.v[0] = v0;
     fChecker.v[1] = v1;
-    bool ret = scene->addTexture(addDataAligned(texData, fChecker, 4), name);
+    bool ret = scene->addTexture(CLUtil::addDataAligned(texData, fChecker, 4), name);
     assert(ret);
 }
 
@@ -127,7 +127,7 @@ void MaterialCreator::createFresnelNoOp(const char* name) {
     std::vector<uint8_t>* otherResouces = &scene->otherResouces;
     FresnelNoOp frNoOp;
     frNoOp.head.fresnelType = FresnelID::NoOp;
-    bool ret = scene->addOtherResouce(addDataAligned(otherResouces, frNoOp, 1), name);
+    bool ret = scene->addOtherResouce(CLUtil::addDataAligned(otherResouces, frNoOp, 1), name);
     assert(ret);
 }
 
@@ -141,7 +141,7 @@ void MaterialCreator::createFresnelConductor(const char* name, float eta_r, floa
     frCond.k.s0 = k_r;
     frCond.k.s1 = k_g;
     frCond.k.s2 = k_b;
-    bool ret = scene->addOtherResouce(addDataAligned(otherResouces, frCond, 16), name);
+    bool ret = scene->addOtherResouce(CLUtil::addDataAligned(otherResouces, frCond, 16), name);
     assert(ret);
 }
 
@@ -151,7 +151,7 @@ void MaterialCreator::createFresnelDielectric(const char* name, float etaExt, fl
     frDiel.head.fresnelType = FresnelID::Dielectric;
     frDiel.etaExt = etaExt;
     frDiel.etaInt = etaInt;
-    bool ret = scene->addOtherResouce(addDataAligned(otherResouces, frDiel, 4), name);
+    bool ret = scene->addOtherResouce(CLUtil::addDataAligned(otherResouces, frDiel, 4), name);
     assert(ret);
 }
 
@@ -248,12 +248,12 @@ void MaterialCreator::createContinuousConsts2D_H_FromImageTexture(const char* na
     ImageTexture* imgTex = (ImageTexture*)&scene->texturesData[scene->idxOfTex(image)];
     uint32_t sizeX = imgTex->width, sizeY = imgTex->height;
     
-    uint64_t CC2DHHead = fillZerosAligned(otherResouces, sizeof(ContinuousConsts2D_H), 4);
-    uint64_t pPDFHead = fillZerosAligned(otherResouces, sizeof(float) * sizeY, sizeof(float));
-    uint64_t pCDFHead = fillZerosAligned(otherResouces, sizeof(float) * (sizeY + 1), sizeof(float));
-    uint64_t childrenHead = fillZerosAligned(otherResouces, sizeof(ContinuousConsts1D) * sizeY, 4);
-    uint64_t cPDFsHead = fillZerosAligned(otherResouces, sizeof(float) * sizeX * sizeY, sizeof(float));
-    uint64_t cCDFsHead = fillZerosAligned(otherResouces, sizeof(float) * (sizeX + 1) * sizeY, sizeof(float));
+    uint64_t CC2DHHead = CLUtil::fillZerosAligned(otherResouces, sizeof(ContinuousConsts2D_H), 4);
+    uint64_t pPDFHead = CLUtil::fillZerosAligned(otherResouces, sizeof(float) * sizeY, sizeof(float));
+    uint64_t pCDFHead = CLUtil::fillZerosAligned(otherResouces, sizeof(float) * (sizeY + 1), sizeof(float));
+    uint64_t childrenHead = CLUtil::fillZerosAligned(otherResouces, sizeof(ContinuousConsts1D) * sizeY, 4);
+    uint64_t cPDFsHead = CLUtil::fillZerosAligned(otherResouces, sizeof(float) * sizeX * sizeY, sizeof(float));
+    uint64_t cCDFsHead = CLUtil::fillZerosAligned(otherResouces, sizeof(float) * (sizeX + 1) * sizeY, sizeof(float));
     
     uint64_t childHead = childrenHead;
     uint64_t cPDFHead = cPDFsHead;
@@ -352,7 +352,7 @@ void MaterialCreator::createContinuousConsts2D_H_FromImageTexture(const char* na
 void MaterialCreator::createDiffuseRElem(const char* reflectance, const char* sigma) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    uint64_t head = align(matData, 4);
+    uint64_t head = CLUtil::align(matData, 4);
     matData->insert(matData->end(), sizeof(DiffuseRElem), 0);
     DiffuseRElem* diffuseInfo = (DiffuseRElem*)&(*matData)[head];
     diffuseInfo->id = MatElem::Diffuse;
@@ -363,7 +363,7 @@ void MaterialCreator::createDiffuseRElem(const char* reflectance, const char* si
 void MaterialCreator::createSpecularRElem(const char* reflectance, const char* fresnel) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    uint64_t head = align(matData, 4);
+    uint64_t head = CLUtil::align(matData, 4);
     matData->insert(matData->end(), sizeof(SpecularRElem), 0);
     SpecularRElem* speRInfo = (SpecularRElem*)&(*matData)[head];
     speRInfo->id = MatElem::SpecularReflection;
@@ -374,7 +374,7 @@ void MaterialCreator::createSpecularRElem(const char* reflectance, const char* f
 void MaterialCreator::createSpecularTElem(const char* transmittance, float etaExt, float etaInt) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    uint64_t head = align(matData, 4);
+    uint64_t head = CLUtil::align(matData, 4);
     matData->insert(matData->end(), sizeof(SpecularTElem), 0);
     SpecularTElem* speTInfo = (SpecularTElem*)&(*matData)[head];
     speTInfo->id = MatElem::SpecularTransmission;
@@ -390,7 +390,7 @@ void MaterialCreator::createSpecularTElem(const char* transmittance, float etaEx
 void MaterialCreator::createNewWardElem(const char* reflectance, const char* anisoX, const char* anisoY) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    uint64_t head = align(matData, 4);
+    uint64_t head = CLUtil::align(matData, 4);
     matData->insert(matData->end(), sizeof(NewWardElem), 0);
     NewWardElem* wardInfo = (NewWardElem*)&(*matData)[head];
     wardInfo->id = MatElem::NewWard;
@@ -402,7 +402,7 @@ void MaterialCreator::createNewWardElem(const char* reflectance, const char* ani
 void MaterialCreator::createAshikhminSElem(const char* Rs, const char* nu, const char* nv) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    uint64_t head = align(matData, 4);
+    uint64_t head = CLUtil::align(matData, 4);
     matData->insert(matData->end(), sizeof(AshikhminSElem), 0);
     AshikhminSElem* ashSInfo = (AshikhminSElem*)&(*matData)[head];
     ashSInfo->id = MatElem::AshikhminS;
@@ -414,7 +414,7 @@ void MaterialCreator::createAshikhminSElem(const char* Rs, const char* nu, const
 void MaterialCreator::createAshikhminDElem(const char* Rd, const char* Rs) {
     ++numBxDFs;
     std::vector<uint8_t>* matData = &scene->materialsData;
-    uint64_t head = align(matData, 4);
+    uint64_t head = CLUtil::align(matData, 4);
     matData->insert(matData->end(), sizeof(AshikhminDElem), 0);
     AshikhminDElem* ashDInfo = (AshikhminDElem*)&(*matData)[head];
     ashDInfo->id = MatElem::AshikhminD;
@@ -469,7 +469,7 @@ void MaterialCreator::createMixMaterial(const char* name, const char* mat0, cons
 void MaterialCreator::createDiffuseLElem(const char* emittance) {
     ++numEEDFs;
     std::vector<uint8_t>* lightPropData = &scene->materialsData;
-    uint64_t head = align(lightPropData, 4);
+    uint64_t head = CLUtil::align(lightPropData, 4);
     lightPropData->insert(lightPropData->end(), sizeof(DiffuseLElem), 0);
     DiffuseLElem* diffuseInfo = (DiffuseLElem*)&(*lightPropData)[head];
     diffuseInfo->id = LPElem::DiffuseEmission;
@@ -486,7 +486,7 @@ void MaterialCreator::createDiffuseLightProperty(const char* name, const char* e
 void MaterialCreator::createImageBasedEnvLElem(const char* radiance, float multiplier) {
     ++numEEDFs;
     std::vector<uint8_t>* lightPropData = &scene->materialsData;
-    uint64_t head = align(lightPropData, 4);
+    uint64_t head = CLUtil::align(lightPropData, 4);
     lightPropData->insert(lightPropData->end(), sizeof(ImageBasedEnvLElem), 0);
     ImageBasedEnvLElem* IBEnvInfo = (ImageBasedEnvLElem*)&(*lightPropData)[head];
     IBEnvInfo->id = EnvLPElem::ImageBased;

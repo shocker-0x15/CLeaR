@@ -11,13 +11,64 @@
 
 #include "cl12.hpp"
 
-void initCLUtility();
-
-void printErrorFromCode(cl_int err_code, char* err_str);
-
-void printDeviceInfo(const cl::Device &device, cl_device_info info);
-
-void getProfilingInfo(const cl::Event &ev, cl_ulong* cmdStart, cl_ulong* cmdEnd, cl_ulong* cmdSubmit = nullptr);
+namespace CLUtil {
+    //----------------------------------------------------------------
+    // class definitions
+    
+    class Technique {
+    protected:
+        cl::Context m_context;
+        cl::Device m_device;
+        
+    public:
+        Technique(cl::Context &context, cl::Device &device) : m_context(context), m_device(device) {};
+        
+        cl::Context& getContext() {
+            return m_context;
+        }
+        
+        cl::Device& getDevice() {
+            return m_device;
+        }
+    };
+    
+    //----------------------------------------------------------------
+    // method definitions
+    
+    void init();
+    
+    void printErrorFromCode(cl_int err_code, char* err_str);
+    
+    void printDeviceInfo(const cl::Device &device, cl_device_info info);
+    
+    void getProfilingInfo(const cl::Event &ev, cl_ulong* cmdStart, cl_ulong* cmdEnd, cl_ulong* cmdSubmit = nullptr);
+    
+    std::string stringFromFile(const char* filename);
+    
+    cl_float2 makeCLfloat2(float x, float y);
+    
+    cl_float3 makeCLfloat3(float x, float y, float z);
+    
+    cl_float4 makeCLfloat4(float x, float y, float z, float w);
+    
+    cl_float3 minCLfloat3(const cl_float3 &a, const cl_float3 &b);
+    
+    cl_float3 maxCLfloat3(const cl_float3 &a, const cl_float3 &b);
+    
+    uint64_t align(std::vector<uint8_t>* vec, uint32_t alignment);
+    
+    uint64_t addDataAligned(std::vector<uint8_t>* dest, void* data, size_t bytes, uint32_t alignment);
+    
+    template <typename T>
+    uint64_t addDataAligned(std::vector<uint8_t>* dest, const T &data, uint32_t alignment = sizeof(T)) {
+        size_t numFill = ((dest->size() + (alignment - 1)) & ~(alignment - 1)) - dest->size();
+        dest->insert(dest->end(), numFill + sizeof(T), 0);
+        memcpy(&dest->back() + 1 - sizeof(T), &data, sizeof(T));
+        return dest->size() - sizeof(T);
+    }
+    
+    uint64_t fillZerosAligned(std::vector<uint8_t>* dest, uint32_t bytes, uint32_t alignment);
+}
 
 namespace cl {
 #define KERNEL_COMMON_ARGS const CommandQueue &queue, Kernel &kernel, const NDRange &offset, const NDRange &global, const NDRange &local, const VECTOR_CLASS<Event>* events, Event* event
@@ -183,31 +234,5 @@ namespace cl {
                            uint64_t origin, uint64_t align, uint64_t size,
                            uint64_t* next = nullptr, cl_int * err = nullptr);
 }
-
-std::string stringFromFile(const char* filename);
-
-cl_float2 makeCLfloat2(float x, float y);
-
-cl_float3 makeCLfloat3(float x, float y, float z);
-
-cl_float4 makeCLfloat4(float x, float y, float z, float w);
-
-cl_float3 minCLfloat3(const cl_float3 &a, const cl_float3 &b);
-
-cl_float3 maxCLfloat3(const cl_float3 &a, const cl_float3 &b);
-
-uint64_t align(std::vector<uint8_t>* vec, uint32_t alignment);
-
-uint64_t addDataAligned(std::vector<uint8_t>* dest, void* data, size_t bytes, uint32_t alignment);
-
-template <typename T>
-uint64_t addDataAligned(std::vector<uint8_t>* dest, const T &data, uint32_t alignment = sizeof(T)) {
-    size_t numFill = ((dest->size() + (alignment - 1)) & ~(alignment - 1)) - dest->size();
-    dest->insert(dest->end(), numFill + sizeof(T), 0);
-    memcpy(&dest->back() + 1 - sizeof(T), &data, sizeof(T));
-    return dest->size() - sizeof(T);
-}
-
-uint64_t fillZerosAligned(std::vector<uint8_t>* dest, uint32_t bytes, uint32_t alignment);
 
 #endif

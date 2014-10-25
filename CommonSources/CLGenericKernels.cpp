@@ -13,7 +13,7 @@
 namespace CLGeneric {
     GlobalScan::GlobalScan(cl::Context &context, cl::Device &device) : Technique(context, device) {
         std::string buildLog;
-        std::string rawStrBuildAccel = stringFromFile("generic_kernels.cl");
+        std::string rawStrBuildAccel = CLUtil::stringFromFile("generic_kernels.cl");
         cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
         
         cl::Program programBuildAccel{context, srcBuildAccel};
@@ -77,6 +77,17 @@ namespace CLGeneric {
         }
     }
     
+    void GlobalScan::calcWorkingBuffersRequirement(uint32_t numElements, uint64_t* size, uint32_t* align) {
+        const uint32_t blockSize = 128;
+        uint32_t numElems = numElements;
+        *size = 0;
+        *align = sizeof(uint32_t);
+        while (numElems > 1) {
+            numElems = ((numElems + (blockSize - 1))) / blockSize;
+            *size += numElems * sizeof(uint32_t);
+        }
+    }
+    
     void GlobalScan::createWorkingBuffers(uint32_t numElements, cl::Buffer &pool, uint64_t offset, std::vector<cl::Buffer>* buffers, uint64_t* nextAddress) {
         const uint32_t blockSize = 128;
         
@@ -109,11 +120,9 @@ namespace CLGeneric {
             uint32_t workSize = numBlocks * blockSize;
             const cl::Buffer &bufBlockSums = workingBuffers[depth - 1];
             
-            m_kernelLocalScan.setArg(0, bufElementsStack[depth - 1]);
-            m_kernelLocalScan.setArg(1, numElements);
-            m_kernelLocalScan.setArg(2, bufBlockSums);
-            queue.enqueueNDRangeKernel(m_kernelLocalScan, cl::NullRange, cl::NDRange(workSize),
-                                       cl::NDRange(blockSize), nullptr, &events.back());
+            cl::enqueueNDRangeKernel(queue, m_kernelLocalScan, cl::NullRange, cl::NDRange(workSize),
+                                     cl::NDRange(blockSize), nullptr, &events.back(),
+                                     bufElementsStack[depth - 1], numElements, bufBlockSums);
             queue.enqueueBarrierWithWaitList();
             
             numElements = numBlocks;
@@ -132,11 +141,9 @@ namespace CLGeneric {
             uint32_t numBlocks = ((numElements + (blockSize - 1))) / blockSize;
             uint32_t workSize = numBlocks * blockSize;
             
-            m_kernelAddOffset.setArg(0, bufElementsStack[depth]);
-            m_kernelAddOffset.setArg(1, bufElementsStack[depth - 1]);
-            m_kernelAddOffset.setArg(2, numElements);
-            queue.enqueueNDRangeKernel(m_kernelAddOffset, cl::NullRange, cl::NDRange(workSize),
-                                       cl::NDRange(blockSize), nullptr, &events.back());
+            cl::enqueueNDRangeKernel(queue, m_kernelAddOffset, cl::NullRange, cl::NDRange(workSize),
+                                     cl::NDRange(blockSize), nullptr, &events.back(),
+                                     bufElementsStack[depth], bufElementsStack[depth - 1], numElements);
             queue.enqueueBarrierWithWaitList();
         }
     }

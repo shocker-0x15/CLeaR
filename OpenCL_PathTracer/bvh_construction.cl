@@ -179,8 +179,9 @@ kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
 }
 
 
-
+#ifndef LOCAL_SORT_SIZE
 #define LOCAL_SORT_SIZE 64
+#endif
 
 // ローカル変数のprefix sumを計算する。
 ushort scan(local ushort* bitArray, const uint lid) {
@@ -416,10 +417,10 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
         *(parentIdxs + numPrimitives + splitPos + 1) = gid0;
 }
 
-#define CALC_NODE_AABB_GROUP_SIZE 64
+//#define CALC_NODE_AABB_GROUP_SIZE 64
 kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uchar* lNodes, uint numPrimitives, global uint* parentIdxs) {
     const uint gid0 = get_global_id(0);
-    const uint lid0 = get_local_id(0);
+//    const uint lid0 = get_local_id(0);
     if (gid0 >= numPrimitives)
         return;
     

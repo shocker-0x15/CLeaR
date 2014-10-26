@@ -11,7 +11,12 @@
 #include "distribution.cl"
 
 typedef struct BBox BBox;
+#ifndef USE_LBVH
 typedef struct BVHNode BVHNode;
+#else
+typedef struct LBVHInternalNode LBVHInternalNode;
+typedef struct LBVHLeafNode LBVHLeafNode;
+#endif
 
 //56bytes
 typedef struct __attribute__((aligned(4))) {
@@ -50,7 +55,12 @@ typedef struct {
     global uchar* materialsData;
     global uchar* texturesData;
     global uchar* otherResourcesData;
+#ifndef USE_LBVH
     global BVHNode* BVHNodes;
+#else
+    global LBVHInternalNode* LBVHInternalNodes;
+    global LBVHLeafNode* LBVHLeafNodes;
+#endif
     global CameraHead* camera;
     global EnvironmentHead* environment;
     global Discrete1D* lightPowerDistribution;

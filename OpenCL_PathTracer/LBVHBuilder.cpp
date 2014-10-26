@@ -99,8 +99,8 @@ void LBVHBuilder::setupWorkingBuffers() {
         return region;
     };
     
-    const uint32_t numElementsHistograms = (m_currentCapacity + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort * (1 << 3);
-    const uint32_t sizeUnifyAABBWorkingBuffers = 2 * (m_currentCapacity + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs * sizeof(AABB);
+    const uint32_t numElementsHistograms = ((m_currentCapacity + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort) * (1 << 3);
+    const uint32_t sizeUnifyAABBWorkingBuffers = 2 * ((m_currentCapacity + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs) * sizeof(AABB);
     
     // AABBs, unifyAABBsWorkingBuffers, MortonCodes,
     // indices, indices_shadow, radixDigits, histograms, offsets, globalScanWorkingBuffers
@@ -159,8 +159,7 @@ void LBVHBuilder::setupWorkingBuffers() {
 
 void LBVHBuilder::perform(cl::CommandQueue &queue,
                           const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
-                          cl::Buffer &bufLeafNodes, cl::Buffer &bufInternalNodes, std::vector<cl::Event> &events) {
-    const bool profiling = true;
+                          cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling) {
     StopWatchHiRes stopwatchHiRes;
     uint32_t evStart;
     cl_ulong tpCmdStart, tpCmdEnd, tpCmdSubmit;
@@ -298,6 +297,21 @@ void LBVHBuilder::perform(cl::CommandQueue &queue,
         }
         printf("radix sorting done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
     }
+//    std::vector<cl_uint> indices;
+//    indices.resize(m_currentCapacity);
+//    std::vector<cl_uint3> MortonCodes;
+//    MortonCodes.resize(m_currentCapacity);
+//    queue.enqueueReadBuffer(m_bufIndices, CL_TRUE, 0, indices.size() * sizeof(cl_uint), indices.data());
+//    queue.enqueueReadBuffer(m_bufMortonCodes, CL_TRUE, 0, MortonCodes.size() * sizeof(cl_uint3), MortonCodes.data());
+//    for (uint32_t i = 0; i < indices.size(); ++i) {
+//        cl_uint idx = indices[i];
+//        cl_uint3 mc = MortonCodes[idx];
+//        printf("%5u:", idx);
+//        for (int32_t bit = numBitsPerDim - 1; bit >= 0; --bit) {
+//            printf(" %u%u%u", (mc.s2 >> bit) & 0x01, (mc.s1 >> bit) & 0x01, (mc.s0 >> bit) & 0x01);
+//        }
+//        printf("\n");
+//    }
     
     // BVHの木構造を計算する。
     if (profiling)
@@ -321,6 +335,7 @@ void LBVHBuilder::perform(cl::CommandQueue &queue,
     if (profiling)
         stopwatchHiRes.start();
     {
+        events.emplace_back();
         const uint32_t workSize = ((numFaces + (localSizeCalcNodeAABBs - 1)) / localSizeCalcNodeAABBs) * localSizeCalcNodeAABBs;
         cl::enqueueNDRangeKernel(queue, m_kernelCalcNodeAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcNodeAABBs), nullptr, &events.back(),
                                  bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs);

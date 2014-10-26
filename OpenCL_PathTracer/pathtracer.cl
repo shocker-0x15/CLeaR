@@ -15,19 +15,31 @@
 kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
                         global uint* lights,
                         global uchar* materialsData, global uchar* texturesData, global uchar* otherResources,
+#ifndef USE_LBVH
                         global uchar* BVHNodes,
+#else
+                        global uchar* LBVHInternalNodes, global uchar* LBVHLeafNodes,
+#endif
                         global uint* randStates, global float3* pixels);
 
 kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
                         global uint* lights,
                         global uchar* materialsData, global uchar* texturesData, global uchar* otherResources,
+#ifndef USE_LBVH
                         global uchar* BVHNodes,
+#else
+                        global uchar* LBVHInternalNodes, global uchar* LBVHLeafNodes,
+#endif
                         global uint* randStates, global float3* pixels) {
     const Scene scene = {
         vertices, normals, tangents, uvs, (global Face*)faces,
         (global LightInfo*)lights, 
         materialsData, texturesData, otherResources,
+#ifndef USE_LBVH
         (global BVHNode*)BVHNodes,
+#else
+        (global LBVHInternalNode*)LBVHInternalNodes, (global LBVHLeafNode*)LBVHLeafNodes, 
+#endif
         (global CameraHead*)(otherResources + *((global uint*)otherResources + 0)),
         (global EnvironmentHead*)(otherResources + *((global uint*)otherResources + 1)),
         (global Discrete1D*)(otherResources + *((global uint*)otherResources + 2))

@@ -248,6 +248,7 @@ int main(int argc, const char * argv[]) {
     CLUtil::init();
     
 #define SIMULATION 0
+#define USE_LBVH 1
     const uint32_t iterations = 16;
     
     stopwatch.start();
@@ -275,7 +276,7 @@ int main(int argc, const char * argv[]) {
         
         cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0};
         cl::Context context{device, ctx_props};
-        const bool profiling = true;
+        const bool profiling = false;
         cl::CommandQueue queue{context, device, static_cast<cl_command_queue_properties>(profiling ? CL_QUEUE_PROFILING_ENABLE : 0)};
         std::vector<cl::Event> events;
         
@@ -299,7 +300,9 @@ int main(int argc, const char * argv[]) {
         cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
         
         cl::Program programRendering{context, srcRendering};
-//        programRendering.build("");
+//        std::string extraArgs;
+//        extraArgs += USE_LBVH ? " -DUSE_LBVH" : "";
+//        programRendering.build(extraArgs.c_str());
 //        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
 //        printf("rendering program build log: \n");
 //        printf("%s\n", buildLog.c_str());
@@ -325,36 +328,39 @@ int main(int argc, const char * argv[]) {
         printf("--------------------------------\n");
         //------------------------------------------------
         
+        cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
+        cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
         
         //------------------------------------------------
         // 空間分割開始
         // 48bytes
         
-        cl::Buffer buf_vertices{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numVertices() * sizeof(cl_float3), scene.rawVertices(), nullptr};
-        cl::Buffer buf_faces{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.numFaces() * sizeof(Face), scene.rawFaces(), nullptr};
-        cl::Buffer buf_LBVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(InternalNode) + scene.numFaces() * sizeof(LeafNode), nullptr, nullptr};
+#if USE_LBVH
+        cl::Buffer buf_BVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(InternalNode) + scene.numFaces() * sizeof(LeafNode), nullptr, nullptr};
         
         uint64_t nextAddress;
-        cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_LBVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                      0, 16, scene.numFaces() * sizeof(LeafNode), &nextAddress, nullptr);
-        cl::Buffer buf_internalNodes = cl::createSubBuffer(buf_LBVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                          nextAddress, 16, (scene.numFaces() - 1) * sizeof(InternalNode), nullptr, nullptr);
+        cl::Buffer buf_internalNodes = cl::createSubBuffer(buf_BVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                           0, 16, (scene.numFaces() - 1) * sizeof(InternalNode), &nextAddress, nullptr);
+        cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_BVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                       nextAddress, 16, scene.numFaces() * sizeof(LeafNode), nullptr, nullptr);
         
-        // 計測のために5回ループ。
-        uint32_t ibvh = 0;
-    BVHLOOP:
+//        // 計測のために5回ループ。1回目はバッファーの確保が走るようで遅い。
+//        // レンダリングプログラムをビルドさせると何らかの理由で1回目のカーネル実行に異様に時間がかかるが、謎。
+//        uint32_t ibvh = 0;
+//    BVHLOOP:
+//        events.clear();
         stopwatchHiRes.start();
         
-        BVHBuilder.perform(queue, buf_vertices, buf_faces, (uint32_t)scene.numFaces(), 20, buf_leafNodes, buf_internalNodes, events);
+        BVHBuilder.perform(queue, buf_vertices, buf_faces, (uint32_t)scene.numFaces(), 20, buf_internalNodes, buf_leafNodes, events, profiling);
         
         queue.finish();
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());
-        ++ibvh;
-        if (ibvh >= 5)
-            goto BVHEND;
-        printf("\n");
-        goto BVHLOOP;
-    BVHEND:
+//        ++ibvh;
+//        if (ibvh >= 5)
+//            goto BVHEND;
+//        printf("\n");
+//        goto BVHLOOP;
+//    BVHEND:
         
 //        std::vector<InternalNode> internalNodes;
 //        internalNodes.resize(scene.numFaces() - 1);
@@ -370,6 +376,8 @@ int main(int argc, const char * argv[]) {
 //        for (uint32_t i = 0; i < counters.size(); ++i) {
 //            printf("%5u, %u\n", i, counters[i]);
 //        }
+#endif
+        
         //------------------------------------------------
         
         
@@ -430,7 +438,9 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
         cl::Buffer buf_otherResources{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
-        cl::Buffer buf_BVHnodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
+#if USE_LBVH == 0
+        cl::Buffer buf_BVHNodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
+#endif
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
@@ -446,7 +456,7 @@ int main(int argc, const char * argv[]) {
                 cl::enqueueNDRangeKernel(queue, kernelRendering, offset, tile, localSize, nullptr, &ev,
                                          buf_vertices, buf_normals, buf_tangents, buf_uvs, buf_faces,
                                          buf_lightInfos, buf_materialsData, buf_texturesData, buf_otherResources,
-                                         buf_BVHnodes, buf_randStates, buf_pixels);
+                                         buf_BVHNodes, buf_randStates, buf_pixels);
 //                ev.setCallback(CL_COMPLETE, completeTile);
             }
             queue.finish();

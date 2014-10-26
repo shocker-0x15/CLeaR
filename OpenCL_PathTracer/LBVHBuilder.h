@@ -69,7 +69,7 @@ public:
     
     void perform(cl::CommandQueue &queue,
                  const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
-                 cl::Buffer &bufLeafNodes, cl::Buffer &bufInternalNodes, std::vector<cl::Event> &events);
+                 cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling);
 };
 
 #endif /* defined(__OpenCL_PathTracer__LBVHBuilder__) */

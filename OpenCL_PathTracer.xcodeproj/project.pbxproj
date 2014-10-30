@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		460DB5811A028A3000DE3E72 /* lbvh_construction.cl in Sources */ = {isa = PBXBuildFile; fileRef = 460DB5801A028A3000DE3E72 /* lbvh_construction.cl */; };
+		460DB5821A028A4800DE3E72 /* lbvh_construction.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 460DB5801A028A3000DE3E72 /* lbvh_construction.cl */; };
 		462229E9191AB59D00D71891 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 462229E8191AB59D00D71891 /* main.cpp */; };
 		462229EB191AB59D00D71891 /* OpenCL_PathTracer.1 in CopyFiles */ = {isa = PBXBuildFile; fileRef = 462229EA191AB59D00D71891 /* OpenCL_PathTracer.1 */; };
 		462229F2191AB5AA00D71891 /* OpenCL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 462229F1191AB5AA00D71891 /* OpenCL.framework */; };
@@ -46,10 +48,8 @@
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46B46F96194C4272005FD1EA /* material_structures.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
 		46B46F97194C457A005FD1EA /* material_structures.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B46F95194C4272005FD1EA /* material_structures.cl */; };
-		46B7EA9B19C0B23A00A75264 /* bvh_construction.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */; };
 		46B7EA9D19C0CBB900A75264 /* extra_atomics.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */; };
 		46B7EA9E19C2002700A75264 /* extra_atomics.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */; };
-		46B7EA9F19C2002700A75264 /* bvh_construction.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */; };
 		46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46B8879F1986A34600292F5F /* BMPExporter.cpp */; };
 		46BC78831981654800B30320 /* distribution.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78821981654800B30320 /* distribution.cl */; };
 		46BC78851981663F00B30320 /* scene.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46BC78841981663F00B30320 /* scene.cl */; };
@@ -80,9 +80,9 @@
 			dstPath = "";
 			dstSubfolderSpec = 16;
 			files = (
+				460DB5821A028A4800DE3E72 /* lbvh_construction.cl in CopyFiles */,
 				4691A80E19CEC6A70077D2B4 /* generic_kernels.cl in CopyFiles */,
 				46B7EA9E19C2002700A75264 /* extra_atomics.cl in CopyFiles */,
-				46B7EA9F19C2002700A75264 /* bvh_construction.cl in CopyFiles */,
 				46BC788619816C7500B30320 /* distribution.cl in CopyFiles */,
 				46BC788719816C7500B30320 /* scene.cl in CopyFiles */,
 				46CB87F71972F6CD00B99D06 /* texture_structures.cl in CopyFiles */,
@@ -103,6 +103,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		460DB5801A028A3000DE3E72 /* lbvh_construction.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = lbvh_construction.cl; sourceTree = "<group>"; };
 		462229E5191AB59D00D71891 /* OpenCL_PathTracer */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = OpenCL_PathTracer; sourceTree = BUILT_PRODUCTS_DIR; };
 		462229E8191AB59D00D71891 /* main.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; path = main.cpp; sourceTree = "<group>"; };
 		462229EA191AB59D00D71891 /* OpenCL_PathTracer.1 */ = {isa = PBXFileReference; lastKnownFileType = text.man; path = OpenCL_PathTracer.1; sourceTree = "<group>"; };
@@ -164,7 +165,6 @@
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
 		46B46F94194C2AE2005FD1EA /* sim_material_structures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = sim_material_structures.hpp; sourceTree = "<group>"; };
 		46B46F95194C4272005FD1EA /* material_structures.cl */ = {isa = PBXFileReference; explicitFileType = sourcecode.opencl; fileEncoding = 4; path = material_structures.cl; sourceTree = "<group>"; };
-		46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = bvh_construction.cl; sourceTree = "<group>"; };
 		46B7EA9C19C0CBB900A75264 /* extra_atomics.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = extra_atomics.cl; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
 		46B8879E19869B0F00292F5F /* BMPExporter.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = BMPExporter.h; sourceTree = "<group>"; };
@@ -296,7 +296,7 @@
 				46CB87F51972F08000B99D06 /* texture_structures.cl */,
 				46222A02191AB6B800D71891 /* texture.cl */,
 				462229FC191AB6B800D71891 /* bvh_traversal.cl */,
-				46B7EA9A19C0B23A00A75264 /* bvh_construction.cl */,
+				460DB5801A028A3000DE3E72 /* lbvh_construction.cl */,
 				46B46F95194C4272005FD1EA /* material_structures.cl */,
 				46222A00191AB6B800D71891 /* reflection.cl */,
 				462229FE191AB6B800D71891 /* light.cl */,
@@ -387,6 +387,7 @@
 				4691A80A19CEC4CC0077D2B4 /* CLGenericKernels.cpp in Sources */,
 				46BC78851981663F00B30320 /* scene.cl in Sources */,
 				462229E9191AB59D00D71891 /* main.cpp in Sources */,
+				460DB5811A028A3000DE3E72 /* lbvh_construction.cl in Sources */,
 				462229FB191AB64300D71891 /* ImageLoader.cpp in Sources */,
 				46B7EA9D19C0CBB900A75264 /* extra_atomics.cl in Sources */,
 				46222A07191AB6B800D71891 /* pathtracer.cl in Sources */,
@@ -406,7 +407,6 @@
 				46222A04191AB6B800D71891 /* bvh_traversal.cl in Sources */,
 				46222A0A191AB6B800D71891 /* texture.cl in Sources */,
 				46BC78831981654800B30320 /* distribution.cl in Sources */,
-				46B7EA9B19C0B23A00A75264 /* bvh_construction.cl in Sources */,
 				46222A23191AB70100D71891 /* Point3f.cpp in Sources */,
 				46222A06191AB6B800D71891 /* light.cl in Sources */,
 				46E860661928E89A00944028 /* matrix.cl in Sources */,

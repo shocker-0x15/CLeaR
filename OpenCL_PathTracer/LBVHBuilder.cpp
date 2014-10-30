@@ -21,7 +21,7 @@ CLUtil::Technique(context, device), m_techGlobalScan{context, device},
 localSizeCalcAABBs(128), localSizeUnifyAABBs(128), localSizeCalcMortonCodes(128),
 localSizeBlockwiseSort(64), localSizeCalcBlockHistograms(128),
 localSizeConstructBinaryRadixTree(64), localSizeCalcNodeAABBs(64) {
-    std::string rawStrBuildAccel = CLUtil::stringFromFile("bvh_construction.cl");
+    std::string rawStrBuildAccel = CLUtil::stringFromFile("lbvh_construction.cl");
     cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
     
     cl::Program programBuildAccel{context, srcBuildAccel};
@@ -347,4 +347,29 @@ void LBVHBuilder::perform(cl::CommandQueue &queue,
         CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
         printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
     }
+//    std::vector<LeafNode> leafNodes;
+//    leafNodes.resize(numFaces);
+//    std::vector<InternalNode> internalNodes;
+//    internalNodes.resize(numFaces - 1);
+//    queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
+//    queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
+//    printf("--------------------------------\n");
+//    printf("Internal Nodes\n");
+//    for (uint32_t i = 0; i < internalNodes.size(); ++i) {
+//        InternalNode &iNode = internalNodes[i];
+//        printf("%5u: min(%11.3e, %11.3e, %11.3e) | max(%11.3e, %11.3e, %11.3e) %5u_%u %5u_%u\n", i,
+//               iNode.min.s0, iNode.min.s1, iNode.min.s2,
+//               iNode.max.s0, iNode.max.s1, iNode.max.s2,
+//               iNode.c[0], iNode.isChild[0], iNode.c[1], iNode.isChild[1]);
+//    }
+//    printf("--------------------------------\n");
+//    printf("Leaf Nodes\n");
+//    for (uint32_t i = 0; i <leafNodes.size(); ++i) {
+//        LeafNode &lNode = leafNodes[i];
+//        printf("%5u: min(%11.3e, %11.3e, %11.3e) | max(%11.3e, %11.3e, %11.3e) %5u\n", i,
+//               lNode.min.s0, lNode.min.s1, lNode.min.s2,
+//               lNode.max.s0, lNode.max.s1, lNode.max.s2,
+//               lNode.objIdx);
+//    }
+//    printf("--------------------------------\n");
 }

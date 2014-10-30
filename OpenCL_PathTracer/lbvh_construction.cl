@@ -33,8 +33,8 @@ typedef struct __attribute__((aligned(16))) {
 typedef struct __attribute__((aligned(16))) {
     point3 min;
     point3 max;
-    bool leftIsChild, rightIsChild; uchar dum0[2];
-    uint c1, c2;
+    bool isChild[2]; uchar dum0[2];
+    uint c[2];
 } InternalNode;
 
 // 48bytes
@@ -402,15 +402,15 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
     
     global InternalNode* iNode = (global InternalNode*)iNodes + gid0;
     bool leftIsChild = min(gid0, otherEnd) == splitPos;
-    iNode->leftIsChild = leftIsChild;
-    iNode->c1 = splitPos;
+    iNode->isChild[0] = leftIsChild;
+    iNode->c[0] = splitPos;
     if (leftIsChild)
         *(parentIdxs + splitPos) = gid0;
     else
         *(parentIdxs + numPrimitives + splitPos) = gid0;
     bool rightIsChild = max(gid0, otherEnd) == splitPos + 1;
-    iNode->rightIsChild = rightIsChild;
-    iNode->c2 = splitPos + 1;
+    iNode->isChild[1] = rightIsChild;
+    iNode->c[1] = splitPos + 1;
     if (rightIsChild)
         *(parentIdxs + splitPos + 1) = gid0;
     else
@@ -439,10 +439,10 @@ kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uc
         return;
     
     global InternalNode* tgtINode = (global InternalNode*)iNodes + tgtIdx;
-    bool leftIsChild = tgtINode->leftIsChild;
-    bool rightIsChild = tgtINode->rightIsChild;
-    uint lIdx = tgtINode->c1;
-    uint rIdx = tgtINode->c2;
+    bool leftIsChild = tgtINode->isChild[0];
+    bool rightIsChild = tgtINode->isChild[1];
+    uint lIdx = tgtINode->c[0];
+    uint rIdx = tgtINode->c[1];
     if (lIdx == selfIdx && leftIsChild) {
         min = fmin(min, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->min : ((global InternalNode*)iNodes + rIdx)->min);
         max = fmax(max, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->max : ((global InternalNode*)iNodes + rIdx)->max);
@@ -468,10 +468,10 @@ kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uc
             return;
         
         global InternalNode* tgtINode = (global InternalNode*)iNodes + tgtIdx;
-        bool leftIsChild = tgtINode->leftIsChild;
-        bool rightIsChild = tgtINode->rightIsChild;
-        uint lIdx = tgtINode->c1;
-        uint rIdx = tgtINode->c2;
+        bool leftIsChild = tgtINode->isChild[0];
+        bool rightIsChild = tgtINode->isChild[1];
+        uint lIdx = tgtINode->c[0];
+        uint rIdx = tgtINode->c[1];
         if (lIdx == selfIdx) {
             min = fmin(min, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->min : ((global InternalNode*)iNodes + rIdx)->min);
             max = fmax(max, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->max : ((global InternalNode*)iNodes + rIdx)->max);

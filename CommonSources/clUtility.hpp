@@ -228,6 +228,51 @@ namespace cl {
         kernel.setArg(11, t11);
         return queue.enqueueNDRangeKernel(kernel, offset, global, local, events, event);
     }
+    template <typename T0, typename T1, typename T2, typename T3, typename T4,
+    typename T5, typename T6, typename T7, typename T8, typename T9,
+    typename T10, typename T11, typename T12>
+    inline cl_int enqueueNDRangeKernel(KERNEL_COMMON_ARGS,
+                                       const T0 &t0, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4,
+                                       const T5 &t5, const T6 &t6, const T7 &t7, const T8 &t8, const T9 &t9,
+                                       const T10 &t10, const T11 &t11, const T12 &t12) {
+        kernel.setArg(0, t0);
+        kernel.setArg(1, t1);
+        kernel.setArg(2, t2);
+        kernel.setArg(3, t3);
+        kernel.setArg(4, t4);
+        kernel.setArg(5, t5);
+        kernel.setArg(6, t6);
+        kernel.setArg(7, t7);
+        kernel.setArg(8, t8);
+        kernel.setArg(9, t9);
+        kernel.setArg(10, t10);
+        kernel.setArg(11, t11);
+        kernel.setArg(12, t12);
+        return queue.enqueueNDRangeKernel(kernel, offset, global, local, events, event);
+    }
+    template <typename T0, typename T1, typename T2, typename T3, typename T4,
+    typename T5, typename T6, typename T7, typename T8, typename T9,
+    typename T10, typename T11, typename T12, typename T13>
+    inline cl_int enqueueNDRangeKernel(KERNEL_COMMON_ARGS,
+                                       const T0 &t0, const T1 &t1, const T2 &t2, const T3 &t3, const T4 &t4,
+                                       const T5 &t5, const T6 &t6, const T7 &t7, const T8 &t8, const T9 &t9,
+                                       const T10 &t10, const T11 &t11, const T12 &t12, const T13 &t13) {
+        kernel.setArg(0, t0);
+        kernel.setArg(1, t1);
+        kernel.setArg(2, t2);
+        kernel.setArg(3, t3);
+        kernel.setArg(4, t4);
+        kernel.setArg(5, t5);
+        kernel.setArg(6, t6);
+        kernel.setArg(7, t7);
+        kernel.setArg(8, t8);
+        kernel.setArg(9, t9);
+        kernel.setArg(10, t10);
+        kernel.setArg(11, t11);
+        kernel.setArg(12, t12);
+        kernel.setArg(13, t13);
+        return queue.enqueueNDRangeKernel(kernel, offset, global, local, events, event);
+    }
     
     Buffer createSubBuffer(Buffer &buffer,
                            cl_mem_flags flags, cl_buffer_create_type buffer_create_type,

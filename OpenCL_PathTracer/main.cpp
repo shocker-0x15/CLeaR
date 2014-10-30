@@ -146,12 +146,12 @@ void buildScene(StopWatch &sw) {
     mc.createNormalMapTexture("bump_backWall", "images/paper_bump.png");
     mc.createImageTexture("R_backWall", "images/Kirby.png");
     
-    //    mc.createImageTexture("R_floor", "images/stone_wall__.png");
-    //    mc.createNormalMapTexture("bump_floor", "images/stone_wall_normal_map__.png");
-    //    mc.createFloat3ConstantTexture("Rs_floor", 0.15f, 0.15f, 0.15f);
-    //    mc.createFloatConstantTexture("nu_floor", 150);
-    //    mc.createFloatConstantTexture("nv_floor", 150);
-    //    mc.createAshikhminMaterial("mat_floor", "bump_floor", "Rs_floor", "R_floor", "nu_floor", "nv_floor");
+//    mc.createImageTexture("R_floor", "images/stone_wall__.png");
+//    mc.createNormalMapTexture("bump_floor", "images/stone_wall_normal_map__.png");
+//    mc.createFloat3ConstantTexture("Rs_floor", 0.15f, 0.15f, 0.15f);
+//    mc.createFloatConstantTexture("nu_floor", 150);
+//    mc.createFloatConstantTexture("nv_floor", 150);
+//    mc.createAshikhminMaterial("mat_floor", "bump_floor", "Rs_floor", "R_floor", "nu_floor", "nv_floor");
     
     mc.createMatteMaterial("mat_leftWall", nullptr, "R_leftWall", "sigma_lambert");
     mc.createMatteMaterial("mat_rightWall", nullptr, "R_rightWall", "sigma_lambert");
@@ -248,7 +248,7 @@ int main(int argc, const char * argv[]) {
     CLUtil::init();
     
 #define SIMULATION 0
-#define USE_LBVH 1
+//#define USE_LBVH
     const uint32_t iterations = 16;
     
     stopwatch.start();
@@ -300,12 +300,15 @@ int main(int argc, const char * argv[]) {
         cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
         
         cl::Program programRendering{context, srcRendering};
-//        std::string extraArgs;
-//        extraArgs += USE_LBVH ? " -DUSE_LBVH" : "";
-//        programRendering.build(extraArgs.c_str());
-//        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
-//        printf("rendering program build log: \n");
-//        printf("%s\n", buildLog.c_str());
+        std::string extraArgs;
+#ifdef USE_LBVH
+        extraArgs += " -DUSE_LBVH";
+#else
+#endif
+        programRendering.build(extraArgs.c_str());
+        programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
+        printf("rendering program build log: \n");
+        printf("%s\n", buildLog.c_str());
         
         printf("rendering program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
@@ -335,7 +338,7 @@ int main(int argc, const char * argv[]) {
         // 空間分割開始
         // 48bytes
         
-#if USE_LBVH
+#ifdef USE_LBVH
         cl::Buffer buf_BVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(InternalNode) + scene.numFaces() * sizeof(LeafNode), nullptr, nullptr};
         
         uint64_t nextAddress;
@@ -438,7 +441,7 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
         cl::Buffer buf_otherResources{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
-#if USE_LBVH == 0
+#ifndef USE_LBVH
         cl::Buffer buf_BVHNodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
 #endif
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
@@ -456,7 +459,12 @@ int main(int argc, const char * argv[]) {
                 cl::enqueueNDRangeKernel(queue, kernelRendering, offset, tile, localSize, nullptr, &ev,
                                          buf_vertices, buf_normals, buf_tangents, buf_uvs, buf_faces,
                                          buf_lightInfos, buf_materialsData, buf_texturesData, buf_otherResources,
-                                         buf_BVHNodes, buf_randStates, buf_pixels);
+#ifdef USE_LBVH
+                                         buf_internalNodes, buf_leafNodes,
+#else
+                                         buf_BVHNodes,
+#endif
+                                         buf_randStates, buf_pixels);
 //                ev.setCallback(CL_COMPLETE, completeTile);
             }
             queue.finish();

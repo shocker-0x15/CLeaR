@@ -16,24 +16,24 @@ struct __attribute__((aligned(16))) BBox {
     point3 min, max;
 };
 
-#ifndef USE_LBVH
-//48bytes
-struct __attribute__((aligned(16))) BVHNode {
-    BBox bbox;
-    uint children[2];
-};
-#else
+#ifdef USE_LBVH
 // 48bytes
 struct __attribute__((aligned(16))) LBVHInternalNode {
     BBox bbox;
-    bool leftIsChild, rightIsChild; uchar dum0[2];
-    uint c1, c2;
+    bool isChild[2]; uchar dum0[2];
+    uint c[2];
 };
 
 // 48bytes
 struct __attribute__((aligned(16))) LBVHLeafNode {
     BBox bbox;
     uint objIdx;
+};
+#else
+//48bytes
+struct __attribute__((aligned(16))) BVHNode {
+    BBox bbox;
+    uint children[2];
 };
 #endif
 
@@ -187,7 +187,43 @@ bool rayAABBIntersection(const global BBox* bb, const float3* org, const float3*
     return true;
 }
 
-#ifndef USE_LBVH
+#ifdef USE_LBVH
+bool rayIntersection(const Scene* scene,
+                     const point3* org, const vector3* dir, Intersection* isect) {
+    float t = INFINITY;
+    
+    uint idxStack[64];
+    uint depth = 0;
+    idxStack[depth++] = 0;
+    while (depth > 0) {
+        --depth;
+        const global LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
+        if (rayAABBIntersection(&inode->bbox, org, dir)) {
+            for (int i = 0; i < 2; ++i) {
+                if (inode->isChild[i] == false) {
+                    idxStack[depth++] = inode->c[i];
+                    continue;
+                }
+                const global LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+                if (rayAABBIntersection(&lnode->bbox, org, dir)) {
+                    float tt = INFINITY;
+                    Intersection lIsect;
+                    if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &tt, &lIsect)) {
+                        if (tt < t) {
+                            t = tt;
+                            *isect = lIsect;
+                            isect->t = t;
+                            isect->faceID = lnode->objIdx;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    return !isinf(t);
+}
+#else
 bool rayIntersection(const Scene* scene,
                      const point3* org, const vector3* dir, Intersection* isect) {
     float t = INFINITY;
@@ -214,59 +250,6 @@ bool rayIntersection(const Scene* scene,
                         isect->faceID = node->children[0];
                     }
                 }
-            }
-        }
-    }
-    
-    return !isinf(t);
-}
-#else
-bool rayIntersection(const Scene* scene,
-                     const point3* org, const vector3* dir, Intersection* isect) {
-    float t = INFINITY;
-    
-    uint idxStack[64];
-    uint depth = 0;
-    idxStack[depth++] = 0;
-    while (depth > 0) {
-        --depth;
-        const global LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
-        if (rayAABBIntersection(&inode->bbox, org, dir)) {
-            if (inode->leftIsChild) {
-                const global LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c1;
-                if (rayAABBIntersection(&lnode->bbox, org, dir)) {
-                    float tt = INFINITY;
-                    Intersection lIsect;
-                    if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &tt, &lIsect)) {
-                        if (tt < t) {
-                            t = tt;
-                            *isect = lIsect;
-                            isect->t = t;
-                            isect->faceID = lnode->objIdx;
-                        }
-                    }
-                }
-            }
-            else {
-                idxStack[depth++] = inode->c1;
-            }
-            if (inode->rightIsChild) {
-                const global LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c2;
-                if (rayAABBIntersection(&lnode->bbox, org, dir)) {
-                    float tt = INFINITY;
-                    Intersection lIsect;
-                    if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &tt, &lIsect)) {
-                        if (tt < t) {
-                            t = tt;
-                            *isect = lIsect;
-                            isect->t = t;
-                            isect->faceID = lnode->objIdx;
-                        }
-                    }
-                }
-            }
-            else {
-                idxStack[depth++] = inode->c2;
             }
         }
     }

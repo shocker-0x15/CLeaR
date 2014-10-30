@@ -16,8 +16,8 @@
 struct InternalNode {
     cl_float3 min;
     cl_float3 max;
-    cl_uchar leftIsChild, rightIsChild; uint8_t dum0[2];
-    cl_uint c1, c2; uint8_t dum1[4];
+    cl_uchar isChild[2]; uint8_t dum0[2];
+    cl_uint c[2]; uint8_t dum1[4];
 };
 
 // 48bytes

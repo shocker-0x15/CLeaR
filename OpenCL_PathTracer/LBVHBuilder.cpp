@@ -21,13 +21,13 @@ CLUtil::Technique(context, device), m_techGlobalScan{context, device},
 localSizeCalcAABBs(128), localSizeUnifyAABBs(128), localSizeCalcMortonCodes(128),
 localSizeBlockwiseSort(64), localSizeCalcBlockHistograms(128),
 localSizeConstructBinaryRadixTree(64), localSizeCalcNodeAABBs(64) {
-    std::string rawStrBuildAccel = CLUtil::stringFromFile("lbvh_construction.cl");
+    std::string rawStrBuildAccel = CLUtil::stringFromFile("OpenCL_src/lbvh_construction.cl");
     cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
     
     cl::Program programBuildAccel{context, srcBuildAccel};
     std::string buildLog;
     char extraArgs[256];
-    sprintf(extraArgs, "-DLOCAL_SORT_SIZE=%u", localSizeBlockwiseSort);
+    sprintf(extraArgs, "-I\"OpenCL_src\" -DLOCAL_SORT_SIZE=%u", localSizeBlockwiseSort);
     programBuildAccel.build(extraArgs);
     programBuildAccel.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
     printf("LBVH build program build log: \n");

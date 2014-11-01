@@ -13,11 +13,13 @@
 namespace CLGeneric {
     GlobalScan::GlobalScan(cl::Context &context, cl::Device &device) : Technique(context, device) {
         std::string buildLog;
-        std::string rawStrBuildAccel = CLUtil::stringFromFile("generic_kernels.cl");
+        std::string rawStrBuildAccel = CLUtil::stringFromFile("OpenCL_src/generic_kernels.cl");
         cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
         
         cl::Program programBuildAccel{context, srcBuildAccel};
-        programBuildAccel.build("");
+        std::string extraArgs = "";
+        extraArgs += " -I\"OpenCL_src\"";
+        programBuildAccel.build(extraArgs.c_str());
         programBuildAccel.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
         printf("generic kernels build log: \n");
         printf("%s\n", buildLog.c_str());

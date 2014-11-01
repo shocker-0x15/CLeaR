@@ -280,6 +280,7 @@ int main(int argc, const char * argv[]) {
         cl::CommandQueue queue{context, device, static_cast<cl_command_queue_properties>(profiling ? CL_QUEUE_PROFILING_ENABLE : 0)};
         std::vector<cl::Event> events;
         
+        std::string extraArgs;
         std::string buildLog;
         
         //------------------------------------------------
@@ -299,11 +300,12 @@ int main(int argc, const char * argv[]) {
 #ifndef __SIMULATION
         stopwatch.start();
         
-        std::string rawStrRendering = CLUtil::stringFromFile("pathtracer.cl");
+        std::string rawStrRendering = CLUtil::stringFromFile("OpenCL_src/pathtracer.cl");
         cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
         
         cl::Program programRendering{context, srcRendering};
-        std::string extraArgs;
+        extraArgs = "";
+        extraArgs += " -I\"OpenCL_src\"";
 #ifdef __USE_LBVH
         extraArgs += " -D__USE_LBVH";
 #endif
@@ -321,11 +323,13 @@ int main(int argc, const char * argv[]) {
         // ポストプロセスプログラムの生成
         stopwatch.start();
         
-        std::string rawStrPostProcessing = CLUtil::stringFromFile("post_processing.cl");
+        std::string rawStrPostProcessing = CLUtil::stringFromFile("OpenCL_src/post_processing.cl");
         cl::Program::Sources srcPostProcessing{1, std::make_pair(rawStrPostProcessing.c_str(), rawStrPostProcessing.length())};
         
         cl::Program programPostProcessing{context, srcPostProcessing};
-        programPostProcessing.build("");
+        extraArgs = "";
+        extraArgs += " -I\"OpenCL_src\"";
+        programPostProcessing.build(extraArgs.c_str());
         programPostProcessing.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
         printf("post-process program build log: \n");
         printf("%s\n", buildLog.c_str());

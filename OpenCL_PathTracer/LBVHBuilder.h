@@ -12,20 +12,22 @@
 #include "clUtility.hpp"
 #include "CLGenericKernels.h"
 
-// 48bytes
-struct InternalNode {
-    cl_float3 min;
-    cl_float3 max;
-    cl_uchar isChild[2]; uint8_t dum0[2];
-    cl_uint c[2]; uint8_t dum1[4];
-};
-
-// 48bytes
-struct LeafNode {
-    cl_float3 min;
-    cl_float3 max;
-    cl_uint objIdx; uint8_t dum0[12];
-};
+namespace LBVH {
+    // 48bytes
+    struct InternalNode {
+        cl_float3 min;
+        cl_float3 max;
+        cl_uchar isChild[2]; uint8_t dum0[2];
+        cl_uint c[2]; uint8_t dum1[4];
+    };
+    
+    // 48bytes
+    struct LeafNode {
+        cl_float3 min;
+        cl_float3 max;
+        cl_uint objIdx; uint8_t dum0[12];
+    };
+}
 
 class LBVHBuilder : public CLUtil::Technique {
     cl::Kernel m_kernelCalcAABBs;

@@ -11,16 +11,16 @@
 #include "scene.cl"
 #include "texture.cl"
 
-//32bytes
+// 32bytes
 struct __attribute__((aligned(16))) BBox {
     point3 min, max;
 };
 
-#ifdef USE_LBVH
+#ifdef __USE_LBVH
 // 48bytes
 struct __attribute__((aligned(16))) LBVHInternalNode {
     BBox bbox;
-    bool isChild[2]; uchar dum0[2];
+    bool isChild[2];
     uint c[2];
 };
 
@@ -30,7 +30,7 @@ struct __attribute__((aligned(16))) LBVHLeafNode {
     uint objIdx;
 };
 #else
-//48bytes
+// 48bytes
 struct __attribute__((aligned(16))) BVHNode {
     BBox bbox;
     uint children[2];
@@ -187,7 +187,7 @@ bool rayAABBIntersection(const global BBox* bb, const float3* org, const float3*
     return true;
 }
 
-#ifdef USE_LBVH
+#ifdef __USE_LBVH
 bool rayIntersection(const Scene* scene,
                      const point3* org, const vector3* dir, Intersection* isect) {
     float t = INFINITY;

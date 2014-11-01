@@ -19,6 +19,8 @@
 #include "clUtility.hpp"
 #include "LBVHBuilder.h"
 
+#define __USE_LBVH
+//#define __SIMULATION
 #include "sim_pathtracer.hpp"
 
 #include "CreateFunctions.hpp"
@@ -247,8 +249,6 @@ int main(int argc, const char * argv[]) {
     
     CLUtil::init();
     
-#define SIMULATION 0
-//#define USE_LBVH
     const uint32_t iterations = 16;
     
     stopwatch.start();
@@ -284,16 +284,19 @@ int main(int argc, const char * argv[]) {
         
         //------------------------------------------------
         // 空間分割プログラムの生成
+#ifdef __USE_LBVH
         stopwatch.start();
         
         LBVHBuilder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
         
         printf("LBVH build program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
+#endif
         //------------------------------------------------
         
         //------------------------------------------------
         // レンダリングプログラムの生成
+#ifndef __SIMULATION
         stopwatch.start();
         
         std::string rawStrRendering = CLUtil::stringFromFile("pathtracer.cl");
@@ -301,9 +304,8 @@ int main(int argc, const char * argv[]) {
         
         cl::Program programRendering{context, srcRendering};
         std::string extraArgs;
-#ifdef USE_LBVH
-        extraArgs += " -DUSE_LBVH";
-#else
+#ifdef __USE_LBVH
+        extraArgs += " -D__USE_LBVH";
 #endif
         programRendering.build(extraArgs.c_str());
         programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
@@ -312,6 +314,7 @@ int main(int argc, const char * argv[]) {
         
         printf("rendering program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
+#endif
         //------------------------------------------------
         
         //------------------------------------------------
@@ -336,16 +339,15 @@ int main(int argc, const char * argv[]) {
         
         //------------------------------------------------
         // 空間分割開始
-        // 48bytes
         
-#ifdef USE_LBVH
-        cl::Buffer buf_BVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(InternalNode) + scene.numFaces() * sizeof(LeafNode), nullptr, nullptr};
+#ifdef __USE_LBVH
+        cl::Buffer buf_BVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(LBVH::InternalNode) + scene.numFaces() * sizeof(LBVH::LeafNode), nullptr, nullptr};
         
         uint64_t nextAddress;
         cl::Buffer buf_internalNodes = cl::createSubBuffer(buf_BVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                           0, 16, (scene.numFaces() - 1) * sizeof(InternalNode), &nextAddress, nullptr);
+                                                           0, 16, (scene.numFaces() - 1) * sizeof(LBVH::InternalNode), &nextAddress, nullptr);
         cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_BVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                       nextAddress, 16, scene.numFaces() * sizeof(LeafNode), nullptr, nullptr);
+                                                       nextAddress, 16, scene.numFaces() * sizeof(LBVH::LeafNode), nullptr, nullptr);
         
 //        // 計測のために5回ループ。1回目はバッファーの確保が走るようで遅い。
 //        // レンダリングプログラムをビルドさせると何らかの理由で1回目のカーネル実行に異様に時間がかかるが、謎。
@@ -385,7 +387,7 @@ int main(int argc, const char * argv[]) {
         
         
         //------------------------------------------------
-        //レンダリング開始
+        // レンダリング
         stopwatch.start();
         
         const int numTilesX = 16, numTilesY = 16;
@@ -393,14 +395,24 @@ int main(int argc, const char * argv[]) {
         cl::NDRange tile{g_width / numTilesX, g_height / numTilesY};
         cl::NDRange localSize{8, 8};
         uint32_t k10mins = 1;
-#if SIMULATION
+#ifdef __SIMULATION
+        //----------------------------------------------------------------
+        // CPU等価コード
         printf("CPU equivalent code:\n");
+#ifdef __USE_LBVH
+        std::vector<LBVH::InternalNode> internalNodes;
+        std::vector<LBVH::LeafNode> leafNodes;
+        internalNodes.resize(scene.numFaces() - 1);
+        leafNodes.resize(scene.numFaces());
+        queue.enqueueReadBuffer(buf_internalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(LBVH::InternalNode), internalNodes.data());
+        queue.enqueueReadBuffer(buf_leafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LBVH::LeafNode), leafNodes.data());
+#endif
         sim::global_sizes[0] = (sim::uint)*tile;
         sim::global_sizes[1] = (sim::uint)*(tile + 1);
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);
             
-            startTimePoint = std::chrono::system_clock::now();
+            stopwatch.start();
             for (int j = 0; j < numTiles; ++j) {
                 sim::global_offsets[0] = (sim::uint)*tile * (j % numTilesX);
                 sim::global_offsets[1] = (sim::uint)*(tile + 1) * (j / numTilesX);
@@ -411,17 +423,24 @@ int main(int argc, const char * argv[]) {
                         sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
                                          (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLightInfos(),
                                          (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(), (sim::uchar*)scene.rawOtherResources(),
-                                         (sim::uchar*)scene.rawBVHNodes(), g_randStates.data(), (sim::float3*)g_pixels.data());
+#ifdef __USE_LBVH
+                                         (sim::uchar*)internalNodes.data(), (sim::uchar*)leafNodes.data(), 
+#else
+                                         (sim::uchar*)scene.rawBVHNodes(),
+#endif
+                                         g_randStates.data(), (sim::float3*)g_pixels.data());
                     }
                 }
                 printf("*");
             }
-            std::chrono::system_clock::duration passTime = std::chrono::system_clock::now() - startTimePoint;
-            printf(" %fsec\n", std::chrono::duration_cast<std::chrono::milliseconds>(passTime).count() * 0.001f);
+            printf(" %fsec\n", stopwatch.stop() * 0.001f);
         }
-        buf_pixels = cl::Buffer(context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr);
-        kernelPostProcess0.setArg(3, buf_pixels);
-#else
+        cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
+        // CPU等価コード
+        //----------------------------------------------------------------
+#else// #ifdef __SIMULATION
+        //----------------------------------------------------------------
+        // OpenCL実行コード
         cl::Buffer buf_normals;
         if (scene.numNormals() == 0)
             buf_normals = cl::Buffer(context, CL_MEM_READ_ONLY, sizeof(cl_float3), nullptr, nullptr);
@@ -441,7 +460,7 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
         cl::Buffer buf_otherResources{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
-#ifndef USE_LBVH
+#ifndef __USE_LBVH
         cl::Buffer buf_BVHNodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
 #endif
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
@@ -459,7 +478,7 @@ int main(int argc, const char * argv[]) {
                 cl::enqueueNDRangeKernel(queue, kernelRendering, offset, tile, localSize, nullptr, &ev,
                                          buf_vertices, buf_normals, buf_tangents, buf_uvs, buf_faces,
                                          buf_lightInfos, buf_materialsData, buf_texturesData, buf_otherResources,
-#ifdef USE_LBVH
+#ifdef __USE_LBVH
                                          buf_internalNodes, buf_leafNodes,
 #else
                                          buf_BVHNodes,
@@ -479,13 +498,16 @@ int main(int argc, const char * argv[]) {
                 ++k10mins;
             }
         }
-#endif
+        // OpenCL実行コード
+        //----------------------------------------------------------------
+#endif// #ifdef __SIMULATION
         printf("rendering done! ... time: %fsec\n", stopwatch.stop() * 0.001f);
+        // レンダリング
         //------------------------------------------------
         
         
         //------------------------------------------------
-        //ポストプロセッシング開始
+        // ポストプロセッシング
         stopwatch.start();
         
         cl::Buffer buf_intermediate0{context, CL_MEM_READ_WRITE, g_pixels.size() * sizeof(cl_float3)};

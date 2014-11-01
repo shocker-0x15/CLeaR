@@ -12,16 +12,31 @@
 #include "sim_texture.hpp"
 
 namespace sim {
-    //32bytes
+    // 32bytes
     struct BBox {
         point3 min, max;
     };
     
-    //48bytes
+#ifdef __USE_LBVH
+    // 48bytes
+    struct LBVHInternalNode {
+        BBox bbox;
+        bool isChild[2]; uchar dum0[2];
+        uint c[2]; uchar dum1[4];
+    };
+    
+    // 48bytes
+    struct LBVHLeafNode {
+        BBox bbox;
+        uint objIdx; uchar dum0[12];
+    };
+#else
+    // 48bytes
     struct BVHNode {
         BBox bbox;
         uint children[2]; uchar dum[8];
     };
+#endif
     
     //------------------------
     
@@ -167,6 +182,43 @@ namespace sim {
         return true;
     }
     
+#ifdef __USE_LBVH
+    bool rayIntersection(const Scene* scene,
+                         const point3* org, const vector3* dir, Intersection* isect) {
+        float t = INFINITY;
+        
+        uint idxStack[64];
+        uint depth = 0;
+        idxStack[depth++] = 0;
+        while (depth > 0) {
+            --depth;
+            const LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
+            if (rayAABBIntersection(&inode->bbox, org, dir)) {
+                for (int i = 0; i < 2; ++i) {
+                    if (inode->isChild[i] == false) {
+                        idxStack[depth++] = inode->c[i];
+                        continue;
+                    }
+                    const LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+                    if (rayAABBIntersection(&lnode->bbox, org, dir)) {
+                        float tt = INFINITY;
+                        Intersection lIsect;
+                        if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &tt, &lIsect)) {
+                            if (tt < t) {
+                                t = tt;
+                                *isect = lIsect;
+                                isect->t = t;
+                                isect->faceID = lnode->objIdx;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return !isinf(t);
+    }
+#else
     bool rayIntersection(const Scene* scene,
                          const point3* org, const vector3* dir, Intersection* isect) {
         float t = INFINITY;
@@ -199,6 +251,7 @@ namespace sim {
         
         return !isinf(t);
     }
+#endif
 }
 
 #endif

@@ -4,8 +4,8 @@
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#ifndef sim_camera_h
-#define sim_camera_h
+#ifndef sim_camera_cl
+#define sim_camera_cl
 
 #include "sim_global.hpp"
 #include "sim_scene.hpp"

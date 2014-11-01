@@ -12,7 +12,7 @@
 
 typedef float3 point3;
 
-//56bytes
+// 56bytes
 typedef struct __attribute__((aligned(4))) {
     uint p0, p1, p2;
     uint vn0, vn1, vn2;
@@ -22,7 +22,7 @@ typedef struct __attribute__((aligned(4))) {
     ushort matPtr, lightPtr;
 } Face;
 
-//48bytes
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     point3 min;
     point3 max;
@@ -33,7 +33,7 @@ typedef struct __attribute__((aligned(16))) {
 typedef struct __attribute__((aligned(16))) {
     point3 min;
     point3 max;
-    bool isChild[2]; uchar dum0[2];
+    bool isChild[2];
     uint c[2];
 } InternalNode;
 

@@ -11,10 +11,15 @@
 #include "sim_distribution.hpp"
 
 namespace sim {
-    struct BBox;//typedef struct BBox BBox;
-    struct BVHNode;//typedef struct BVHNode BVHNode;
+    struct BBox;// typedef struct BBox BBox;
+#ifdef __USE_LBVH
+    struct LBVHInternalNode;// typedef struct LBVHInternalNode LBVHInternalNode;
+    struct LBVHLeafNode;// typedef struct LBVHLeafNode LBVHLeafNode;
+#else
+    struct BVHNode;// typedef struct BVHNode BVHNode;
+#endif
     
-    //56bytes
+    // 56bytes
     typedef struct {
         uint p0, p1, p2;
         uint vn0, vn1, vn2;
@@ -24,19 +29,19 @@ namespace sim {
         ushort matPtr, lightPtr;
     } Face;
     
-    //8bytes
+    // 8bytes
     typedef struct {
         uchar atInfinity; uchar dum0[3];
         uint reference;
     } LightInfo;
     
-    //128bytes
+    // 128bytes
     typedef struct {
         uint width, height; uchar dum0[56];
         mat4x4 localToWorld;
     } CameraHead;
     
-    //4bytes
+    // 4bytes
     typedef struct {
         uint idx_envLightProperty;
     } EnvironmentHead;
@@ -51,7 +56,12 @@ namespace sim {
         uchar* materialsData;
         uchar* texturesData;
         uchar* otherResourcesData;
+#ifdef __USE_LBVH
+        LBVHInternalNode* LBVHInternalNodes;
+        LBVHLeafNode* LBVHLeafNodes;
+#else
         BVHNode* BVHNodes;
+#endif
         CameraHead* camera;
         EnvironmentHead* environment;
         Discrete1D* lightPowerDistribution;

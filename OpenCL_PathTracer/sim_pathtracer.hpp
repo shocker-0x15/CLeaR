@@ -16,19 +16,31 @@ namespace sim {
     void pathtracing(float3* vertices, float3* normals, float3* tangents, float2* uvs, uchar* faces,
                      uint* lights,
                      uchar* materialsData, uchar* texturesData, uchar* otherResources,
+#ifdef __USE_LBVH
+                     uchar* LBVHInternalNodes, uchar* LBVHLeafNodes,
+#else
                      uchar* BVHNodes,
+#endif
                      uint* randStates, float3* pixels);
     
     void pathtracing(float3* vertices, float3* normals, float3* tangents, float2* uvs, uchar* faces,
                      uint* lights,
                      uchar* materialsData, uchar* texturesData, uchar* otherResources,
+#ifdef __USE_LBVH
+                     uchar* LBVHInternalNodes, uchar* LBVHLeafNodes,
+#else
                      uchar* BVHNodes,
+#endif
                      uint* randStates, float3* pixels) {
         const Scene scene = {
             vertices, normals, tangents, uvs, (Face*)faces,
             (LightInfo*)lights,
             materialsData, texturesData, otherResources,
+#ifdef __USE_LBVH
+            (LBVHInternalNode*)LBVHInternalNodes, (LBVHLeafNode*)LBVHLeafNodes,
+#else
             (BVHNode*)BVHNodes,
+#endif
             (CameraHead*)(otherResources + *((uint*)otherResources + 0)),
             (EnvironmentHead*)(otherResources + *((uint*)otherResources + 1)),
             (Discrete1D*)(otherResources + *((uint*)otherResources + 2))

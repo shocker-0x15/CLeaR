@@ -11,14 +11,14 @@
 #include "distribution.cl"
 
 typedef struct BBox BBox;
-#ifndef USE_LBVH
-typedef struct BVHNode BVHNode;
-#else
+#ifdef __USE_LBVH
 typedef struct LBVHInternalNode LBVHInternalNode;
 typedef struct LBVHLeafNode LBVHLeafNode;
+#else
+typedef struct BVHNode BVHNode;
 #endif
 
-//56bytes
+// 56bytes
 typedef struct __attribute__((aligned(4))) {
     uint p0, p1, p2;
     uint vn0, vn1, vn2;
@@ -28,19 +28,19 @@ typedef struct __attribute__((aligned(4))) {
     ushort matPtr, lightPtr;
 } Face;
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar atInfinity;
     uint reference __attribute__((aligned(4)));
 } LightInfo;
 
-//128bytes
+// 128bytes
 typedef struct __attribute__((aligned(64))) {
     uint width, height;
     mat4x4 localToWorld;
 } CameraHead;
 
-//4bytes
+// 4bytes
 typedef struct __attribute__((aligned(4))) {
     uint idx_envLightProperty;
 } EnvironmentHead;
@@ -55,11 +55,11 @@ typedef struct {
     global uchar* materialsData;
     global uchar* texturesData;
     global uchar* otherResourcesData;
-#ifndef USE_LBVH
-    global BVHNode* BVHNodes;
-#else
+#ifdef __USE_LBVH
     global LBVHInternalNode* LBVHInternalNodes;
     global LBVHLeafNode* LBVHLeafNodes;
+#else
+    global BVHNode* BVHNodes;
 #endif
     global CameraHead* camera;
     global EnvironmentHead* environment;

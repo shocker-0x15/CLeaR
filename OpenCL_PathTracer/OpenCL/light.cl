@@ -93,10 +93,10 @@ static float l_cosPhi(const vector3* v);
 static float l_sinPhi(const vector3* v);
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
-                    LightPosition* lpos, uchar* EDF, float* areaPDF);
-float getAreaPDF(const Scene* scene, const LightPosition* lpos);
+                    LightPoint* lpos, uchar* EDF, float* areaPDF);
+float getAreaPDF(const Scene* scene, const LightPoint* lpos);
 
-void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF);
+void EDFAlloc(const Scene* scene, uint offset, const LightPoint* lpos, uchar* EDF);
 
 static color eLe(const EEDFHead* EEDF, const vector3* vout);
 static color env_eLe(const EnvEEDFHead* envEEDF, const vector3* vout);
@@ -136,7 +136,7 @@ static float l_sinPhi(const vector3* v) {
 
 
 void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point3* shdP,
-                    LightPosition* lpos, uchar* EDF, float* areaPDF) {
+                    LightPoint* lpos, uchar* EDF, float* areaPDF) {
     LightInfo lInfo = scene->lights[sampleDiscrete1D(scene->lightPowerDistribution, l_sample->uLight, areaPDF)];
     ushort lightPropPtr = USHRT_MAX;
     if (lInfo.atInfinity) {
@@ -244,7 +244,7 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
     EDFAlloc(scene, lightPropPtr, lpos, EDF);
 }
 
-float getAreaPDF(const Scene* scene, const LightPosition* lpos) {
+float getAreaPDF(const Scene* scene, const LightPoint* lpos) {
     if (lpos->atInfinity) {
         const global uchar* lightsData_p = scene->materialsData + scene->environment->idx_envLightProperty;
         const global LightPropertyInfo* lpInfo = (const global LightPropertyInfo*)lightsData_p;
@@ -292,7 +292,7 @@ float getAreaPDF(const Scene* scene, const LightPosition* lpos) {
 }
 
 
-void EDFAlloc(const Scene* scene, uint offset, const LightPosition* lpos, uchar* EDF) {
+void EDFAlloc(const Scene* scene, uint offset, const LightPoint* lpos, uchar* EDF) {
     if (lpos->atInfinity) {
         EnvEDFHead* envEDFHead = (EnvEDFHead*)EDF;
         envEDFHead->ddfHead._type = DDFType_EnvEDF;

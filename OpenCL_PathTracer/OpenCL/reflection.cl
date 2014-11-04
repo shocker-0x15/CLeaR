@@ -113,7 +113,7 @@ static inline vector3 halfvec(const vector3* v0, const vector3* v1);
 static bool matchType(const BxDFHead* BxDF, BxDFType mask);
 bool hasNonSpecular(const uchar* BSDF);
 
-void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar* BSDF);
+void BSDFAlloc(const Scene* scene, uint offset, const SurfacePoint* surfPt, uchar* BSDF);
 
 static color evaluateFresnel(const global uchar* fresnel, float cosi);
 
@@ -179,7 +179,7 @@ bool hasNonSpecular(const uchar* BSDF) {
 }
 
 
-void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar* BSDF) {
+void BSDFAlloc(const Scene* scene, uint offset, const SurfacePoint* surfPt, uchar* BSDF) {
     BSDFHead* fsHead = (BSDFHead*)BSDF;
     fsHead->ddfHead._type = DDFType_BSDF;
     const global uchar* matsData_p = scene->materialsData + offset;
@@ -189,19 +189,19 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
     fsHead->offsetsBxDFs[0] = fsHead->offsetsBxDFs[1] =
     fsHead->offsetsBxDFs[2] = fsHead->offsetsBxDFs[3] = 0;
     
-    fsHead->n = isect->sNormal;
-    if (isect->hasTangent)
-        fsHead->s = isect->sTangent;
+    fsHead->n = surfPt->sNormal;
+    if (surfPt->hasTangent)
+        fsHead->s = surfPt->sTangent;
     else
-        makeTangent(&isect->sNormal, &fsHead->s);
+        makeTangent(&surfPt->sNormal, &fsHead->s);
     
     if ((bool)matInfo->hasBump) {
-        vector3 nBump = normalize(2.0f * evaluateColorTexture(scene->texturesData + matInfo->idx_bump, isect->uv) - 1.0f);
-        vector3 vDir = cross(isect->uDir, isect->sNormal);
-        fsHead->n = (vector3)(dot((vector3)(isect->uDir.x, vDir.x, isect->sNormal.x), nBump),
-                              dot((vector3)(isect->uDir.y, vDir.y, isect->sNormal.y), nBump),
-                              dot((vector3)(isect->uDir.z, vDir.z, isect->sNormal.z), nBump));
-        vector3 ax = cross(isect->sNormal, fsHead->n);
+        vector3 nBump = normalize(2.0f * evaluateColorTexture(scene->texturesData + matInfo->idx_bump, surfPt->uv) - 1.0f);
+        vector3 vDir = cross(surfPt->uDir, surfPt->sNormal);
+        fsHead->n = (vector3)(dot((vector3)(surfPt->uDir.x, vDir.x, surfPt->sNormal.x), nBump),
+                              dot((vector3)(surfPt->uDir.y, vDir.y, surfPt->sNormal.y), nBump),
+                              dot((vector3)(surfPt->uDir.z, vDir.z, surfPt->sNormal.z), nBump));
+        vector3 ax = cross(surfPt->sNormal, fsHead->n);
         float sinTH = fmin(length(ax), 1.0f);
         if (sinTH > 0.0001f) {
             ax = normalize(ax);
@@ -220,7 +220,7 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
     }
     
     fsHead->t = cross(fsHead->n, fsHead->s);
-    fsHead->ng = isect->gNormal;
+    fsHead->ng = surfPt->gNormal;
     
     uchar* BSDFp = BSDF + sizeof(BSDFHead);
     matsData_p += sizeof(MaterialInfo);
@@ -237,8 +237,8 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 
                 diffuse->head.id = BxDFID_Diffuse;
                 diffuse->head.fxType = (BxDFType)(BxDF_Reflection | BxDF_Diffuse);
-                diffuse->R = evaluateColorTexture(scene->texturesData + diffuseElem->idx_R, isect->uv);
-                float sigma2 = evaluateFloatTexture(scene->texturesData + diffuseElem->idx_sigma, isect->uv);
+                diffuse->R = evaluateColorTexture(scene->texturesData + diffuseElem->idx_R, surfPt->uv);
+                float sigma2 = evaluateFloatTexture(scene->texturesData + diffuseElem->idx_sigma, surfPt->uv);
                 sigma2 *= sigma2;
                 diffuse->A = 1.0f - (sigma2 / (2.0f * (sigma2 + 0.33f)));
                 diffuse->B = 0.45f * sigma2 / (sigma2 + 0.09f);
@@ -256,7 +256,7 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 
                 speR->head.id = BxDFID_SpecularReflection;
                 speR->head.fxType = (BxDFType)(BxDF_Reflection | BxDF_Specular);
-                speR->R = evaluateColorTexture(scene->texturesData + speRElem->idx_R, isect->uv);
+                speR->R = evaluateColorTexture(scene->texturesData + speRElem->idx_R, surfPt->uv);
                 speR->fresnel = scene->otherResourcesData + speRElem->idx_Fresnel;
                 
                 BSDFp += sizeof(SpecularReflection);
@@ -272,7 +272,7 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 
                 speT->head.id = BxDFID_SpecularTransmission;
                 speT->head.fxType = (BxDFType)(BxDF_Transmission | BxDF_Specular);
-                speT->T = evaluateColorTexture(scene->texturesData + speTElem->idx_T, isect->uv);
+                speT->T = evaluateColorTexture(scene->texturesData + speTElem->idx_T, surfPt->uv);
                 speT->etaExt = speTElem->etaExt;
                 speT->etaInt = speTElem->etaInt;
                 speT->fresnel = scene->otherResourcesData + speTElem->idx_Fresnel;
@@ -290,9 +290,9 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 
                 ward->head.id = BxDFID_NewWard;
                 ward->head.fxType = (BxDFType)(BxDF_Reflection | BxDF_Glossy);
-                ward->R = evaluateColorTexture(scene->texturesData + wardElem->idx_R, isect->uv);
-                ward->ax = evaluateFloatTexture(scene->texturesData + wardElem->idx_anisoX, isect->uv);
-                ward->ay = evaluateFloatTexture(scene->texturesData + wardElem->idx_anisoY, isect->uv);
+                ward->R = evaluateColorTexture(scene->texturesData + wardElem->idx_R, surfPt->uv);
+                ward->ax = evaluateFloatTexture(scene->texturesData + wardElem->idx_anisoX, surfPt->uv);
+                ward->ay = evaluateFloatTexture(scene->texturesData + wardElem->idx_anisoY, surfPt->uv);
                 
                 BSDFp += sizeof(NewWard);
                 matsData_p += sizeof(NewWardElem);
@@ -307,9 +307,9 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 
                 ashS->head.id = BxDFID_AshikhminS;
                 ashS->head.fxType = (BxDFType)(BxDF_Reflection | BxDF_Glossy);
-                ashS->Rs = evaluateColorTexture(scene->texturesData + ashSElem->idx_Rs, isect->uv);
-                ashS->nu = evaluateFloatTexture(scene->texturesData + ashSElem->idx_nu, isect->uv);
-                ashS->nv = evaluateFloatTexture(scene->texturesData + ashSElem->idx_nv, isect->uv);
+                ashS->Rs = evaluateColorTexture(scene->texturesData + ashSElem->idx_Rs, surfPt->uv);
+                ashS->nu = evaluateFloatTexture(scene->texturesData + ashSElem->idx_nu, surfPt->uv);
+                ashS->nv = evaluateFloatTexture(scene->texturesData + ashSElem->idx_nv, surfPt->uv);
                 
                 BSDFp += sizeof(AshikhminS);
                 matsData_p += sizeof(AshikhminSElem);
@@ -324,8 +324,8 @@ void BSDFAlloc(const Scene* scene, uint offset, const Intersection* isect, uchar
                 
                 ashD->head.id = BxDFID_AshikhminD;
                 ashD->head.fxType = (BxDFType)(BxDF_Reflection | BxDF_Diffuse);
-                ashD->Rd = evaluateColorTexture(scene->texturesData + ashDElem->idx_Rd, isect->uv);
-                ashD->Rs = evaluateColorTexture(scene->texturesData + ashDElem->idx_Rs, isect->uv);
+                ashD->Rd = evaluateColorTexture(scene->texturesData + ashDElem->idx_Rd, surfPt->uv);
+                ashD->Rs = evaluateColorTexture(scene->texturesData + ashDElem->idx_Rs, surfPt->uv);
                 
                 BSDFp += sizeof(AshikhminD);
                 matsData_p += sizeof(AshikhminDElem);

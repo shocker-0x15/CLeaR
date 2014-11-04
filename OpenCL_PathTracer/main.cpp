@@ -355,6 +355,7 @@ int main(int argc, const char * argv[]) {
         
 //        // 計測のために5回ループ。1回目はバッファーの確保が走るようで遅い。
 //        // レンダリングプログラムをビルドさせると何らかの理由で1回目のカーネル実行に異様に時間がかかるが、謎。
+//        // 現状はMacBook Pro Retina Late 2013, GT 750M GDDR5 2GBで35,000trisに10-11ms程度。
 //        uint32_t ibvh = 0;
 //    BVHLOOP:
 //        events.clear();

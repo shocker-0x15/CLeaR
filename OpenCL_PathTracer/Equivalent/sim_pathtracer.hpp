@@ -66,7 +66,7 @@ namespace sim {
         float MISWeight;
         float lightPDF;
         uchar* IDF = memPool + 0;
-        LensPosition lensPos;
+        LensPoint lensPos;
         CameraSample c_sample = {{getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
         sampleLensPos(&scene, &c_sample, &lensPos, IDF, &lensPDF);
         ray.org = lensPos.p;
@@ -76,20 +76,20 @@ namespace sim {
         float initY = luminance(&alpha);
         
         uchar* EDF = memPool + 256;
-        Intersection isect;
-        LightPosition lpos;
+        SurfacePoint surfPt;
+        LightPoint lpos;
         bool traceContinue = true;
         vector3 vout;
         BxDFType sampledType = (BxDFType)0;
 //        if (gid0 >= 0 && gid0 < 32 && gid1 >= 0 && gid1 < 32) {
 //        if (gid0 == 512 && gid1 == 600) {
         //レイとシーンとの交差判定、交点の情報を取得する。
-        if (rayIntersection(&scene, &ray.org, &ray.dir, &isect)) {
+        if (rayIntersection(&scene, &ray.org, &ray.dir, &surfPt)) {
             //光源に直接ヒットする1次レイはMISは使用せず値を評価。
-            const Face* face = &scene.faces[isect.faceID];
+            const Face* face = &scene.faces[surfPt.faceID];
             vout = -ray.dir;
             if (face->lightPtr != USHRT_MAX) {
-                LightPositionFromIntersection(&isect, &lpos);
+                LightPointFromSurfacePoint(&surfPt, &lpos);
                 EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
                 *pix += alpha * Le(EDF, &vout);
             }
@@ -98,7 +98,7 @@ namespace sim {
             uchar* BSDF = memPool + 0;
             while (true) {
                 //交点情報からBSDFを構築する。
-                BSDFAlloc(&scene, face->matPtr, &isect, BSDF);
+                BSDFAlloc(&scene, face->matPtr, &surfPt, BSDF);
                 
                 float dist2;
                 
@@ -107,9 +107,9 @@ namespace sim {
                 //BSDFがスペキュラー成分しか持っていない場合は寄与が取れる確率がゼロであるため処理しない。
                 if (hasNonSpecular(BSDF)) {
                     LightSample l_sample = {getFloat0cTo1o(rds), {getFloat0cTo1o(rds), getFloat0cTo1o(rds)}};
-                    sampleLightPos(&scene, &l_sample, &isect.p, &lpos, EDF, &lightPDF);
+                    sampleLightPos(&scene, &l_sample, &surfPt.p, &lpos, EDF, &lightPDF);
                     
-                    vector3 vinL = lpos.p - isect.p;
+                    vector3 vinL = lpos.p - surfPt.p;
                     dist2 = dot(vinL, vinL);
                     vinL = vinL * (1.0f / sqrtf(dist2));
                     if (lpos.atInfinity) {
@@ -117,10 +117,10 @@ namespace sim {
                         dist2 = 1.0f;
                     }
                     
-                    point3 shadowRayOrg = isect.p + vinL * EPSILON;
-                    Intersection lIsect;
-                    bool hit = rayIntersection(&scene, &shadowRayOrg, &vinL, &lIsect);
-                    if (lIsect.faceID == lpos.faceID || (lpos.atInfinity && hit == false)) {
+                    point3 shadowRayOrg = surfPt.p + vinL * EPSILON;
+                    SurfacePoint lSurfPt;
+                    bool hit = rayIntersection(&scene, &shadowRayOrg, &vinL, &lSurfPt);
+                    if (lSurfPt.faceID == lpos.faceID || (lpos.atInfinity && hit == false)) {
                         vector3 vinLrev = -vinL;
                         float fsPDF = fs_pdf(BSDF, &vout, &vinL) * absCosNsEDF(EDF, &vinL) / dist2;
                         MISWeight = (lightPDF * lightPDF) / (lightPDF * lightPDF + fsPDF * fsPDF);
@@ -142,22 +142,22 @@ namespace sim {
                 alpha *= fs * (absCosNsBSDF(BSDF, &ray.dir) / dirPDF);
                 
                 //サンプルした入射方向から新たなレイを生成し、シーンとの交差判定を行う。
-                ray.org = isect.p + ray.dir * EPSILON;
+                ray.org = surfPt.p + ray.dir * EPSILON;
                 ++ray.depth;
-                if (!rayIntersection(&scene, &ray.org, &ray.dir, &isect))
+                if (!rayIntersection(&scene, &ray.org, &ray.dir, &surfPt))
                     break;
                 
-                face = &scene.faces[isect.faceID];
+                face = &scene.faces[surfPt.faceID];
                 vout = -ray.dir;
                 
                 //レイが光源にヒットした場合(implicit path)はMISを用いて寄与を計算する。
                 //スペキュラー成分をサンプルしている場合は特殊処理。
                 if (face->lightPtr != USHRT_MAX) {
                     MISWeight = 1.0f;
-                    LightPositionFromIntersection(&isect, &lpos);
+                    LightPointFromSurfacePoint(&surfPt, &lpos);
                     EDFAlloc(&scene, face->lightPtr, &lpos, EDF);
                     if ((sampledType & BxDF_Non_Singular) != 0) {
-                        lightPDF = getAreaPDF(&scene, &lpos) * distance2(&isect.p, &ray.org) / absCosNsEDF(EDF, &vout);
+                        lightPDF = getAreaPDF(&scene, &lpos) * distance2(&surfPt.p, &ray.org) / absCosNsEDF(EDF, &vout);
                         MISWeight = (dirPDF * dirPDF) / (lightPDF * lightPDF + dirPDF * dirPDF);
                     }
                     *pix += MISWeight * alpha * Le(EDF, &vout);

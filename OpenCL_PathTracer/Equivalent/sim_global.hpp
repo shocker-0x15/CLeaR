@@ -38,19 +38,28 @@ namespace sim {
         DDFType_PerspectiveIDF
     } DDFType;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         point3 org;
         vector3 dir;
         uint depth; uchar dum[12];
     } Ray;
     
-    //1byte
+    // 1byte
     typedef struct {
         uchar _type;
     } DDFHead;
     
-    //112bytes
+    // 64bytes
+    typedef struct {
+        point3 p;
+        vector3 gNormal;
+        float2 param;
+        float2 uv;
+        uint faceID; uchar dum0[12];
+    } Intersection;
+    
+    // 96bytes
     typedef struct {
         point3 p;
         vector3 gNormal;
@@ -58,12 +67,11 @@ namespace sim {
         vector3 sTangent;
         vector3 uDir;
         float2 uv;
-        float t;
         uint faceID;
-        bool hasTangent; uchar dum[15];
-    } Intersection;
+        bool hasTangent; uchar dum0[3];
+    } SurfacePoint;
     
-    //96bytes
+    // 96bytes
     typedef struct {
         point3 p;
         vector3 gNormal;
@@ -74,14 +82,14 @@ namespace sim {
         uint faceID;
         bool hasTangent;
         bool atInfinity; uchar dum0[2];
-    } LightPosition;
+    } LightPoint;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         point3 p;
         vector3 dir;
         float2 uv; uchar dum[8];
-    } LensPosition;
+    } LensPoint;
     
     //------------------------
     
@@ -98,7 +106,7 @@ namespace sim {
     inline vector3 localToWorld(const vector3* s, const vector3* t, const vector3* n, const vector3* v);
     inline void dirToPolarYTop(const vector3* dir, float* theta, float* phi);
     inline float distance2(const point3* p0, const point3* p1);
-    inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos);
+    inline void LightPointFromSurfacePoint(const SurfacePoint* spt, LightPoint* lpt);
     
     //------------------------
     
@@ -169,16 +177,16 @@ namespace sim {
         return (p1->x - p0->x) * (p1->x - p0->x) + (p1->y - p0->y) * (p1->y - p0->y) + (p1->z - p0->z) * (p1->z - p0->z);
     }
     
-    inline void LightPositionFromIntersection(const Intersection* isect, LightPosition* lpos) {
-        lpos->p = isect->p;
-        lpos->gNormal = isect->gNormal;
-        lpos->sNormal = isect->sNormal;
-        lpos->sTangent = isect->sTangent;
-        lpos->uDir = isect->uDir;
-        lpos->uv = isect->uv;
-        lpos->faceID = isect->faceID;
-        lpos->hasTangent = isect->hasTangent;
-        lpos->atInfinity = false;
+    inline void LightPointFromSurfacePoint(const SurfacePoint* spt, LightPoint* lpt) {
+        lpt->p = spt->p;
+        lpt->gNormal = spt->gNormal;
+        lpt->sNormal = spt->sNormal;
+        lpt->sTangent = spt->sTangent;
+        lpt->uDir = spt->uDir;
+        lpt->uv = spt->uv;
+        lpt->faceID = spt->faceID;
+        lpt->hasTangent = spt->hasTangent;
+        lpt->atInfinity = false;
     }
 }
 

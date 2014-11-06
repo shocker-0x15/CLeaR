@@ -49,16 +49,16 @@ namespace sim {
     
     //------------------------
     
-    void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition* lpos, uchar* IDF, float* areaPDF);
+    void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPoint* lpos, uchar* IDF, float* areaPDF);
     
-    void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF);
+    void IDFAlloc(const Scene* scene, const LensPoint* lpos, uchar* IDF);
     
     color sample_We(const uchar* IDF, const IDFSample* sample, vector3* vin, float* dirPDF);
     inline float absCosNsIDF(const uchar* IDF, const vector3* v);
     
     //------------------------
     
-    void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPosition* lpos, uchar* IDF, float* areaPDF) {
+    void sampleLensPos(const Scene* scene, const CameraSample* sample, LensPoint* lpos, uchar* IDF, float* areaPDF) {
         const CameraHead* head = (const CameraHead*)scene->camera;
         
         float ux, uy;
@@ -79,7 +79,7 @@ namespace sim {
     }
     
     
-    void IDFAlloc(const Scene* scene, const LensPosition* lpos, uchar* IDF) {
+    void IDFAlloc(const Scene* scene, const LensPoint* lpos, uchar* IDF) {
         IDFHead* WeHead = (IDFHead*)IDF;
         WeHead->ddfHead._type = DDFType_PerspectiveIDF;
         

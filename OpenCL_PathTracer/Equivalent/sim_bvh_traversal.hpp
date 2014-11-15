@@ -44,7 +44,7 @@ namespace sim {
                                  const point3* org, const vector3* dir, ushort faceIdx,
                                  float* t, Intersection* isect);
     void calcHitpointParameters(const Scene* scene, const Intersection* isect, SurfacePoint* surfPt);
-    bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir);
+    bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir, float tBound);
     bool rayIntersection(const Scene* scene,
                          const point3* org, const vector3* dir, Intersection* isect);
     
@@ -79,10 +79,11 @@ namespace sim {
         if (b2 < 0.0f || b1 + b2 > 1.0f)
             return false;
         
-        *t = dot(edge02, q) * invDet;
-        if (*t < 0.0f)
+        float tt = dot(edge02, q) * invDet;
+        if (tt < 0.0f || tt > *t)
             return false;
         
+        *t = tt;
         float b0 = 1.0f - b1 - b2;
         isect->p = *org + *dir * *t;
         isect->gNormal = normalize(cross(edge01, edge02));
@@ -155,7 +156,7 @@ namespace sim {
         }
     }
     
-    bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir) {
+    bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir, float tBound) {
         const point3 bboxmin = bb->min;
         const point3 bboxmax = bb->max;
         int3 lowMidUp = ternaryOp<int3>(*org < bboxmin, -1, ternaryOp<int3>(*org > bboxmax, 1, 0));
@@ -164,7 +165,7 @@ namespace sim {
             float3 candidatePlane = ternaryOp(*org < bboxmin, bboxmin, ternaryOp<float3>(*org > bboxmax, bboxmax, 0));
             float3 t = ternaryOp<float3>(lowMidUp != 0 && *dir != 0, (candidatePlane - *org) / *dir, -1.0f);
             float maxt = fmax(t.x, fmax(t.y, t.z));
-            if (maxt < 0)
+            if (maxt < 0 || maxt > tBound)
                 return false;
             
             point3 coord = *org + maxt * *dir;
@@ -189,7 +190,7 @@ namespace sim {
         while (depth > 0) {
             --depth;
             const LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
-            if (!rayAABBIntersection(&inode->bbox, org, dir))
+            if (!rayAABBIntersection(&inode->bbox, org, dir, t))
                 continue;
             for (int i = 0; i < 2; ++i) {
                 if (inode->isChild[i] == false) {
@@ -197,16 +198,11 @@ namespace sim {
                     continue;
                 }
                 const LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
-                if (!rayAABBIntersection(&lnode->bbox, org, dir))
+                if (!rayAABBIntersection(&lnode->bbox, org, dir, t))
                     continue;
                 
-                float tt = INFINITY;
-                if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &tt, isect + (curIsect + 1) % 2)) {
-                    if (tt < t) {
-                        t = tt;
-                        ++curIsect;
-                    }
-                }
+                if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &t, isect + (curIsect + 1) % 2))
+                    ++curIsect;
             }
         }
         
@@ -229,20 +225,15 @@ namespace sim {
         while (depth > 0) {
             --depth;
             const BVHNode* node = scene->BVHNodes + idxStack[depth];
-            if (!rayAABBIntersection(&node->bbox, org, dir))
+            if (!rayAABBIntersection(&node->bbox, org, dir, t))
                 continue;
             if (node->children[1] != UINT_MAX) {
                 idxStack[depth++] = node->children[1];
                 idxStack[depth++] = node->children[0];
             }
             else {
-                float tt = INFINITY;
-                if (rayTriangleIntersection(scene, org, dir, node->children[0], &tt, isect + (curIsect + 1) % 2)) {
-                    if (tt < t) {
-                        t = tt;
-                        ++curIsect;
-                    }
-                }
+                if (rayTriangleIntersection(scene, org, dir, node->children[0], &t, isect + (curIsect + 1) % 2))
+                    ++curIsect;
             }
         }
         

@@ -41,17 +41,17 @@ namespace sim {
     //------------------------
     
     bool rayTriangleIntersection(const Scene* scene,
-                                 const float3* org, const float3* dir, ushort faceIdx,
+                                 const point3* org, const vector3* dir, ushort faceIdx,
                                  float* t, Intersection* isect);
     void calcHitpointParameters(const Scene* scene, const Intersection* isect, SurfacePoint* surfPt);
-    bool rayAABBIntersection(const BBox* bb, const float3* org, const float3* dir);
+    bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir);
     bool rayIntersection(const Scene* scene,
                          const point3* org, const vector3* dir, Intersection* isect);
     
     //------------------------
     
     bool rayTriangleIntersection(const Scene* scene,
-                                 const float3* org, const float3* dir, ushort faceIdx,
+                                 const point3* org, const vector3* dir, ushort faceIdx,
                                  float* t, Intersection* isect) {
         const Face* face = scene->faces + faceIdx;
         const point3* p0 = scene->vertices + face->p0;
@@ -155,54 +155,22 @@ namespace sim {
         }
     }
     
-    bool rayAABBIntersection(const BBox* bb, const float3* org, const float3* dir) {
-        float candidatePlane[3];
-        float a_org[3] = {org->x, org->y, org->z};
-        float a_dir[3] = {dir->x, dir->y, dir->z};
-        float bbmin[3] = {bb->min.x, bb->min.y, bb->min.z};
-        float bbmax[3] = {bb->max.x, bb->max.y, bb->max.z};
-        char LowMidUp[3];
-        for (int i = 0; i < 3; ++i) {
-            if (a_org[i] < bbmin[i]) {
-                LowMidUp[i] = -1;
-                candidatePlane[i] = bbmin[i];
-            }
-            else if (a_org[i] > bbmax[i]) {
-                LowMidUp[i] = 1;
-                candidatePlane[i] = bbmax[i];
-            }
-            else {
-                LowMidUp[i] = 0;
-            }
-        }
-        bool outside = (bool)(LowMidUp[0] | LowMidUp[1] | LowMidUp[2]);
+    bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir) {
+        const point3 bboxmin = bb->min;
+        const point3 bboxmax = bb->max;
+        int3 lowMidUp = ternaryOp<int3>(*org < bboxmin, -1, ternaryOp<int3>(*org > bboxmax, 1, 0));
         
-        if (outside) {
-            float maxt[3];
-            for (int i = 0; i < 3; ++i) {
-                if (LowMidUp[i] != 0 && a_dir[i] != 0)
-                    maxt[i] = (candidatePlane[i] - a_org[i]) / a_dir[i];
-                else
-                    maxt[i] = -1;
-            }
-            
-            int whichPlane = 0;
-            if (maxt[whichPlane] < maxt[1])
-                whichPlane = 1;
-            if (maxt[whichPlane] < maxt[2])
-                whichPlane = 2;
-            
-            if (maxt[whichPlane] < 0)
+        if (lowMidUp.x | lowMidUp.y | lowMidUp.z) {
+            float3 candidatePlane = ternaryOp(*org < bboxmin, bboxmin, ternaryOp<float3>(*org > bboxmax, bboxmax, 0));
+            float3 t = ternaryOp<float3>(lowMidUp != 0 && *dir != 0, (candidatePlane - *org) / *dir, -1.0f);
+            float maxt = fmax(t.x, fmax(t.y, t.z));
+            if (maxt < 0)
                 return false;
             
-            float coord;
-            for (int i = 0; i < 3; ++i) {
-                if (i != whichPlane) {
-                    coord = a_org[i] + maxt[whichPlane] * a_dir[i];
-                    if (coord < bbmin[i] || coord > bbmax[i])
-                        return false;
-                }
-            }
+            point3 coord = *org + maxt * *dir;
+            int3 hit = (coord >= bboxmin && coord <= bboxmax) || t == maxt;
+            if (!(hit.x && hit.y && hit.z))
+                return false;
         }
         
         return true;
@@ -221,21 +189,22 @@ namespace sim {
         while (depth > 0) {
             --depth;
             const LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
-            if (rayAABBIntersection(&inode->bbox, org, dir)) {
-                for (int i = 0; i < 2; ++i) {
-                    if (inode->isChild[i] == false) {
-                        idxStack[depth++] = inode->c[i];
-                        continue;
-                    }
-                    const LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
-                    if (rayAABBIntersection(&lnode->bbox, org, dir)) {
-                        float tt = INFINITY;
-                        if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &tt, isect + (curIsect + 1) % 2)) {
-                            if (tt < t) {
-                                t = tt;
-                                ++curIsect;
-                            }
-                        }
+            if (!rayAABBIntersection(&inode->bbox, org, dir))
+                continue;
+            for (int i = 0; i < 2; ++i) {
+                if (inode->isChild[i] == false) {
+                    idxStack[depth++] = inode->c[i];
+                    continue;
+                }
+                const LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+                if (!rayAABBIntersection(&lnode->bbox, org, dir))
+                    continue;
+                
+                float tt = INFINITY;
+                if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &tt, isect + (curIsect + 1) % 2)) {
+                    if (tt < t) {
+                        t = tt;
+                        ++curIsect;
                     }
                 }
             }
@@ -260,18 +229,18 @@ namespace sim {
         while (depth > 0) {
             --depth;
             const BVHNode* node = scene->BVHNodes + idxStack[depth];
-            if (rayAABBIntersection(&node->bbox, org, dir)) {
-                if (node->children[1] != UINT_MAX) {
-                    idxStack[depth++] = node->children[1];
-                    idxStack[depth++] = node->children[0];
-                }
-                else {
-                    float tt = INFINITY;
-                    if (rayTriangleIntersection(scene, org, dir, node->children[0], &tt, isect + (curIsect + 1) % 2)) {
-                        if (tt < t) {
-                            t = tt;
-                            ++curIsect;
-                        }
+            if (!rayAABBIntersection(&node->bbox, org, dir))
+                continue;
+            if (node->children[1] != UINT_MAX) {
+                idxStack[depth++] = node->children[1];
+                idxStack[depth++] = node->children[0];
+            }
+            else {
+                float tt = INFINITY;
+                if (rayTriangleIntersection(scene, org, dir, node->children[0], &tt, isect + (curIsect + 1) % 2)) {
+                    if (tt < t) {
+                        t = tt;
+                        ++curIsect;
                     }
                 }
             }

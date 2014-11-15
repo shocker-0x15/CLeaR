@@ -284,6 +284,156 @@ namespace sim {
     };
     
     
+    struct int3 {
+        union {
+            int x;
+            int s0;
+        };
+        union {
+            int y;
+            int s1;
+        };
+        union {
+            int z;
+            int s2;
+        };
+        int dum;
+        
+        int3() : x(0), y(0), z(0) { };
+        int3(int val) : x(val), y(val), z(val) { };
+        int3(int xx, int yy, int zz) : x(xx), y(yy), z(zz) { };
+        int3(const int3 &v) : x(v.x), y(v.y), z(v.z) { };
+        
+        int3 operator+(const int3 &r) const {
+            int3 ret{x, y, z};
+            ret.x += r.x;
+            ret.y += r.y;
+            ret.z += r.z;
+            return ret;
+        }
+        int3 &operator+=(const int3 &r) {
+            this->x += r.x;
+            this->y += r.y;
+            this->z += r.z;
+            return *this;
+        }
+        int3 operator-(const int3 &r) const {
+            int3 ret{x, y, z};
+            ret.x -= r.x;
+            ret.y -= r.y;
+            ret.z -= r.z;
+            return ret;
+        }
+        int3 &operator-=(const int3 &r) {
+            this->x -= r.x;
+            this->y -= r.y;
+            this->z -= r.z;
+            return *this;
+        }
+        int3 operator*(const int3 &r) const {
+            int3 ret{x, y, z};
+            ret.x *= r.x;
+            ret.y *= r.y;
+            ret.z *= r.z;
+            return ret;
+        }
+        int3 &operator*=(const int3 &r) {
+            this->x *= r.x;
+            this->y *= r.y;
+            this->z *= r.z;
+            return *this;
+        }
+        int3 operator*(int s) const {
+            int3 ret{x, y, z};
+            ret.x *= s;
+            ret.y *= s;
+            ret.z *= s;
+            return ret;
+        }
+        int3 &operator*=(int s) {
+            this->x *= s;
+            this->y *= s;
+            this->z *= s;
+            return *this;
+        }
+        friend int3 operator*(int s, const int3 &r) {
+            int3 ret(s * r.x, s * r.y, s * r.z);
+            return ret;
+        }
+        int3 operator/(const int3 &r) const {
+            int3 ret{x, y, z};
+            ret.x /= r.x;
+            ret.y /= r.y;
+            ret.z /= r.z;
+            return ret;
+        }
+        int3 &operator/=(const int3 &r) {
+            this->x /= r.x;
+            this->y /= r.y;
+            this->z /= r.z;
+            return *this;
+        }
+        int3 operator/(int s) const {
+            int3 ret{x, y, z};
+            float rec = 1.0f / s;
+            ret.x *= rec;
+            ret.y *= rec;
+            ret.z *= rec;
+            return ret;
+        }
+        int3 &operator/=(int s) {
+            float rec = 1.0f / s;
+            this->x *= rec;
+            this->y *= rec;
+            this->z *= rec;
+            return *this;
+        }
+        int3 operator+() const {
+            return *this;
+        }
+        int3 operator-() const {
+            return int3(-x, -y, -z);
+        }
+        
+        int3 operator==(const int3 &r) const {
+            return int3(x == r.x ? -1 : 0,
+                        y == r.y ? -1 : 0,
+                        z == r.z ? -1 : 0);
+        }
+        int3 operator!=(const int3 &r) const {
+            return int3(x != r.x ? -1 : 0,
+                        y != r.y ? -1 : 0,
+                        z != r.z ? -1 : 0);
+        }
+        int3 operator<=(const int3 &r) const {
+            return int3(x <= r.x ? -1 : 0,
+                        y <= r.y ? -1 : 0,
+                        z <= r.z ? -1 : 0);
+        }
+        int3 operator>=(const int3 &r) const {
+            return int3(x >= r.x ? -1 : 0,
+                        y >= r.y ? -1 : 0,
+                        z >= r.z ? -1 : 0);
+        }
+        int3 operator<(const int3 &r) const {
+            return int3(x < r.x ? -1 : 0,
+                        y < r.y ? -1 : 0,
+                        z < r.z ? -1 : 0);
+        }
+        int3 operator>(const int3 &r) const {
+            return int3(x > r.x ? -1 : 0,
+                        y > r.y ? -1 : 0,
+                        z > r.z ? -1 : 0);
+        }
+        int3 operator&&(const int3 &r) const {
+            return int3(x && r.x, y && r.y, z && r.z);
+        }
+        int3 operator||(const int3 &r) const {
+            return int3(x || r.x, y || r.y, z || r.z);
+        }
+    };
+    
+    
     struct float2 {
         union {
             float x;
@@ -295,6 +445,7 @@ namespace sim {
         };
         
         float2() : x(0), y(0) { };
+        float2(float val) : x(val), y(val) { };
         float2(float xx, float yy) : x(xx), y(yy) { };
         float2(const float2 &v) : x(v.x), y(v.y) { };
         
@@ -499,6 +650,37 @@ namespace sim {
         }
         float3 operator-() const {
             return float3(-x, -y, -z);
+        }
+        
+        int3 operator==(const float3 &r) const {
+            return int3(x == r.x ? -1 : 0,
+                        y == r.y ? -1 : 0,
+                        z == r.z ? -1 : 0);
+        }
+        int3 operator!=(const float3 &r) const {
+            return int3(x != r.x ? -1 : 0,
+                        y != r.y ? -1 : 0,
+                        z != r.z ? -1 : 0);
+        }
+        int3 operator<=(const float3 &r) const {
+            return int3(x <= r.x ? -1 : 0,
+                        y <= r.y ? -1 : 0,
+                        z <= r.z ? -1 : 0);
+        }
+        int3 operator>=(const float3 &r) const {
+            return int3(x >= r.x ? -1 : 0,
+                        y >= r.y ? -1 : 0,
+                        z >= r.z ? -1 : 0);
+        }
+        int3 operator<(const float3 &r) const {
+            return int3(x < r.x ? -1 : 0,
+                        y < r.y ? -1 : 0,
+                        z < r.z ? -1 : 0);
+        }
+        int3 operator>(const float3 &r) const {
+            return int3(x > r.x ? -1 : 0,
+                        y > r.y ? -1 : 0,
+                        z > r.z ? -1 : 0);
         }
         
         bool hasNanInf() const {
@@ -731,6 +913,14 @@ namespace sim {
         ret.s2 = float(*(base + 2));
         ret.s3 = float(*(base + 3));
         return ret;
+    }
+    
+    
+    template <typename vec3T>
+    inline vec3T ternaryOp(const int3 &cond, const vec3T &exp1, const vec3T &exp2) {
+        return vec3T(cond.s0 ? exp1.s0 : exp2.s0,
+                     cond.s1 ? exp1.s1 : exp2.s1,
+                     cond.s2 ? exp1.s2 : exp2.s2);
     }
     
     

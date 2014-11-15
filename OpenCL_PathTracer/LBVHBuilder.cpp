@@ -27,7 +27,7 @@ localSizeConstructBinaryRadixTree(64), localSizeCalcNodeAABBs(64) {
     cl::Program programBuildAccel{context, srcBuildAccel};
     std::string buildLog;
     char extraArgs[256];
-    sprintf(extraArgs, "-I\"OpenCL_src\" -DLOCAL_SORT_SIZE=%u", localSizeBlockwiseSort);
+    sprintf(extraArgs, "-I\"OpenCL_src\" -DLOCAL_SIZE_UNIFY_AABBS=%u -DLOCAL_SORT_SIZE=%u", localSizeUnifyAABBs, localSizeBlockwiseSort);
     programBuildAccel.build(extraArgs);
     programBuildAccel.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
     printf("LBVH build program build log: \n");
@@ -241,7 +241,7 @@ void LBVHBuilder::perform(cl::CommandQueue &queue,
         
         const uint32_t workSize = ((numFaces + (localSizeCalcMortonCodes - 1)) / localSizeCalcMortonCodes) * localSizeCalcMortonCodes;
         cl::enqueueNDRangeKernel(queue, m_kernelCalcMortonCodes, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcMortonCodes), nullptr, &events.back(),
-                                 m_bufAABBs, numFaces, entireAABB.min, sizeEntireAABB, numBitsPerDim, m_bufMortonCodes, m_bufIndices);
+                                 m_bufAABBs, numFaces, entireAABB.min, sizeEntireAABB, 1 << numBitsPerDim, m_bufMortonCodes, m_bufIndices);
         queue.enqueueBarrierWithWaitList();
     }
     if (profiling) {

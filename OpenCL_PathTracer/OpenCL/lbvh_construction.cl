@@ -69,10 +69,10 @@ kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, c
 char _numCommonBits(const global uint3* mortonCodes, const global uint* indices, uint numPrimitives, uint bitsPerDim,
                     const uint3* mc_i, int _idx0, int _idx1);
 inline char signInt8(char val);
-kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, global uchar* AABBs, const global uint* indices, uint numPrimitives,
+kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, const global uchar* AABBs, const global uint* indices, uint numPrimitives,
                                      global uchar* iNodes, global uchar* lNodes, global uint* parentIdxs, global uint* counters);
 
-kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uchar* lNodes, uint numPrimitives, global uint* parentIdxs);
+kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs);
 
 //----------------------------------------------------------------
 
@@ -97,14 +97,17 @@ kernel void calcAABBs(const global point3* vertices, const global uchar* faces, 
 
 
 
+#ifndef LOCAL_SIZE_UNIFY_AABBS
+#define LOCAL_SIZE_UNIFY_AABBS 128
+#endif
+
 // ローカルな範囲でAABBの和を計算する。
 kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* unifiedAABBs) {
-    const uint blockSize = 128;
     const global AABB* gAABBs = (const global AABB*)AABBs;
     global AABB* gUnifiedAABBs = (global AABB*)unifiedAABBs;
     
-    local point3 lmin[blockSize];
-    local point3 lmax[blockSize];
+    local point3 lmin[LOCAL_SIZE_UNIFY_AABBS];
+    local point3 lmax[LOCAL_SIZE_UNIFY_AABBS];
     
     const uint lid0 = get_local_id(0);
     const uint gid0 = get_global_id(0);
@@ -140,7 +143,7 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* u
 //    }
     
     // Sequential Addressing
-    for (uint i = blockSize / 2; i > 0; i >>= 1) {
+    for (uint i = LOCAL_SIZE_UNIFY_AABBS >> 1; i > 0; i >>= 1) {
         if (lid0 < i) {
             lmin[lid0] = fmin(lmin[lid0], lmin[lid0 + i]);
             lmax[lid0] = fmax(lmax[lid0], lmax[lid0 + i]);
@@ -164,7 +167,7 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* u
 // ソート前のインデックスも出力しておく。
 // 1スレッドが1プリミティブに対応する。
 kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
-                            point3 minEntireAABB, point3 sizeEntireAABB, uint bitsPerDim,
+                            point3 minEntireAABB, point3 sizeEntireAABB, uint numDivs,
                             global uint3* mortonCodes, global uint* indices) {
     const uint gid0 = get_global_id(0);
     if (gid0 >= numPrimitives)
@@ -172,9 +175,8 @@ kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
         
     AABB box = *((const global AABB*)AABBs + gid0);
     
-    uint numDiv = 1 << bitsPerDim;
     point3 normPos = (box.center - minEntireAABB) / sizeEntireAABB;
-    mortonCodes[gid0] = min(convert_uint3_rtz(normPos * numDiv), numDiv - 1);
+    mortonCodes[gid0] = min(convert_uint3_rtz(normPos * numDivs), numDivs - 1);
     indices[gid0] = gid0;
 }
 
@@ -333,6 +335,8 @@ kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, c
 
 
 
+// 2つのモートンコードの上位共通ビット数を返す。
+// 同じモートンコードの場合はインデックスを付加して拡張した数値に関して処理する。
 char _numCommonBits(const global uint3* mortonCodes, const global uint* indices, uint numPrimitives, uint bitsPerDim,
                     const uint3* mc_i, int _idx0, int _idx1) {
     if (_idx1 < 0 || _idx1 >= (int)numPrimitives)
@@ -350,19 +354,24 @@ inline char signInt8(char val) {
     return val > 0 ? 1 : (val < 0 ? -1 : 0);
 }
 
-kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, global uchar* AABBs, const global uint* indices, uint numPrimitives,
+// LBVHの木構造、主にinternal nodeの情報を並列に計算する。
+// leaf nodeの情報や、後のステップで必要となる情報の初期化も同時に行っておく。
+// 1スレッドが１つのinternal nodeを処理する。
+kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, const global uchar* AABBs, const global uint* indices, uint numPrimitives,
                                      global uchar* iNodes, global uchar* lNodes, global uint* parentIdxs, global uint* counters) {
     const uint gid0 = get_global_id(0);
     if (gid0 >= numPrimitives)
         return;
     
+    // leaf nodeの情報を記録しておく。
     global LeafNode* lNode = (global LeafNode*)lNodes + gid0;
     uint objIdx = indices[gid0];
-    global AABB* lAABB = (global AABB*)AABBs + objIdx;
+    const global AABB* lAABB = (const global AABB*)AABBs + objIdx;
     lNode->min = lAABB->min;
     lNode->max = lAABB->max;
     lNode->objIdx = objIdx;
     
+    // internal nodeの範囲を出るスレッドは終了させる。後のステップで使用するカウンターの初期化を行っておく。
     if (gid0 >= numPrimitives - 1)
         return;
     counters[gid0] = 0;
@@ -400,6 +409,7 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
     }
     splitPos = gid0 + splitPos * d + min(d, (char)0);
     
+    // ノードの子のインデックスを記録する。
     global InternalNode* iNode = (global InternalNode*)iNodes + gid0;
     bool leftIsChild = min(gid0, otherEnd) == splitPos;
     iNode->isChild[0] = leftIsChild;
@@ -418,8 +428,12 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
 }
 
 //#define CALC_NODE_AABB_GROUP_SIZE 64
-kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uchar* lNodes, uint numPrimitives, global uint* parentIdxs) {
+// 各ノードのAABBを計算する。leaf nodeからルートへの経路単位で並列に計算される。
+// あるノードに関して2回目のアクセスを担当するスレッドがAABBの和をとることによって、そのノードの子全てが計算済みであることを保証する。
+kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs) {
     const uint gid0 = get_global_id(0);
+    global InternalNode* iNodes = (global InternalNode*)_iNodes;
+    const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
 //    const uint lid0 = get_local_id(0);
     if (gid0 >= numPrimitives)
         return;
@@ -427,29 +441,30 @@ kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uc
 //    uint localCounters[CALC_NODE_AABB_GROUP_SIZE];
 //    localCounters[lid0] = 0;
     
-    global LeafNode* lNode = (global LeafNode*)lNodes + gid0;
+    const global LeafNode* lNode = lNodes + gid0;
     uint selfIdx = gid0;
     point3 min = lNode->min;
     point3 max = lNode->max;
     
+    uint tgtIdx = *(parentIdxs + gid0);
+    
     //----------------------------------------------------------------
     // 1段階目はLeafNodeから登るため、若干処理が異なる。
-    uint tgtIdx = *(parentIdxs + gid0);
     if (atomic_inc(counters + tgtIdx) == 0)
         return;
     
-    global InternalNode* tgtINode = (global InternalNode*)iNodes + tgtIdx;
+    global InternalNode* tgtINode = iNodes + tgtIdx;
     bool leftIsChild = tgtINode->isChild[0];
     bool rightIsChild = tgtINode->isChild[1];
     uint lIdx = tgtINode->c[0];
     uint rIdx = tgtINode->c[1];
     if (lIdx == selfIdx && leftIsChild) {
-        min = fmin(min, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->min : ((global InternalNode*)iNodes + rIdx)->min);
-        max = fmax(max, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->max : ((global InternalNode*)iNodes + rIdx)->max);
+        min = fmin(min, rightIsChild ? (lNodes + rIdx)->min : (iNodes + rIdx)->min);
+        max = fmax(max, rightIsChild ? (lNodes + rIdx)->max : (iNodes + rIdx)->max);
     }
     else {
-        min = fmin(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->min : ((global InternalNode*)iNodes + lIdx)->min, min);
-        max = fmax(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->max : ((global InternalNode*)iNodes + lIdx)->max, max);
+        min = fmin(leftIsChild ? (lNodes + lIdx)->min : (iNodes + lIdx)->min, min);
+        max = fmax(leftIsChild ? (lNodes + lIdx)->max : (iNodes + lIdx)->max, max);
     }
     tgtINode->min = min;
     tgtINode->max = max;
@@ -461,24 +476,26 @@ kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uc
     tgtIdx = *(parentIdxs + numPrimitives + tgtIdx);
     //----------------------------------------------------------------
     
+    parentIdxs += numPrimitives;
+    
     //----------------------------------------------------------------
     // 2段階目以降はInternalNodeを繰り返しルートに向けて登る。
     while (true) {
         if (atomic_inc(counters + tgtIdx) == 0)
             return;
         
-        global InternalNode* tgtINode = (global InternalNode*)iNodes + tgtIdx;
+        global InternalNode* tgtINode = iNodes + tgtIdx;
         bool leftIsChild = tgtINode->isChild[0];
         bool rightIsChild = tgtINode->isChild[1];
         uint lIdx = tgtINode->c[0];
         uint rIdx = tgtINode->c[1];
         if (lIdx == selfIdx) {
-            min = fmin(min, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->min : ((global InternalNode*)iNodes + rIdx)->min);
-            max = fmax(max, rightIsChild ? ((global LeafNode*)lNodes + rIdx)->max : ((global InternalNode*)iNodes + rIdx)->max);
+            min = fmin(min, rightIsChild ? (lNodes + rIdx)->min : (iNodes + rIdx)->min);
+            max = fmax(max, rightIsChild ? (lNodes + rIdx)->max : (iNodes + rIdx)->max);
         }
         else {
-            min = fmin(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->min : ((global InternalNode*)iNodes + lIdx)->min, min);
-            max = fmax(leftIsChild ? ((global LeafNode*)lNodes + lIdx)->max : ((global InternalNode*)iNodes + lIdx)->max, max);
+            min = fmin(leftIsChild ? (lNodes + lIdx)->min : (iNodes + lIdx)->min, min);
+            max = fmax(leftIsChild ? (lNodes + lIdx)->max : (iNodes + lIdx)->max, max);
         }
         tgtINode->min = min;
         tgtINode->max = max;
@@ -487,7 +504,7 @@ kernel void calcNodeAABBs(global uchar* iNodes, global uint* counters, global uc
             return;
         
         selfIdx = tgtIdx;
-        tgtIdx = *(parentIdxs + numPrimitives + tgtIdx);
+        tgtIdx = *(parentIdxs + tgtIdx);
     }
     //----------------------------------------------------------------
 }

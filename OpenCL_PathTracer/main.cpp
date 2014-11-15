@@ -249,7 +249,7 @@ int main(int argc, const char * argv[]) {
     
     CLUtil::init();
     
-    const uint32_t iterations = 1;
+    const uint32_t iterations = 16;
     
     stopwatch.start();
     buildScene(stopwatch);

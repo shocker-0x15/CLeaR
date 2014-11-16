@@ -36,28 +36,30 @@
 		4622CF8C1A053370001B4074 /* texture_structures.cl in Sources */ = {isa = PBXBuildFile; fileRef = 4622CF7C1A053370001B4074 /* texture_structures.cl */; };
 		4622CF8D1A053370001B4074 /* texture.cl in Sources */ = {isa = PBXBuildFile; fileRef = 4622CF7D1A053370001B4074 /* texture.cl */; };
 		4622CF901A0533B2001B4074 /* generic_kernels.cl in Sources */ = {isa = PBXBuildFile; fileRef = 4622CF8F1A0533B2001B4074 /* generic_kernels.cl */; };
-		4622CFA21A053430001B4074 /* bvh_traversal.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF6E1A053370001B4074 /* bvh_traversal.cl */; };
-		4622CFA31A053430001B4074 /* camera.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF6F1A053370001B4074 /* camera.cl */; };
-		4622CFA41A053430001B4074 /* distribution.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF701A053370001B4074 /* distribution.cl */; };
-		4622CFA51A053430001B4074 /* global.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF721A053370001B4074 /* global.cl */; };
-		4622CFA61A053430001B4074 /* light.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF741A053370001B4074 /* light.cl */; };
-		4622CFA71A053430001B4074 /* material_structures.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF751A053370001B4074 /* material_structures.cl */; };
-		4622CFA81A053430001B4074 /* matrix.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF761A053370001B4074 /* matrix.cl */; };
-		4622CFA91A053430001B4074 /* pathtracer.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF771A053370001B4074 /* pathtracer.cl */; };
-		4622CFAA1A053430001B4074 /* reflection.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF791A053370001B4074 /* reflection.cl */; };
-		4622CFAB1A053430001B4074 /* rng.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF7A1A053370001B4074 /* rng.cl */; };
-		4622CFAC1A053430001B4074 /* scene.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF7B1A053370001B4074 /* scene.cl */; };
-		4622CFAD1A053430001B4074 /* texture_structures.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF7C1A053370001B4074 /* texture_structures.cl */; };
-		4622CFAE1A053430001B4074 /* texture.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF7D1A053370001B4074 /* texture.cl */; };
-		4622CFAF1A053430001B4074 /* extra_atomics.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF711A053370001B4074 /* extra_atomics.cl */; };
-		4622CFB01A053430001B4074 /* lbvh_construction.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF731A053370001B4074 /* lbvh_construction.cl */; };
-		4622CFB11A053430001B4074 /* post_processing.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF781A053370001B4074 /* post_processing.cl */; };
-		4622CFB21A053430001B4074 /* generic_kernels.cl in CopyFiles */ = {isa = PBXBuildFile; fileRef = 4622CF8F1A0533B2001B4074 /* generic_kernels.cl */; };
+		4622CFA21A053430001B4074 /* bvh_traversal.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF6E1A053370001B4074 /* bvh_traversal.cl */; };
+		4622CFA31A053430001B4074 /* camera.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF6F1A053370001B4074 /* camera.cl */; };
+		4622CFA41A053430001B4074 /* distribution.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF701A053370001B4074 /* distribution.cl */; };
+		4622CFA51A053430001B4074 /* global.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF721A053370001B4074 /* global.cl */; };
+		4622CFA61A053430001B4074 /* light.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF741A053370001B4074 /* light.cl */; };
+		4622CFA71A053430001B4074 /* material_structures.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF751A053370001B4074 /* material_structures.cl */; };
+		4622CFA81A053430001B4074 /* matrix.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF761A053370001B4074 /* matrix.cl */; };
+		4622CFA91A053430001B4074 /* pathtracer.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF771A053370001B4074 /* pathtracer.cl */; };
+		4622CFAA1A053430001B4074 /* reflection.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF791A053370001B4074 /* reflection.cl */; };
+		4622CFAB1A053430001B4074 /* rng.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF7A1A053370001B4074 /* rng.cl */; };
+		4622CFAC1A053430001B4074 /* scene.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF7B1A053370001B4074 /* scene.cl */; };
+		4622CFAD1A053430001B4074 /* texture_structures.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF7C1A053370001B4074 /* texture_structures.cl */; };
+		4622CFAE1A053430001B4074 /* texture.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF7D1A053370001B4074 /* texture.cl */; };
+		4622CFAF1A053430001B4074 /* extra_atomics.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF711A053370001B4074 /* extra_atomics.cl */; };
+		4622CFB01A053430001B4074 /* lbvh_construction.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF731A053370001B4074 /* lbvh_construction.cl */; };
+		4622CFB11A053430001B4074 /* post_processing.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF781A053370001B4074 /* post_processing.cl */; };
+		4622CFB21A053430001B4074 /* generic_kernels.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 4622CF8F1A0533B2001B4074 /* generic_kernels.cl */; };
 		4628616519FB9EEC00D506CB /* LBVHBuilder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4628616319FB9EEC00D506CB /* LBVHBuilder.cpp */; };
 		4688CD57191E6CE200257766 /* clUtility.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD55191E6CE200257766 /* clUtility.cpp */; };
 		4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4688CD58191EA3F400257766 /* CreateFunctions.cpp */; };
 		4691A80A19CEC4CC0077D2B4 /* CLGenericKernels.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 4691A80819CEC4CC0077D2B4 /* CLGenericKernels.cpp */; };
 		46A690BF197456F400E54586 /* Scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46A690BE197456F400E54586 /* Scene.cpp */; };
+		46AD117A1A188086004F247F /* bvh_visualizer.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 46AD11791A175ABF004F247F /* bvh_visualizer.cl */; };
+		46AD117B1A188690004F247F /* bvh_visualizer.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46AD11791A175ABF004F247F /* bvh_visualizer.cl */; };
 		46B46F9119460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */; };
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46B8879F1986A34600292F5F /* BMPExporter.cpp */; };
@@ -74,30 +76,32 @@
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
-		46222A0C191AB6C700D71891 /* CopyFiles */ = {
+		46222A0C191AB6C700D71891 /* Copy OpenCL Sources */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = OpenCL_src;
 			dstSubfolderSpec = 16;
 			files = (
-				4622CFA21A053430001B4074 /* bvh_traversal.cl in CopyFiles */,
-				4622CFA31A053430001B4074 /* camera.cl in CopyFiles */,
-				4622CFA41A053430001B4074 /* distribution.cl in CopyFiles */,
-				4622CFA51A053430001B4074 /* global.cl in CopyFiles */,
-				4622CFA61A053430001B4074 /* light.cl in CopyFiles */,
-				4622CFA71A053430001B4074 /* material_structures.cl in CopyFiles */,
-				4622CFA81A053430001B4074 /* matrix.cl in CopyFiles */,
-				4622CFA91A053430001B4074 /* pathtracer.cl in CopyFiles */,
-				4622CFAA1A053430001B4074 /* reflection.cl in CopyFiles */,
-				4622CFAB1A053430001B4074 /* rng.cl in CopyFiles */,
-				4622CFAC1A053430001B4074 /* scene.cl in CopyFiles */,
-				4622CFAD1A053430001B4074 /* texture_structures.cl in CopyFiles */,
-				4622CFAE1A053430001B4074 /* texture.cl in CopyFiles */,
-				4622CFAF1A053430001B4074 /* extra_atomics.cl in CopyFiles */,
-				4622CFB01A053430001B4074 /* lbvh_construction.cl in CopyFiles */,
-				4622CFB11A053430001B4074 /* post_processing.cl in CopyFiles */,
-				4622CFB21A053430001B4074 /* generic_kernels.cl in CopyFiles */,
+				46AD117A1A188086004F247F /* bvh_visualizer.cl in Copy OpenCL Sources */,
+				4622CFA21A053430001B4074 /* bvh_traversal.cl in Copy OpenCL Sources */,
+				4622CFA31A053430001B4074 /* camera.cl in Copy OpenCL Sources */,
+				4622CFA41A053430001B4074 /* distribution.cl in Copy OpenCL Sources */,
+				4622CFA51A053430001B4074 /* global.cl in Copy OpenCL Sources */,
+				4622CFA61A053430001B4074 /* light.cl in Copy OpenCL Sources */,
+				4622CFA71A053430001B4074 /* material_structures.cl in Copy OpenCL Sources */,
+				4622CFA81A053430001B4074 /* matrix.cl in Copy OpenCL Sources */,
+				4622CFA91A053430001B4074 /* pathtracer.cl in Copy OpenCL Sources */,
+				4622CFAA1A053430001B4074 /* reflection.cl in Copy OpenCL Sources */,
+				4622CFAB1A053430001B4074 /* rng.cl in Copy OpenCL Sources */,
+				4622CFAC1A053430001B4074 /* scene.cl in Copy OpenCL Sources */,
+				4622CFAD1A053430001B4074 /* texture_structures.cl in Copy OpenCL Sources */,
+				4622CFAE1A053430001B4074 /* texture.cl in Copy OpenCL Sources */,
+				4622CFAF1A053430001B4074 /* extra_atomics.cl in Copy OpenCL Sources */,
+				4622CFB01A053430001B4074 /* lbvh_construction.cl in Copy OpenCL Sources */,
+				4622CFB11A053430001B4074 /* post_processing.cl in Copy OpenCL Sources */,
+				4622CFB21A053430001B4074 /* generic_kernels.cl in Copy OpenCL Sources */,
 			);
+			name = "Copy OpenCL Sources";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
@@ -172,7 +176,7 @@
 		4691A80819CEC4CC0077D2B4 /* CLGenericKernels.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CLGenericKernels.cpp; sourceTree = "<group>"; };
 		4691A80919CEC4CC0077D2B4 /* CLGenericKernels.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CLGenericKernels.h; sourceTree = "<group>"; };
 		46A690BE197456F400E54586 /* Scene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Scene.cpp; sourceTree = "<group>"; };
-		46AD11791A175ABF004F247F /* bvh_visualizer.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = bvh_visualizer.cl; sourceTree = "<group>"; };
+		46AD11791A175ABF004F247F /* bvh_visualizer.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; name = bvh_visualizer.cl; path = OpenCL/bvh_visualizer.cl; sourceTree = "<group>"; };
 		46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libIlmImf-Imf_2_1.21.dylib"; path = "../../../../../usr/local/lib/libIlmImf-Imf_2_1.21.dylib"; sourceTree = "<group>"; };
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
@@ -348,7 +352,7 @@
 				462229E1191AB59D00D71891 /* Sources */,
 				462229E2191AB59D00D71891 /* Frameworks */,
 				462229E3191AB59D00D71891 /* CopyFiles */,
-				46222A0C191AB6C700D71891 /* CopyFiles */,
+				46222A0C191AB6C700D71891 /* Copy OpenCL Sources */,
 			);
 			buildRules = (
 			);
@@ -390,6 +394,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				46AD117B1A188690004F247F /* bvh_visualizer.cl in Sources */,
 				4622CF7E1A053370001B4074 /* bvh_traversal.cl in Sources */,
 				46A690BF197456F400E54586 /* Scene.cpp in Sources */,
 				4622CF8A1A053370001B4074 /* rng.cl in Sources */,

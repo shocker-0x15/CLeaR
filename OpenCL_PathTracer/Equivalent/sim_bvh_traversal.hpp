@@ -47,6 +47,8 @@ namespace sim {
     bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir, float tBound);
     bool rayIntersection(const Scene* scene,
                          const point3* org, const vector3* dir, Intersection* isect);
+    bool rayIntersectionVis(const Scene* scene,
+                            const point3* org, const vector3* dir, SurfacePoint* surfPt, uint* numAABBHit);
     
     //------------------------
     
@@ -212,6 +214,45 @@ namespace sim {
         
         return hit;
     }
+    
+    bool rayIntersectionVis(const Scene* scene,
+                            const point3* org, const vector3* dir, SurfacePoint* surfPt, uint* numAABBHit) {
+        float t = INFINITY;
+        *numAABBHit = 0;
+        
+        uint idxStack[64];
+        uint depth = 0;
+        Intersection isect[2];
+        uchar curIsect = 0;
+        idxStack[depth++] = 0;
+        while (depth > 0) {
+            --depth;
+            const LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
+            if (!rayAABBIntersection(&inode->bbox, org, dir, t))
+                continue;
+            ++*numAABBHit;
+            
+            for (int i = 0; i < 2; ++i) {
+                if (inode->isChild[i] == false) {
+                    idxStack[depth++] = inode->c[i];
+                    continue;
+                }
+                const LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+                if (!rayAABBIntersection(&lnode->bbox, org, dir, t))
+                    continue;
+                ++*numAABBHit;
+                
+                if (rayTriangleIntersection(scene, org, dir, lnode->objIdx, &t, isect + (curIsect + 1) % 2))
+                    ++curIsect;
+            }
+        }
+        
+        bool hit = !isinf(t);
+        if (hit)
+            calcHitpointParameters(scene, isect + curIsect % 2, surfPt);
+        
+        return hit;
+    }
 #else
     bool rayIntersection(const Scene* scene,
                          const point3* org, const vector3* dir, SurfacePoint* surfPt) {
@@ -227,6 +268,40 @@ namespace sim {
             const BVHNode* node = scene->BVHNodes + idxStack[depth];
             if (!rayAABBIntersection(&node->bbox, org, dir, t))
                 continue;
+            if (node->children[1] != UINT_MAX) {
+                idxStack[depth++] = node->children[1];
+                idxStack[depth++] = node->children[0];
+            }
+            else {
+                if (rayTriangleIntersection(scene, org, dir, node->children[0], &t, isect + (curIsect + 1) % 2))
+                    ++curIsect;
+            }
+        }
+        
+        bool hit = !isinf(t);
+        if (hit)
+            calcHitpointParameters(scene, isect + curIsect % 2, surfPt);
+        
+        return hit;
+    }
+    
+    bool rayIntersectionVis(const Scene* scene,
+                            const point3* org, const vector3* dir, SurfacePoint* surfPt, uint* numAABBHit) {
+        float t = INFINITY;
+        *numAABBHit = 0;
+        
+        uint idxStack[64];
+        uint depth = 0;
+        Intersection isect[2];
+        uchar curIsect = 0;
+        idxStack[depth++] = 0;
+        while (depth > 0) {
+            --depth;
+            const BVHNode* node = scene->BVHNodes + idxStack[depth];
+            if (!rayAABBIntersection(&node->bbox, org, dir, t))
+                continue;
+            ++*numAABBHit;
+            
             if (node->children[1] != UINT_MAX) {
                 idxStack[depth++] = node->children[1];
                 idxStack[depth++] = node->children[0];

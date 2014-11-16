@@ -177,6 +177,7 @@
 		4691A80919CEC4CC0077D2B4 /* CLGenericKernels.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CLGenericKernels.h; sourceTree = "<group>"; };
 		46A690BE197456F400E54586 /* Scene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Scene.cpp; sourceTree = "<group>"; };
 		46AD11791A175ABF004F247F /* bvh_visualizer.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; name = bvh_visualizer.cl; path = OpenCL/bvh_visualizer.cl; sourceTree = "<group>"; };
+		46AD117C1A18C4C9004F247F /* sim_bvh_visualizer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = sim_bvh_visualizer.hpp; path = Equivalent/sim_bvh_visualizer.hpp; sourceTree = "<group>"; };
 		46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libIlmImf-Imf_2_1.21.dylib"; path = "../../../../../usr/local/lib/libIlmImf-Imf_2_1.21.dylib"; sourceTree = "<group>"; };
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
@@ -338,6 +339,7 @@
 				4622CF6B1A053353001B4074 /* sim_scene.hpp */,
 				4622CF6C1A053353001B4074 /* sim_texture_structures.hpp */,
 				4622CF6D1A053353001B4074 /* sim_texture.hpp */,
+				46AD117C1A18C4C9004F247F /* sim_bvh_visualizer.hpp */,
 			);
 			name = Equivalent;
 			sourceTree = "<group>";

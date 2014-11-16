@@ -129,6 +129,9 @@ namespace sim {
     float fs_pdf(const uchar* BSDF, const vector3* vout, const vector3* vin);
     inline float absCosNsBSDF(const uchar* BSDF, const vector3* v);
     
+    static color getBaseColor_fx(const BxDFHead* BxDF);
+    color getBaseColor_fs(const uchar* BSDF);
+    
     //------------------------
     
     static inline float cosTheta(const vector3* v) {
@@ -721,6 +724,53 @@ namespace sim {
     
     inline float absCosNsBSDF(const uchar* BSDF, const vector3* v) {
         return fabsf(dot(((const BSDFHead*)BSDF)->n, *v));
+    }
+    
+    
+    static color getBaseColor_fx(const BxDFHead* BxDF) {
+        switch (BxDF->id) {
+            case BxDFID_Diffuse: {
+                const Diffuse* diffuse = (const Diffuse*)BxDF;
+                return diffuse->R;
+            }
+            case BxDFID_SpecularReflection: {
+                const SpecularReflection* speR = (const SpecularReflection*)BxDF;
+                return speR->R;
+            }
+            case BxDFID_SpecularTransmission: {
+//                const SpecularTransmission* speT = (const SpecularTransmission*)BxDF;
+//                return speT->T;
+                return colorZero;
+            }
+            case BxDFID_NewWard: {
+                const NewWard* ward = (const NewWard*)BxDF;
+                return ward->R;
+            }
+            case BxDFID_AshikhminS: {
+                const AshikhminS* ashS = (const AshikhminS*)BxDF;
+                return ashS->Rs;
+            }
+            case BxDFID_AshikhminD: {
+                const AshikhminD* ashD = (const AshikhminD*)BxDF;
+                return ashD->Rd;
+            }
+            default: {
+                break;
+            }
+        }
+        return colorZero;
+    }
+    
+    color getBaseColor_fs(const uchar* BSDF) {
+        const BSDFHead* head = (const BSDFHead*)BSDF;
+        color ret = colorZero;
+        
+        for (uint i = 0; i < head->numBxDFs; ++i) {
+            const BxDFHead* ifx = (const BxDFHead*)(BSDF + head->offsetsBxDFs[i]);
+            ret += getBaseColor_fx(ifx);
+        }
+        
+        return ret;
     }
 }
 

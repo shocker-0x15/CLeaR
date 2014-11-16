@@ -23,6 +23,7 @@ It uses BVH for the spatial partitioning structure. Parallel construction of Lin
 * Bump Mapping (Normal Map)
 * Simple Midpoint Splitting BVH (constructed on CPU)
 * Linear BVH (constructed on GPU)
+* BVH Visualizer
 * .obj Loader
 
 ##動作環境 / Confirmed Environment

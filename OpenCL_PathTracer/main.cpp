@@ -22,6 +22,7 @@
 #define __USE_LBVH
 //#define __SIMULATION
 #include "sim_pathtracer.hpp"
+#include "sim_bvh_visualizer.hpp"
 
 #include "CreateFunctions.hpp"
 #include "ModelLoader.hpp"

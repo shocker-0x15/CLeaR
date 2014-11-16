@@ -1,5 +1,5 @@
 //
-//  pathtracer.cl
+//  bvh_visualizer.cl
 //  OpenCL_PathTracer
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
 //

@@ -1,18 +1,18 @@
 //
-//  LBVHBuilder.h
+//  TRBVHBuilder.h
 //  OpenCL_PathTracer
 //
-//  Created by 渡部 心 on 2014/10/25.
+//  Created by 渡部 心 on 2014/11/19.
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#ifndef __OpenCL_PathTracer__LBVHBuilder__
-#define __OpenCL_PathTracer__LBVHBuilder__
+#ifndef __OpenCL_PathTracer__TRBVHBuilder__
+#define __OpenCL_PathTracer__TRBVHBuilder__
 
 #include "clUtility.hpp"
-#include "CLGenericKernels.h"
+#include "LBVHBuilder.h"
 
-namespace LBVH {
+namespace TRBVH {
     // 48bytes
     struct InternalNode {
         cl_float3 min;
@@ -27,7 +27,7 @@ namespace LBVH {
         cl_float3 max;
         cl_uint objIdx; uint8_t dum0[12];
     };
-
+    
     class Builder : public CLUtil::Technique {
         cl::Kernel m_kernelCalcAABBs;
         cl::Kernel m_kernelUnifyAABBs;
@@ -62,7 +62,7 @@ namespace LBVH {
         cl::Buffer m_bufferGenericPool;
         bool m_createdBuffers;
         
-        CLGeneric::GlobalScan m_techGlobalScan;
+        LBVH::Builder m_techLBVHBuilder;
         
         void setupWorkingBuffers();
     public:
@@ -74,4 +74,4 @@ namespace LBVH {
     };
 }
 
-#endif /* defined(__OpenCL_PathTracer__LBVHBuilder__) */
+#endif /* defined(__OpenCL_PathTracer__TRBVHBuilder__) */

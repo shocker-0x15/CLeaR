@@ -60,6 +60,7 @@
 		46A690BF197456F400E54586 /* Scene.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46A690BE197456F400E54586 /* Scene.cpp */; };
 		46AD117A1A188086004F247F /* bvh_visualizer.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 46AD11791A175ABF004F247F /* bvh_visualizer.cl */; };
 		46AD117B1A188690004F247F /* bvh_visualizer.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46AD11791A175ABF004F247F /* bvh_visualizer.cl */; };
+		46AD117F1A1BA8CD004F247F /* TRBVHBuilder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46AD117D1A1BA8CD004F247F /* TRBVHBuilder.cpp */; };
 		46B46F9119460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */; };
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46B8879F1986A34600292F5F /* BMPExporter.cpp */; };
@@ -178,6 +179,8 @@
 		46A690BE197456F400E54586 /* Scene.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Scene.cpp; sourceTree = "<group>"; };
 		46AD11791A175ABF004F247F /* bvh_visualizer.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; name = bvh_visualizer.cl; path = OpenCL/bvh_visualizer.cl; sourceTree = "<group>"; };
 		46AD117C1A18C4C9004F247F /* sim_bvh_visualizer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = sim_bvh_visualizer.hpp; path = Equivalent/sim_bvh_visualizer.hpp; sourceTree = "<group>"; };
+		46AD117D1A1BA8CD004F247F /* TRBVHBuilder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TRBVHBuilder.cpp; sourceTree = "<group>"; };
+		46AD117E1A1BA8CD004F247F /* TRBVHBuilder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TRBVHBuilder.h; sourceTree = "<group>"; };
 		46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libIlmImf-Imf_2_1.21.dylib"; path = "../../../../../usr/local/lib/libIlmImf-Imf_2_1.21.dylib"; sourceTree = "<group>"; };
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
@@ -239,6 +242,8 @@
 				462229F8191AB62700D71891 /* BVH.hpp */,
 				4628616419FB9EEC00D506CB /* LBVHBuilder.h */,
 				4628616319FB9EEC00D506CB /* LBVHBuilder.cpp */,
+				46AD117E1A1BA8CD004F247F /* TRBVHBuilder.h */,
+				46AD117D1A1BA8CD004F247F /* TRBVHBuilder.cpp */,
 				46222A2A191D04ED00D71891 /* ModelLoader.hpp */,
 				46222A29191D04ED00D71891 /* ModelLoader.cpp */,
 				46BC78811981612800B30320 /* Distribution.hpp */,
@@ -404,6 +409,7 @@
 				4622CF851A053370001B4074 /* material_structures.cl in Sources */,
 				4622CF861A053370001B4074 /* matrix.cl in Sources */,
 				462229F7191AB60200D71891 /* XORShift.cpp in Sources */,
+				46AD117F1A1BA8CD004F247F /* TRBVHBuilder.cpp in Sources */,
 				4622CF821A053370001B4074 /* global.cl in Sources */,
 				4691A80A19CEC4CC0077D2B4 /* CLGenericKernels.cpp in Sources */,
 				462229E9191AB59D00D71891 /* main.cpp in Sources */,

@@ -22,11 +22,10 @@ typedef struct __attribute__((aligned(4))) {
     ushort matPtr, lightPtr;
 } Face;
 
-// 48bytes
+// 32bytes
 typedef struct __attribute__((aligned(16))) {
     point3 min;
     point3 max;
-    point3 center;
 } AABB;
 
 // 48bytes
@@ -91,7 +90,6 @@ kernel void calcAABBs(const global point3* vertices, const global uchar* faces, 
     AABB box;
     box.min = fmin(p0, fmin(p1, p2));
     box.max = fmax(p0, fmax(p1, p2));
-    box.center = (box.min + box.max) * 0.5f;
     *((global AABB*)AABBs + gid0) = box;
 }
 
@@ -156,7 +154,6 @@ kernel void unifyAABBs(const global uchar* AABBs, uint numAABBs, global uchar* u
         AABB unifiedAABB;
         unifiedAABB.min = lmin[0];
         unifiedAABB.max = lmax[0];
-        unifiedAABB.center = (unifiedAABB.min + unifiedAABB.max) * 0.5f;
         gUnifiedAABBs[get_group_id(0)] = unifiedAABB;
     }
 }
@@ -173,9 +170,9 @@ kernel void calcMortonCodes(const global uchar* AABBs, uint numPrimitives,
     if (gid0 >= numPrimitives)
         return;
         
-    AABB box = *((const global AABB*)AABBs + gid0);
+    const AABB box = *((const global AABB*)AABBs + gid0);
     
-    point3 normPos = (box.center - minEntireAABB) / sizeEntireAABB;
+    point3 normPos = ((box.min + box.max) * 0.5f - minEntireAABB) / sizeEntireAABB;
     mortonCodes[gid0] = min(convert_uint3_rtz(normPos * numDivs), numDivs - 1);
     indices[gid0] = gid0;
 }
@@ -238,7 +235,7 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
     local ushort radixBits[LOCAL_SORT_SIZE];
     local ushort falseTotal;
     
-    // ローカル変数にインデックスとモートンコードから抽出したradix digitを格納する。
+    // ローカルメモリにインデックスとモートンコードから抽出したradix digitを格納する。
     if (gid0 < numPrimitives) {
         uint idx = indices[gid0];
         indicesInBlock[lid0] = idx;
@@ -264,7 +261,7 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
         barrier(CLK_LOCAL_MEM_FENCE);
     }
 
-    // グローバル変数に書き戻す。
+    // グローバルメモリに書き戻す。
     if (gid0 < numPrimitives) {
         indices[gid0] = indicesInBlock[lid0];
         radixDigits[gid0] = radixDigitsInBlock[lid0];

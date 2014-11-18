@@ -289,7 +289,7 @@ int main(int argc, const char * argv[]) {
 #ifdef __USE_LBVH
         stopwatch.start();
         
-        LBVHBuilder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
+        LBVH::Builder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
         
         printf("LBVH build program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");

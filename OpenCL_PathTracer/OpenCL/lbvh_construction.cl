@@ -61,7 +61,7 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
                           global uint* indices, global uchar* radixDigits);
 
 kernel void calcBlockwiseHistograms(const global uchar* radixDigits, uint numPrimitives,
-                                    uint numBlocks, global uint* histogram, global ushort* localOffsets);
+                                    uint numBlocks, global uint* histograms, global ushort* localOffsets);
 
 kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, const global uint* globalOffsets, const global ushort* localOffsets,
                           const global uint* indicesSrc, global uint* indicesDst);
@@ -277,40 +277,23 @@ kernel void blockwiseSort(const global uint3* mortonCodes, uint numPrimitives, u
 // 各グループ中における各bucket値までのオフセットも出力する。
 // 1スレッドが1グループに対応する。
 kernel void calcBlockwiseHistograms(const global uchar* radixDigits, uint numPrimitives, 
-                                    uint numBlocks, global uint* histogram, global ushort* localOffsets) {
+                                    uint numBlocks, global uint* histograms, global ushort* localOffsets) {
     const uint gid0 = get_global_id(0);
     if (gid0 >= numBlocks)
         return;
     
-    uint i = 0;
-    uint count = 0;
-    uchar mcOfBucket = 0;
-    localOffsets[8 * gid0 + 0] = 0;
-    while (true) {
-        uint idx = LOCAL_SORT_SIZE * gid0 + i;
-        if (i >= LOCAL_SORT_SIZE || idx >= numPrimitives) {
-            histogram[numBlocks * mcOfBucket + gid0] = count;
-            ++mcOfBucket;
-            while (mcOfBucket < 8) {
-                localOffsets[8 * gid0 + mcOfBucket] = i;
-                histogram[numBlocks * mcOfBucket + gid0] = 0;
-                ++mcOfBucket;
-            }
-            break;
-        }
-        
-        uchar mc = radixDigits[idx];
-        if (mc == mcOfBucket) {
-            ++count;
-            ++i;
-        }
-        
-        if (mc > mcOfBucket) {
-            histogram[numBlocks * mcOfBucket + gid0] = count;
-            count = 0;
-            ++mcOfBucket;
-            localOffsets[8 * gid0 + mcOfBucket] = i;
-        }
+    ushort localHistogram[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    uint idxMax = min(LOCAL_SORT_SIZE * (gid0 + 1), numPrimitives);
+    for (uint i = LOCAL_SORT_SIZE * gid0; i < idxMax; ++i)
+        ++localHistogram[radixDigits[i]];
+    
+    ushort localOffset = 0;
+    ushort lastValue = 0;
+    for (uint i = 0; i < 8; ++i) {
+        localOffset += lastValue;
+        localOffsets[8 * gid0 + i] = localOffset;
+        lastValue = localHistogram[i];
+        histograms[numBlocks * i + gid0] = lastValue;
     }
 }
 
@@ -322,7 +305,6 @@ kernel void globalScatter(const global uchar* radixDigits, uint numPrimitives, c
                           const global uint* indicesSrc, global uint* indicesDst) {
     const uint lid0 = get_local_id(0);
     const uint gid0 = get_global_id(0);
-    
     if (gid0 >= numPrimitives)
         return;
     

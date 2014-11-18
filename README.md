@@ -3,16 +3,17 @@
 CLeaRはOpenCLでどの程度実用的なレンダラーが書けるかを実験する目的で作ったレンダラーです。
 BSDF周りの処理は[PBRT-v2](https://github.com/mmp/pbrt-v2)をかなり参考にしています。  
 現状ではCPU用のロジックをそのまま移植したような形になっているため、レジスターの大量使用や、条件分岐によるフローの発散など、2014年現在のGPUアーキテクチャーにとって効率的な実装にはなっていません[1]。
-空間分割構造にはBVHを使用、CPUによる単純な中点スプリットに加えて、GPUによるLinear BVH [2, 3]の並列構築も実装しています。
+空間分割構造にはBVHを使用、CPUによる単純な中点スプリットに加えて、GPUによるLinear BVH [2, 3]、Tree Restructuring BVH [4]の並列構築も実装しています。
 
 CLeaR has been developed with a purpose to experiment how practical renderer can be written using OpenCL.
 In writing procedures regarding BSDF, I refered to [PBRT-v2](https://github.com/mmp/pbrt-v2) considerably.  
 For now, it looks like the same as logic used in CPU implementation, so it is not efficient implementation for current GPU architectures as of 2014 due to the massive usage of registers and control-flow divergence by conditional branches [1].
-It uses BVH for the spatial partitioning structure. Parallel construction of Linear BVH [2, 3] on GPU is implemented in addition to simple midpoint splitting on CPU.
+It uses BVH for the spatial partitioning structure. Parallel construction of Linear BVH [2, 3] and Tree Restructuring BVH on GPU are implemented in addition to simple midpoint splitting on CPU.
 
 [1] "Megakernels Considered Harmful: Wavefront Path Tracing on GPUs"  
 [2] "Fast BVH Construction on GPUs"  
 [3] "Maximizing Parallelism in the Construction of BVHs, Octrees, and k-d Trees"  
+[4] "Fast Parallel Construction of High-Quality Bounding Volume Hierarchies"
 
 ##特徴 / Features
 * Unidirectional Path Tracing
@@ -22,7 +23,8 @@ It uses BVH for the spatial partitioning structure. Parallel construction of Lin
 * Depth of Field
 * Bump Mapping (Normal Map)
 * Simple Midpoint Splitting BVH (constructed on CPU)
-* Linear BVH (constructed on GPU)
+* Linear BVH
+* ~~Tree Restructuring BVH~~ (under development)
 * BVH Visualizer
 * .obj Loader
 

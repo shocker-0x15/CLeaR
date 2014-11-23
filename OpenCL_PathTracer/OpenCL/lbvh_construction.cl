@@ -30,16 +30,14 @@ typedef struct __attribute__((aligned(16))) {
 
 // 48bytes
 typedef struct __attribute__((aligned(16))) {
-    point3 min;
-    point3 max;
-    bool isChild[2];
+    AABB bbox;
+    bool isLeaf[2];
     uint c[2];
 } InternalNode;
 
 // 48bytes
 typedef struct __attribute__((aligned(16))) {
-    point3 min;
-    point3 max;
+    AABB bbox;
     uint objIdx;
 } LeafNode;
 
@@ -345,9 +343,7 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
     // leaf nodeの情報を記録しておく。
     global LeafNode* lNode = (global LeafNode*)lNodes + gid0;
     uint objIdx = indices[gid0];
-    const global AABB* lAABB = (const global AABB*)AABBs + objIdx;
-    lNode->min = lAABB->min;
-    lNode->max = lAABB->max;
+    lNode->bbox = *((const global AABB*)AABBs + objIdx);
     lNode->objIdx = objIdx;
     
     // internal nodeの範囲を出るスレッドは終了させる。後のステップで使用するカウンターの初期化を行っておく。
@@ -390,30 +386,25 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
     
     // ノードの子のインデックスを記録する。
     global InternalNode* iNode = (global InternalNode*)iNodes + gid0;
-    bool leftIsChild = min(gid0, otherEnd) == splitPos;
-    iNode->isChild[0] = leftIsChild;
+    bool leftIsLeaf = min(gid0, otherEnd) == splitPos;
+    iNode->isLeaf[0] = leftIsLeaf;
     iNode->c[0] = splitPos;
-    if (leftIsChild)
-        *(parentIdxs + splitPos) = gid0;
-    else
-        *(parentIdxs + numPrimitives + splitPos) = gid0;
-    bool rightIsChild = max(gid0, otherEnd) == splitPos + 1;
-    iNode->isChild[1] = rightIsChild;
+    bool rightIsLeaf = max(gid0, otherEnd) == splitPos + 1;
+    iNode->isLeaf[1] = rightIsLeaf;
     iNode->c[1] = splitPos + 1;
-    if (rightIsChild)
-        *(parentIdxs + splitPos + 1) = gid0;
-    else
-        *(parentIdxs + numPrimitives + splitPos + 1) = gid0;
+    
+    // それぞれの子ノードから親ノードを辿れるようにインデックスを記録しておく。
+    parentIdxs[(leftIsLeaf ? 0 : numPrimitives) + splitPos] = gid0;
+    parentIdxs[(rightIsLeaf ? 0 : numPrimitives) + splitPos + 1] = gid0;
 }
 
 //#define CALC_NODE_AABB_GROUP_SIZE 64
 // 各ノードのAABBを計算する。leaf nodeからルートへの経路単位で並列に計算される。
-// あるノードに関して2回目のアクセスを担当するスレッドがAABBの和をとることによって、そのノードの子全てが計算済みであることを保証する。
 kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs) {
     const uint gid0 = get_global_id(0);
+//    const uint lid0 = get_local_id(0);
     global InternalNode* iNodes = (global InternalNode*)_iNodes;
     const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
-//    const uint lid0 = get_local_id(0);
     if (gid0 >= numPrimitives)
         return;
     
@@ -421,69 +412,27 @@ kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const gl
 //    localCounters[lid0] = 0;
     
     const global LeafNode* lNode = lNodes + gid0;
+    point3 min = lNode->bbox.min;
+    point3 max = lNode->bbox.max;
+    
     uint selfIdx = gid0;
-    point3 min = lNode->min;
-    point3 max = lNode->max;
-    
-    uint tgtIdx = *(parentIdxs + gid0);
-    
-    //----------------------------------------------------------------
-    // 1段階目はLeafNodeから登るため、若干処理が異なる。
-    if (atomic_inc(counters + tgtIdx) == 0)
-        return;
-    
-    global InternalNode* tgtINode = iNodes + tgtIdx;
-    bool leftIsChild = tgtINode->isChild[0];
-    bool rightIsChild = tgtINode->isChild[1];
-    uint lIdx = tgtINode->c[0];
-    uint rIdx = tgtINode->c[1];
-    if (lIdx == selfIdx && leftIsChild) {
-        min = fmin(min, rightIsChild ? (lNodes + rIdx)->min : (iNodes + rIdx)->min);
-        max = fmax(max, rightIsChild ? (lNodes + rIdx)->max : (iNodes + rIdx)->max);
-    }
-    else {
-        min = fmin(leftIsChild ? (lNodes + lIdx)->min : (iNodes + lIdx)->min, min);
-        max = fmax(leftIsChild ? (lNodes + lIdx)->max : (iNodes + lIdx)->max, max);
-    }
-    tgtINode->min = min;
-    tgtINode->max = max;
-    
-    if (tgtIdx == 0)
-        return;
-    
-    selfIdx = tgtIdx;
-    tgtIdx = *(parentIdxs + numPrimitives + tgtIdx);
-    //----------------------------------------------------------------
-    
+    uint tgtIdx = parentIdxs[gid0];
     parentIdxs += numPrimitives;
     
-    //----------------------------------------------------------------
-    // 2段階目以降はInternalNodeを繰り返しルートに向けて登る。
-    while (true) {
-        if (atomic_inc(counters + tgtIdx) == 0)
-            return;
-        
+    // InternalNodeを繰り返しルートに向けて登る。
+    // 2回目のアクセスを担当するスレッドがAABBの和をとることによって、そのノードの子全てが計算済みであることを保証する。
+    while (atomic_inc(counters + tgtIdx) == 1) {
         global InternalNode* tgtINode = iNodes + tgtIdx;
-        bool leftIsChild = tgtINode->isChild[0];
-        bool rightIsChild = tgtINode->isChild[1];
-        uint lIdx = tgtINode->c[0];
-        uint rIdx = tgtINode->c[1];
-        if (lIdx == selfIdx) {
-            min = fmin(min, rightIsChild ? (lNodes + rIdx)->min : (iNodes + rIdx)->min);
-            max = fmax(max, rightIsChild ? (lNodes + rIdx)->max : (iNodes + rIdx)->max);
-        }
-        else {
-            min = fmin(leftIsChild ? (lNodes + lIdx)->min : (iNodes + lIdx)->min, min);
-            max = fmax(leftIsChild ? (lNodes + lIdx)->max : (iNodes + lIdx)->max, max);
-        }
-        tgtINode->min = min;
-        tgtINode->max = max;
+        bool leftIsSelf = tgtINode->c[0] == selfIdx;
+        uint otherIdx = tgtINode->c[leftIsSelf];
+        const AABB bbox = tgtINode->isLeaf[leftIsSelf] ? (lNodes + otherIdx)->bbox : (iNodes + otherIdx)->bbox;
+        tgtINode->bbox.min = fmin(min, bbox.min);
+        tgtINode->bbox.max = fmax(max, bbox.max);
         
         if (tgtIdx == 0)
             return;
         
         selfIdx = tgtIdx;
-        tgtIdx = *(parentIdxs + tgtIdx);
+        tgtIdx = parentIdxs[tgtIdx];
     }
-    //----------------------------------------------------------------
 }

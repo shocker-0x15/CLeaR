@@ -18,8 +18,10 @@
 #include "cl12.hpp"
 #include "clUtility.hpp"
 #include "LBVHBuilder.h"
+#include "TRBVHBuilder.h"
 
-#define __USE_LBVH
+//#define __USE_LBVH
+#define __USE_TRBVH
 //#define __SIMULATION
 #include "sim_pathtracer.hpp"
 #include "sim_bvh_visualizer.hpp"
@@ -286,12 +288,19 @@ int main(int argc, const char * argv[]) {
         
         //------------------------------------------------
         // 空間分割プログラムの生成
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH)
         stopwatch.start();
         
         LBVH::Builder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
         
         printf("LBVH build program setup time: %lldmsec\n", stopwatch.stop());
+        printf("\n");
+#elif defined(__USE_TRBVH)
+        stopwatch.start();
+        
+        TRBVH::Builder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
+        
+        printf("TRBVH build program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
 #endif
         //------------------------------------------------
@@ -307,8 +316,10 @@ int main(int argc, const char * argv[]) {
         cl::Program programRendering{context, srcRendering};
         extraArgs = "";
         extraArgs += " -I\"OpenCL_src\"";
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH)
         extraArgs += " -D__USE_LBVH";
+#elif defined(__USE_LBVH)
+        extraArgs += " -D__USE_TRBVH";
 #endif
         programRendering.build(extraArgs.c_str());
         programRendering.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
@@ -345,7 +356,7 @@ int main(int argc, const char * argv[]) {
         //------------------------------------------------
         // 空間分割開始
         
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH)
         cl::Buffer buf_BVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(LBVH::InternalNode) + scene.numFaces() * sizeof(LBVH::LeafNode), nullptr, nullptr};
         
         uint64_t nextAddress;
@@ -353,7 +364,17 @@ int main(int argc, const char * argv[]) {
                                                            0, 16, (scene.numFaces() - 1) * sizeof(LBVH::InternalNode), &nextAddress, nullptr);
         cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_BVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
                                                        nextAddress, 16, scene.numFaces() * sizeof(LBVH::LeafNode), nullptr, nullptr);
+#elif defined(__USE_TRBVH)
+        cl::Buffer buf_BVHNodes{context, CL_MEM_READ_WRITE, (scene.numFaces() - 1) * sizeof(LBVH::InternalNode) + scene.numFaces() * sizeof(LBVH::LeafNode), nullptr, nullptr};
         
+        uint64_t nextAddress;
+        cl::Buffer buf_internalNodes = cl::createSubBuffer(buf_BVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                           0, 16, (scene.numFaces() - 1) * sizeof(TRBVH::InternalNode), &nextAddress, nullptr);
+        cl::Buffer buf_leafNodes = cl::createSubBuffer(buf_BVHNodes, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                       nextAddress, 16, scene.numFaces() * sizeof(TRBVH::LeafNode), nullptr, nullptr);
+#endif
+      
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
 //        // 計測のために5回ループ。1回目はバッファーの確保が走るようで遅い。
 //        // レンダリングプログラムをビルドさせると何らかの理由で1回目のカーネル実行に異様に時間がかかるが、謎。
 //        // 現状はMacBook Pro Retina Late 2013, GT 750M GDDR5 2GBで35,000trisに10-11ms程度。
@@ -405,7 +426,7 @@ int main(int argc, const char * argv[]) {
         //----------------------------------------------------------------
         // CPU等価コード
         printf("CPU equivalent code:\n");
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
         std::vector<LBVH::InternalNode> internalNodes;
         std::vector<LBVH::LeafNode> leafNodes;
         internalNodes.resize(scene.numFaces() - 1);
@@ -429,7 +450,7 @@ int main(int argc, const char * argv[]) {
                         sim::pathtracing((sim::float3*)scene.rawVertices(), (sim::float3*)scene.rawNormals(), (sim::float3*)scene.rawTangents(), (sim::float2*)scene.rawUVs(),
                                          (sim::uchar*)scene.rawFaces(), (sim::uint*)scene.rawLightInfos(),
                                          (sim::uchar*)scene.rawMaterialsData(), (sim::uchar*)scene.rawTexturesData(), (sim::uchar*)scene.rawOtherResources(),
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
                                          (sim::uchar*)internalNodes.data(), (sim::uchar*)leafNodes.data(), 
 #else
                                          (sim::uchar*)scene.rawBVHNodes(),
@@ -466,7 +487,7 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_materialsData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfMaterialsData(), scene.rawMaterialsData(), nullptr};
         cl::Buffer buf_texturesData{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfTexturesData(), scene.rawTexturesData(), nullptr};
         cl::Buffer buf_otherResources{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfOtherResouces(), scene.rawOtherResources(), nullptr};
-#ifndef __USE_LBVH
+#if !defined(__USE_LBVH) && !defined(__USE_TRBVH)
         cl::Buffer buf_BVHNodes{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_ONLY, scene.sizeOfBVHNodes(), scene.rawBVHNodes(), nullptr};
 #endif
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
@@ -484,7 +505,7 @@ int main(int argc, const char * argv[]) {
                 cl::enqueueNDRangeKernel(queue, kernelRendering, offset, tile, localSize, nullptr, &ev,
                                          buf_vertices, buf_normals, buf_tangents, buf_uvs, buf_faces,
                                          buf_lightInfos, buf_materialsData, buf_texturesData, buf_otherResources,
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
                                          buf_internalNodes, buf_leafNodes,
 #else
                                          buf_BVHNodes,

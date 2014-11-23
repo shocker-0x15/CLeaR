@@ -21,7 +21,7 @@ namespace sim {
     // 48bytes
     struct LBVHInternalNode {
         BBox bbox;
-        bool isChild[2]; uchar dum0[2];
+        bool isLeaf[2]; uchar dum0[2];
         uint c[2]; uchar dum1[4];
     };
     
@@ -195,7 +195,7 @@ namespace sim {
             if (!rayAABBIntersection(&inode->bbox, org, dir, t))
                 continue;
             for (int i = 0; i < 2; ++i) {
-                if (inode->isChild[i] == false) {
+                if (inode->isLeaf[i] == false) {
                     idxStack[depth++] = inode->c[i];
                     continue;
                 }
@@ -233,7 +233,7 @@ namespace sim {
             ++*numAABBHit;
             
             for (int i = 0; i < 2; ++i) {
-                if (inode->isChild[i] == false) {
+                if (inode->isLeaf[i] == false) {
                     idxStack[depth++] = inode->c[i];
                     continue;
                 }

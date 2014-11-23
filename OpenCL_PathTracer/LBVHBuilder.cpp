@@ -360,7 +360,7 @@ namespace LBVH {
 //            printf("%5u: min(%11.3e, %11.3e, %11.3e) | max(%11.3e, %11.3e, %11.3e) %5u_%u %5u_%u\n", i,
 //                   iNode.min.s0, iNode.min.s1, iNode.min.s2,
 //                   iNode.max.s0, iNode.max.s1, iNode.max.s2,
-//                   iNode.c[0], iNode.isChild[0], iNode.c[1], iNode.isChild[1]);
+//                   iNode.c[0], iNode.isLeaf[0], iNode.c[1], iNode.isLeaf[1]);
 //        }
 //        printf("--------------------------------\n");
 //        printf("Leaf Nodes\n");

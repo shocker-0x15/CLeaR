@@ -20,7 +20,7 @@ struct __attribute__((aligned(16))) BBox {
 // 48bytes
 struct __attribute__((aligned(16))) LBVHInternalNode {
     BBox bbox;
-    bool isChild[2];
+    bool isLeaf[2];
     uint c[2];
 };
 
@@ -194,7 +194,7 @@ bool rayIntersection(const Scene* scene,
         if (!rayAABBIntersection(&inode->bbox, org, dir, t))
             continue;
         for (int i = 0; i < 2; ++i) {
-            if (inode->isChild[i] == false) {
+            if (inode->isLeaf[i] == false) {
                 idxStack[depth++] = inode->c[i];
                 continue;
             }
@@ -232,7 +232,7 @@ bool rayIntersectionVis(const Scene* scene,
         ++*numAABBHit;
         
         for (int i = 0; i < 2; ++i) {
-            if (inode->isChild[i] == false) {
+            if (inode->isLeaf[i] == false) {
                 idxStack[depth++] = inode->c[i];
                 continue;
             }

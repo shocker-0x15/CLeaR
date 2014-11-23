@@ -8,7 +8,7 @@ BSDF周りの処理は[PBRT-v2](https://github.com/mmp/pbrt-v2)をかなり参�
 CLeaR has been developed with a purpose to experiment how practical renderer can be written using OpenCL.
 In writing procedures regarding BSDF, I refered to [PBRT-v2](https://github.com/mmp/pbrt-v2) considerably.  
 For now, it looks like the same as logic used in CPU implementation, so it is not efficient implementation for current GPU architectures as of 2014 due to the massive usage of registers and control-flow divergence by conditional branches [1].
-It uses BVH for the spatial partitioning structure. Parallel construction of Linear BVH [2, 3] and Tree Restructuring BVH on GPU are implemented in addition to simple midpoint splitting on CPU.
+It uses BVH for the spatial partitioning structure. Parallel construction of Linear BVH [2, 3] and ~~Tree Restructuring BVH~~ (under development) [4] on GPU are implemented in addition to simple midpoint splitting on CPU.
 
 [1] "Megakernels Considered Harmful: Wavefront Path Tracing on GPUs"  
 [2] "Fast BVH Construction on GPUs"  

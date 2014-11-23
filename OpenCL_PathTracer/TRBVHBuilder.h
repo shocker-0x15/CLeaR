@@ -17,7 +17,7 @@ namespace TRBVH {
     struct InternalNode {
         cl_float3 min;
         cl_float3 max;
-        cl_uchar isChild[2]; uint8_t dum0[2];
+        cl_uchar isLeaf[2]; uint8_t dum0[2];
         cl_uint c[2]; uint8_t dum1[4];
     };
     
@@ -29,35 +29,6 @@ namespace TRBVH {
     };
     
     class Builder : public CLUtil::Technique {
-        cl::Kernel m_kernelCalcAABBs;
-        cl::Kernel m_kernelUnifyAABBs;
-        cl::Kernel m_kernelCalcMortonCodes;
-        cl::Kernel m_kernelBlockwiseSort;
-        cl::Kernel m_kernelCalcBlockHistograms;
-        cl::Kernel m_kernelGlobalScatter;
-        cl::Kernel m_kernelConstructBinaryRadixTree;
-        cl::Kernel m_kernelCalcNodeAABBs;
-        
-        const uint32_t localSizeCalcAABBs;
-        const uint32_t localSizeUnifyAABBs;
-        const uint32_t localSizeCalcMortonCodes;
-        const uint32_t localSizeBlockwiseSort;
-        const uint32_t localSizeCalcBlockHistograms;
-        const uint32_t localSizeConstructBinaryRadixTree;
-        const uint32_t localSizeCalcNodeAABBs;
-        
-        cl::Buffer m_bufAABBs;
-        cl::Buffer m_bufs_unifyAABBs[2];
-        cl::Buffer m_bufMortonCodes;
-        cl::Buffer m_bufIndices;
-        cl::Buffer m_bufIndicesShadow;
-        cl::Buffer m_bufRadixDigits;
-        cl::Buffer m_bufHistograms;
-        cl::Buffer m_bufLocalOffsets;
-        std::vector<cl::Buffer> m_bufs_globalScan;
-        cl::Buffer m_bufParentIdxs;
-        cl::Buffer m_bufCounters;
-        
         uint32_t m_currentCapacity;
         cl::Buffer m_bufferGenericPool;
         bool m_createdBuffers;

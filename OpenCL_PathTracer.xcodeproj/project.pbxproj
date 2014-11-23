@@ -61,6 +61,8 @@
 		46AD117A1A188086004F247F /* bvh_visualizer.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 46AD11791A175ABF004F247F /* bvh_visualizer.cl */; };
 		46AD117B1A188690004F247F /* bvh_visualizer.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46AD11791A175ABF004F247F /* bvh_visualizer.cl */; };
 		46AD117F1A1BA8CD004F247F /* TRBVHBuilder.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46AD117D1A1BA8CD004F247F /* TRBVHBuilder.cpp */; };
+		46AD11811A1CFE3B004F247F /* trbvh_construction.cl in Sources */ = {isa = PBXBuildFile; fileRef = 46AD11801A1CFE3B004F247F /* trbvh_construction.cl */; };
+		46AD11821A1CFE4E004F247F /* trbvh_construction.cl in Copy OpenCL Sources */ = {isa = PBXBuildFile; fileRef = 46AD11801A1CFE3B004F247F /* trbvh_construction.cl */; };
 		46B46F9119460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */; };
 		46B46F9319461013005FD1EA /* libHalf.11.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 46B46F9219461013005FD1EA /* libHalf.11.dylib */; };
 		46B887A11986A34600292F5F /* BMPExporter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 46B8879F1986A34600292F5F /* BMPExporter.cpp */; };
@@ -83,6 +85,7 @@
 			dstPath = OpenCL_src;
 			dstSubfolderSpec = 16;
 			files = (
+				46AD11821A1CFE4E004F247F /* trbvh_construction.cl in Copy OpenCL Sources */,
 				46AD117A1A188086004F247F /* bvh_visualizer.cl in Copy OpenCL Sources */,
 				4622CFA21A053430001B4074 /* bvh_traversal.cl in Copy OpenCL Sources */,
 				4622CFA31A053430001B4074 /* camera.cl in Copy OpenCL Sources */,
@@ -181,6 +184,7 @@
 		46AD117C1A18C4C9004F247F /* sim_bvh_visualizer.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; name = sim_bvh_visualizer.hpp; path = Equivalent/sim_bvh_visualizer.hpp; sourceTree = "<group>"; };
 		46AD117D1A1BA8CD004F247F /* TRBVHBuilder.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TRBVHBuilder.cpp; sourceTree = "<group>"; };
 		46AD117E1A1BA8CD004F247F /* TRBVHBuilder.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TRBVHBuilder.h; sourceTree = "<group>"; };
+		46AD11801A1CFE3B004F247F /* trbvh_construction.cl */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.opencl; path = trbvh_construction.cl; sourceTree = "<group>"; };
 		46B46F9019460852005FD1EA /* libIlmImf-Imf_2_1.21.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libIlmImf-Imf_2_1.21.dylib"; path = "../../../../../usr/local/lib/libIlmImf-Imf_2_1.21.dylib"; sourceTree = "<group>"; };
 		46B46F9219461013005FD1EA /* libHalf.11.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libHalf.11.dylib; path = ../../../../../usr/local/lib/libHalf.11.dylib; sourceTree = "<group>"; };
 		46B83B80194CBF0900BF8D41 /* MaterialStructures.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = MaterialStructures.hpp; sourceTree = "<group>"; };
@@ -320,8 +324,9 @@
 				4622CF7C1A053370001B4074 /* texture_structures.cl */,
 				4622CF7D1A053370001B4074 /* texture.cl */,
 				4622CF711A053370001B4074 /* extra_atomics.cl */,
-				46AD11791A175ABF004F247F /* bvh_visualizer.cl */,
 				4622CF731A053370001B4074 /* lbvh_construction.cl */,
+				46AD11801A1CFE3B004F247F /* trbvh_construction.cl */,
+				46AD11791A175ABF004F247F /* bvh_visualizer.cl */,
 				4622CF781A053370001B4074 /* post_processing.cl */,
 			);
 			name = OpenCL;
@@ -429,6 +434,7 @@
 				4622CF8D1A053370001B4074 /* texture.cl in Sources */,
 				46222A2B191D04ED00D71891 /* ModelLoader.cpp in Sources */,
 				4688CD5A191EA3F400257766 /* CreateFunctions.cpp in Sources */,
+				46AD11811A1CFE3B004F247F /* trbvh_construction.cl in Sources */,
 				4622CF841A053370001B4074 /* light.cl in Sources */,
 				46222A25191AB70100D71891 /* Vector4f.cpp in Sources */,
 				4622CF7F1A053370001B4074 /* camera.cl in Sources */,

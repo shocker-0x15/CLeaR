@@ -17,7 +17,7 @@ namespace LBVH {
     struct InternalNode {
         cl_float3 min;
         cl_float3 max;
-        cl_uchar isChild[2]; uint8_t dum0[2];
+        cl_uchar isLeaf[2]; uint8_t dum0[2];
         cl_uint c[2]; uint8_t dum1[4];
     };
     

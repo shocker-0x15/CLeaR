@@ -17,16 +17,16 @@ namespace sim {
         point3 min, max;
     };
     
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
     // 48bytes
-    struct LBVHInternalNode {
+    struct BVHInternalNode {
         BBox bbox;
         bool isLeaf[2]; uchar dum0[2];
         uint c[2]; uchar dum1[4];
     };
     
     // 48bytes
-    struct LBVHLeafNode {
+    struct BVHLeafNode {
         BBox bbox;
         uint objIdx; uchar dum0[12];
     };
@@ -179,7 +179,7 @@ namespace sim {
         return true;
     }
     
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
     bool rayIntersection(const Scene* scene,
                          const point3* org, const vector3* dir, SurfacePoint* surfPt) {
         float t = INFINITY;
@@ -191,7 +191,7 @@ namespace sim {
         idxStack[depth++] = 0;
         while (depth > 0) {
             --depth;
-            const LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
+            const BVHInternalNode* inode = scene->BVHInternalNodes + idxStack[depth];
             if (!rayAABBIntersection(&inode->bbox, org, dir, t))
                 continue;
             for (int i = 0; i < 2; ++i) {
@@ -199,7 +199,7 @@ namespace sim {
                     idxStack[depth++] = inode->c[i];
                     continue;
                 }
-                const LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+                const BVHLeafNode* lnode = scene->BVHLeafNodes + inode->c[i];
                 if (!rayAABBIntersection(&lnode->bbox, org, dir, t))
                     continue;
                 
@@ -227,7 +227,7 @@ namespace sim {
         idxStack[depth++] = 0;
         while (depth > 0) {
             --depth;
-            const LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
+            const BVHInternalNode* inode = scene->BVHInternalNodes + idxStack[depth];
             if (!rayAABBIntersection(&inode->bbox, org, dir, t))
                 continue;
             ++*numAABBHit;
@@ -237,7 +237,7 @@ namespace sim {
                     idxStack[depth++] = inode->c[i];
                     continue;
                 }
-                const LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+                const BVHLeafNode* lnode = scene->BVHLeafNodes + inode->c[i];
                 if (!rayAABBIntersection(&lnode->bbox, org, dir, t))
                     continue;
                 ++*numAABBHit;

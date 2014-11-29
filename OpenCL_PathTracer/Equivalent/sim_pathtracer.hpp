@@ -16,8 +16,8 @@ namespace sim {
     void pathtracing(float3* vertices, float3* normals, float3* tangents, float2* uvs, uchar* faces,
                      uint* lights,
                      uchar* materialsData, uchar* texturesData, uchar* otherResources,
-#ifdef __USE_LBVH
-                     uchar* LBVHInternalNodes, uchar* LBVHLeafNodes,
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+                     uchar* BVHInternalNodes, uchar* BVHLeafNodes,
 #else
                      uchar* BVHNodes,
 #endif
@@ -26,8 +26,8 @@ namespace sim {
     void pathtracing(float3* vertices, float3* normals, float3* tangents, float2* uvs, uchar* faces,
                      uint* lights,
                      uchar* materialsData, uchar* texturesData, uchar* otherResources,
-#ifdef __USE_LBVH
-                     uchar* LBVHInternalNodes, uchar* LBVHLeafNodes,
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+                     uchar* BVHInternalNodes, uchar* BVHLeafNodes,
 #else
                      uchar* BVHNodes,
 #endif
@@ -36,8 +36,8 @@ namespace sim {
             vertices, normals, tangents, uvs, (Face*)faces,
             (LightInfo*)lights,
             materialsData, texturesData, otherResources,
-#ifdef __USE_LBVH
-            (LBVHInternalNode*)LBVHInternalNodes, (LBVHLeafNode*)LBVHLeafNodes,
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+            (BVHInternalNode*)BVHInternalNodes, (BVHLeafNode*)BVHLeafNodes,
 #else
             (BVHNode*)BVHNodes,
 #endif

@@ -4,8 +4,6 @@
 //  Copyright (c) 2014年 渡部 心. All rights reserved.
 //
 
-#include "extra_atomics.cl"
-
 #define printfF3(f3) printf(#f3": %f, %f, %f\n", (f3).x, (f3).y, (f3).z)
 #define printSize(t) printf("sizeof("#t"): %u\n", sizeof(t))
 #define convertPtrCG(dstT, ptr, offset) (const global dstT*)((const global uchar*)ptr + (offset))
@@ -69,7 +67,7 @@ inline char signInt8(char val);
 kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, const global uchar* AABBs, const global uint* indices, uint numPrimitives,
                                      global uchar* iNodes, global uchar* lNodes, global uint* parentIdxs, global uint* counters);
 
-kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs);
+kernel void calcNodeAABBs(volatile global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs);
 
 //----------------------------------------------------------------
 
@@ -400,10 +398,10 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
 
 //#define CALC_NODE_AABB_GROUP_SIZE 64
 // 各ノードのAABBを計算する。leaf nodeからルートへの経路単位で並列に計算される。
-kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs) {
+kernel void calcNodeAABBs(volatile global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs) {
     const uint gid0 = get_global_id(0);
 //    const uint lid0 = get_local_id(0);
-    global InternalNode* iNodes = (global InternalNode*)_iNodes;
+    volatile global InternalNode* iNodes = (volatile global InternalNode*)_iNodes;
     const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
     if (gid0 >= numPrimitives)
         return;
@@ -422,12 +420,12 @@ kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const gl
     // InternalNodeを繰り返しルートに向けて登る。
     // 2回目のアクセスを担当するスレッドがAABBの和をとることによって、そのノードの子全てが計算済みであることを保証する。
     while (atomic_inc(counters + tgtIdx) == 1) {
-        global InternalNode* tgtINode = iNodes + tgtIdx;
+        volatile global InternalNode* tgtINode = iNodes + tgtIdx;
         bool leftIsSelf = tgtINode->c[0] == selfIdx;
         uint otherIdx = tgtINode->c[leftIsSelf];
         const AABB bbox = tgtINode->isLeaf[leftIsSelf] ? (lNodes + otherIdx)->bbox : (iNodes + otherIdx)->bbox;
-        tgtINode->bbox.min = fmin(min, bbox.min);
-        tgtINode->bbox.max = fmax(max, bbox.max);
+        tgtINode->bbox.min = min = fmin(min, bbox.min);
+        tgtINode->bbox.max = max = fmax(max, bbox.max);
         
         if (tgtIdx == 0)
             return;

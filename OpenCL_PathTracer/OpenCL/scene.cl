@@ -11,9 +11,9 @@
 #include "distribution.cl"
 
 typedef struct BBox BBox;
-#ifdef __USE_LBVH
-typedef struct LBVHInternalNode LBVHInternalNode;
-typedef struct LBVHLeafNode LBVHLeafNode;
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+typedef struct BVHInternalNode BVHInternalNode;
+typedef struct BVHLeafNode BVHLeafNode;
 #else
 typedef struct BVHNode BVHNode;
 #endif
@@ -55,9 +55,9 @@ typedef struct {
     global uchar* materialsData;
     global uchar* texturesData;
     global uchar* otherResourcesData;
-#ifdef __USE_LBVH
-    global LBVHInternalNode* LBVHInternalNodes;
-    global LBVHLeafNode* LBVHLeafNodes;
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+    global BVHInternalNode* BVHInternalNodes;
+    global BVHLeafNode* BVHLeafNodes;
 #else
     global BVHNode* BVHNodes;
 #endif

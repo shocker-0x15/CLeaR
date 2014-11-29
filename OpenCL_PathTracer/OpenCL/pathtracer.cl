@@ -15,8 +15,8 @@
 kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
                         global uint* lights,
                         global uchar* materialsData, global uchar* texturesData, global uchar* otherResources,
-#ifdef __USE_LBVH
-                        global uchar* LBVHInternalNodes, global uchar* LBVHLeafNodes,
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+                        global uchar* BVHInternalNodes, global uchar* BVHLeafNodes,
 #else
                         global uchar* BVHNodes,
 #endif
@@ -25,8 +25,8 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
 kernel void pathtracing(global float3* vertices, global float3* normals, global float3* tangents, global float2* uvs, global uchar* faces,
                         global uint* lights,
                         global uchar* materialsData, global uchar* texturesData, global uchar* otherResources,
-#ifdef __USE_LBVH
-                        global uchar* LBVHInternalNodes, global uchar* LBVHLeafNodes,
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+                        global uchar* BVHInternalNodes, global uchar* BVHLeafNodes,
 #else
                         global uchar* BVHNodes,
 #endif
@@ -35,8 +35,8 @@ kernel void pathtracing(global float3* vertices, global float3* normals, global 
         vertices, normals, tangents, uvs, (global Face*)faces,
         (global LightInfo*)lights, 
         materialsData, texturesData, otherResources,
-#ifdef __USE_LBVH
-        (global LBVHInternalNode*)LBVHInternalNodes, (global LBVHLeafNode*)LBVHLeafNodes,
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+        (global BVHInternalNode*)BVHInternalNodes, (global BVHLeafNode*)BVHLeafNodes,
 #else
         (global BVHNode*)BVHNodes,
 #endif

@@ -29,6 +29,7 @@ namespace LBVH {
     };
 
     class Builder : public CLUtil::Technique {
+    protected:
         cl::Kernel m_kernelCalcAABBs;
         cl::Kernel m_kernelUnifyAABBs;
         cl::Kernel m_kernelCalcMortonCodes;
@@ -68,9 +69,9 @@ namespace LBVH {
     public:
         Builder(cl::Context &context, cl::Device &device, uint32_t numFaces);
         
-        void perform(cl::CommandQueue &queue,
-                     const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
-                     cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling);
+        virtual void perform(cl::CommandQueue &queue,
+                             const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
+                             cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling);
     };
 }
 

@@ -551,6 +551,10 @@ namespace CLUtil {
         return f3;
     }
     
+    uint32_t largerMultiple(uint32_t num, uint32_t base) {
+        return ((num + (base - 1)) / base) * base;
+    }
+    
     uint64_t align(std::vector<uint8_t>* vec, uint32_t alignment) {
         size_t numFill = ((vec->size() + (alignment - 1)) & ~(alignment - 1)) - vec->size();
         vec->insert(vec->end(), numFill, 0);

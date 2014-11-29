@@ -12,9 +12,9 @@
 
 namespace sim {
     struct BBox;// typedef struct BBox BBox;
-#ifdef __USE_LBVH
-    struct LBVHInternalNode;// typedef struct LBVHInternalNode LBVHInternalNode;
-    struct LBVHLeafNode;// typedef struct LBVHLeafNode LBVHLeafNode;
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+    struct BVHInternalNode;// typedef struct BVHInternalNode BVHInternalNode;
+    struct BVHLeafNode;// typedef struct BVHLeafNode BVHLeafNode;
 #else
     struct BVHNode;// typedef struct BVHNode BVHNode;
 #endif
@@ -56,9 +56,9 @@ namespace sim {
         uchar* materialsData;
         uchar* texturesData;
         uchar* otherResourcesData;
-#ifdef __USE_LBVH
-        LBVHInternalNode* LBVHInternalNodes;
-        LBVHLeafNode* LBVHLeafNodes;
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
+        BVHInternalNode* BVHInternalNodes;
+        BVHLeafNode* BVHLeafNodes;
 #else
         BVHNode* BVHNodes;
 #endif

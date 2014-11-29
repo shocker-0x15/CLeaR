@@ -28,20 +28,18 @@ namespace TRBVH {
         cl_uint objIdx; uint8_t dum0[12];
     };
     
-    class Builder : public CLUtil::Technique {
-        uint32_t m_currentCapacity;
-        cl::Buffer m_bufferGenericPool;
-        bool m_createdBuffers;
+    class Builder : public LBVH::Builder {
+        cl::Kernel m_kernelBottomUp;
         
-        LBVH::Builder m_techLBVHBuilder;
+        const uint32_t localSizeBottomUp;
         
-        void setupWorkingBuffers();
+        cl::Buffer m_bufNumTotalLeaves;
     public:
         Builder(cl::Context &context, cl::Device &device, uint32_t numFaces);
         
         void perform(cl::CommandQueue &queue,
                      const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
-                     cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling);
+                     cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling) override;
     };
 }
 

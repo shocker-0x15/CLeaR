@@ -55,6 +55,8 @@ namespace CLUtil {
     
     cl_float3 maxCLfloat3(const cl_float3 &a, const cl_float3 &b);
     
+    uint32_t largerMultiple(uint32_t num, uint32_t base);
+    
     uint64_t align(std::vector<uint8_t>* vec, uint32_t alignment);
     
     uint64_t addDataAligned(std::vector<uint8_t>* dest, void* data, size_t bytes, uint32_t alignment);

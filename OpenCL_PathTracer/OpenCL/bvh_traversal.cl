@@ -16,16 +16,16 @@ struct __attribute__((aligned(16))) BBox {
     point3 min, max;
 };
 
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
 // 48bytes
-struct __attribute__((aligned(16))) LBVHInternalNode {
+struct __attribute__((aligned(16))) BVHInternalNode {
     BBox bbox;
     bool isLeaf[2];
     uint c[2];
 };
 
 // 48bytes
-struct __attribute__((aligned(16))) LBVHLeafNode {
+struct __attribute__((aligned(16))) BVHLeafNode {
     BBox bbox;
     uint objIdx;
 };
@@ -178,7 +178,7 @@ bool rayAABBIntersection(const global BBox* bb, const point3* org, const vector3
     return true;
 }
 
-#ifdef __USE_LBVH
+#if defined(__USE_LBVH) || defined(__USE_TRBVH)
 bool rayIntersection(const Scene* scene,
                      const point3* org, const vector3* dir, SurfacePoint* surfPt) {
     float t = INFINITY;
@@ -190,7 +190,7 @@ bool rayIntersection(const Scene* scene,
     idxStack[depth++] = 0;
     while (depth > 0) {
         --depth;
-        const global LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
+        const global BVHInternalNode* inode = scene->BVHInternalNodes + idxStack[depth];
         if (!rayAABBIntersection(&inode->bbox, org, dir, t))
             continue;
         for (int i = 0; i < 2; ++i) {
@@ -198,7 +198,7 @@ bool rayIntersection(const Scene* scene,
                 idxStack[depth++] = inode->c[i];
                 continue;
             }
-            const global LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+            const global BVHLeafNode* lnode = scene->BVHLeafNodes + inode->c[i];
             if (!rayAABBIntersection(&lnode->bbox, org, dir, t))
                 continue;
             
@@ -226,7 +226,7 @@ bool rayIntersectionVis(const Scene* scene,
     idxStack[depth++] = 0;
     while (depth > 0) {
         --depth;
-        const global LBVHInternalNode* inode = scene->LBVHInternalNodes + idxStack[depth];
+        const global BVHInternalNode* inode = scene->BVHInternalNodes + idxStack[depth];
         if (!rayAABBIntersection(&inode->bbox, org, dir, t))
             continue;
         ++*numAABBHit;
@@ -236,7 +236,7 @@ bool rayIntersectionVis(const Scene* scene,
                 idxStack[depth++] = inode->c[i];
                 continue;
             }
-            const global LBVHLeafNode* lnode = scene->LBVHLeafNodes + inode->c[i];
+            const global BVHLeafNode* lnode = scene->BVHLeafNodes + inode->c[i];
             if (!rayAABBIntersection(&lnode->bbox, org, dir, t))
                 continue;
             ++*numAABBHit;

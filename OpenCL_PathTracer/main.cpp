@@ -22,7 +22,7 @@
 
 //#define __USE_LBVH
 #define __USE_TRBVH
-//#define __SIMULATION
+#define __SIMULATION
 #include "sim_pathtracer.hpp"
 #include "sim_bvh_visualizer.hpp"
 

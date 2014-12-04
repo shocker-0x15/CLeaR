@@ -67,7 +67,7 @@ inline char signInt8(char val);
 kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsPerDim, const global uchar* AABBs, const global uint* indices, uint numPrimitives,
                                      global uchar* iNodes, global uchar* lNodes, global uint* parentIdxs, global uint* counters);
 
-kernel void calcNodeAABBs(volatile global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs);
+kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs);
 
 //----------------------------------------------------------------
 
@@ -398,10 +398,10 @@ kernel void constructBinaryRadixTree(const global uint3* mortonCodes, uint bitsP
 
 //#define CALC_NODE_AABB_GROUP_SIZE 64
 // 各ノードのAABBを計算する。leaf nodeからルートへの経路単位で並列に計算される。
-kernel void calcNodeAABBs(volatile global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs) {
+kernel void calcNodeAABBs(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs) {
     const uint gid0 = get_global_id(0);
 //    const uint lid0 = get_local_id(0);
-    volatile global InternalNode* iNodes = (volatile global InternalNode*)_iNodes;
+    global InternalNode* iNodes = (global InternalNode*)_iNodes;
     const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
     if (gid0 >= numPrimitives)
         return;
@@ -420,7 +420,8 @@ kernel void calcNodeAABBs(volatile global uchar* _iNodes, global uint* counters,
     // InternalNodeを繰り返しルートに向けて登る。
     // 2回目のアクセスを担当するスレッドがAABBの和をとることによって、そのノードの子全てが計算済みであることを保証する。
     while (atomic_inc(counters + tgtIdx) == 1) {
-        volatile global InternalNode* tgtINode = iNodes + tgtIdx;
+        // AABBのグローバルメモリへの書き込みがキャッシュされてしまうとスレッド全体で一貫性が無くなってしまうのでvolatile属性をつける。
+        volatile global InternalNode* tgtINode = (volatile global InternalNode*)iNodes + tgtIdx;
         bool leftIsSelf = tgtINode->c[0] == selfIdx;
         uint otherIdx = tgtINode->c[leftIsSelf];
         const AABB bbox = tgtINode->isLeaf[leftIsSelf] ? (lNodes + otherIdx)->bbox : (iNodes + otherIdx)->bbox;

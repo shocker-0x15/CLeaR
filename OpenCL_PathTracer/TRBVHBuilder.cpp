@@ -48,14 +48,12 @@ namespace TRBVH {
         queue.enqueueBarrierWithWaitList();
         
         queue.finish();
-        std::vector<uint32_t> numTotalLeaves;
-        numTotalLeaves.resize(numFaces - 1);
-        queue.enqueueReadBuffer(m_bufNumTotalLeaves, CL_TRUE, 0, numTotalLeaves.size() * sizeof(uint32_t), numTotalLeaves.data());
-        for (uint32_t i = 0; i < numTotalLeaves.size(); ++i) {
-            printf("%u: %u\n", i, numTotalLeaves[i]);
-            if (numTotalLeaves[0] != 35018)
-                break;
-        }
+//        std::vector<uint32_t> numTotalLeaves;
+//        numTotalLeaves.resize(numFaces - 1);
+//        queue.enqueueReadBuffer(m_bufNumTotalLeaves, CL_TRUE, 0, numTotalLeaves.size() * sizeof(uint32_t), numTotalLeaves.data());
+//        if (numTotalLeaves[0] == 35018)
+//            for (uint32_t i = 0; i < numTotalLeaves.size(); ++i)
+//                printf("%u: %u\n", i, numTotalLeaves[i]);
         printf("");
     };
 }

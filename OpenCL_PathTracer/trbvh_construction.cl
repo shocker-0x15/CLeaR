@@ -21,18 +21,18 @@ typedef struct __attribute__((aligned(16))) {
 
 //----------------------------------------------------------------
 
-kernel void bottomUp(global uchar* _iNodes, global uint* counters, global uint* numTotalLeaves,
-                     const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs,
-                     uint gamma);
+kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, global uint* numTotalLeaves,
+                                 const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs,
+                                 uint gamma);
 
 //----------------------------------------------------------------
 
 #ifndef LOCAL_SIZE
 #define LOCAL_SIZE 32
 #endif
-kernel void bottomUp(global uchar* _iNodes, global uint* counters, global uint* numTotalLeaves,
-                     const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs,
-                     uint gamma) {
+kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, global uint* numTotalLeaves,
+                                 const global uchar* _lNodes, uint numPrimitives, const global uint* parentIdxs,
+                                 uint gamma) {
     const uint gid0 = get_global_id(0);
     const uint lid0 = get_local_id(0);
     global InternalNode* iNodes = (global InternalNode*)_iNodes;
@@ -40,8 +40,10 @@ kernel void bottomUp(global uchar* _iNodes, global uint* counters, global uint* 
     if (gid0 >= numPrimitives)
         return;
     
+    local uchar localMemPool[640];
+    
     local uint numRoots;
-    local uint treeletRoot;
+    local uint treeletRoots[8];
     if (lid0 == 0)
         numRoots = 0;
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -53,25 +55,25 @@ kernel void bottomUp(global uchar* _iNodes, global uint* counters, global uint* 
     
     // グローバルメモリへの書き込み・読み込みがキャッシュされないようにvolatile属性をつける。
     volatile global uint* numTotalLeavesUC = (volatile global uint*)numTotalLeaves;
-    while (true) {
-        while (atomic_inc(counters + pIdx) == 3) {
-            const global InternalNode* iNode = iNodes + pIdx;
-            bool leftIsSelf = iNode->c[0] == selfIdx;
-            uint otherIdx = iNode->c[leftIsSelf];
-            numLeaves += iNode->isLeaf[leftIsSelf] ? 1 : numTotalLeavesUC[otherIdx];
-            numTotalLeavesUC[pIdx] = numLeaves;
-            
-            if (numLeaves >= gamma/* || pIdx == 0*/) {
-                atomic_inc(&numRoots);
-                treeletRoot = pIdx;
-                break;
-            }
-            
-            selfIdx = pIdx;
-            pIdx = parentIdxs[pIdx];
+    while (atomic_inc(counters + pIdx) == 3) {
+        const global InternalNode* iNode = iNodes + pIdx;
+        bool leftIsSelf = iNode->c[0] == selfIdx;
+        uint otherIdx = iNode->c[leftIsSelf];
+        numLeaves += iNode->isLeaf[leftIsSelf] ? 1 : numTotalLeavesUC[otherIdx];
+        numTotalLeavesUC[pIdx] = numLeaves;
+        
+        if (numLeaves >= gamma/* || pIdx == 0*/) {
+            treeletRoots[atomic_inc(&numRoots)] = pIdx;
+            break;
         }
         
-        barrier(CLK_LOCAL_MEM_FENCE);
-        break;
+        selfIdx = pIdx;
+        pIdx = parentIdxs[pIdx];
+    }
+    
+    barrier(CLK_LOCAL_MEM_FENCE);
+    
+    for (uint i = 0; i < numRoots; ++i) {
+        
     }
 }

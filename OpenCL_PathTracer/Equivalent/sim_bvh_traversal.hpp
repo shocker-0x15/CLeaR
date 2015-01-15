@@ -52,6 +52,7 @@ namespace sim {
     
     //------------------------
     
+    // calculates an intersection point by Tomas Moller's method.
     bool rayTriangleIntersection(const Scene* scene,
                                  const point3* org, const vector3* dir, ushort faceIdx,
                                  float* t, Intersection* isect) {
@@ -85,9 +86,8 @@ namespace sim {
         if (tt < 0.0f || tt > *t)
             return false;
         
-        *t = tt;
         float b0 = 1.0f - b1 - b2;
-        isect->p = *org + *dir * *t;
+        isect->p = *org + *dir * tt;
         isect->gNormal = normalize(cross(edge01, edge02));
         isect->faceID = faceIdx;
         isect->param = float2(b0, b1);
@@ -100,14 +100,19 @@ namespace sim {
             isect->uv = b0 * uv0 + b1 * uv1 + b2 * uv2;
         }
         
+        // Check if the alpha value at the intersection point is zero or not.
+        // If zero, intersection doesn't occur.
         if (hasUV && face->alphaTexPtr != UINT_MAX) {
             if (evaluateAlphaTexture(scene->texturesData + face->alphaTexPtr, isect->uv) == 0.0f)
                 return false;
         }
         
+        *t = tt;
         return true;
     }
     
+    // calculates hitpoint parameters.
+    // Interpolated Normal, Tangent Vector, U Direction
     void calcHitpointParameters(const Scene* scene, const Intersection* isect, SurfacePoint* surfPt) {
         surfPt->faceID = isect->faceID;
         const Face* face = scene->faces + surfPt->faceID;
@@ -158,6 +163,7 @@ namespace sim {
         }
     }
     
+    // checks if a ray hits an AABB by Andrew Woo's method.
     bool rayAABBIntersection(const BBox* bb, const point3* org, const vector3* dir, float tBound) {
         const point3 bboxmin = bb->min;
         const point3 bboxmax = bb->max;
@@ -167,7 +173,7 @@ namespace sim {
             float3 candidatePlane = ternaryOp(*org < bboxmin, bboxmin, ternaryOp<float3>(*org > bboxmax, bboxmax, 0));
             float3 t = ternaryOp<float3>(lowMidUp != 0 && *dir != 0, (candidatePlane - *org) / *dir, -1.0f);
             float maxt = fmax(t.x, fmax(t.y, t.z));
-            if (maxt < 0 || maxt > tBound)
+            if (maxt < 0 || maxt > tBound)// ignore a case where AABB is farther than the point already found.
                 return false;
             
             point3 coord = *org + maxt * *dir;

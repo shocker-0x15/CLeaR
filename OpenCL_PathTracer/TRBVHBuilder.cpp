@@ -24,7 +24,7 @@ namespace TRBVH {
         printf("TRBVH build program build log: \n");
         printf("%s\n", buildLog.c_str());
         
-        m_kernelBottomUp = cl::Kernel(programTRBVH, "bottomUp");
+        m_kernelBottomUp = cl::Kernel(programTRBVH, "treeletRestructuring");
         
         m_bufNumTotalLeaves = cl::Buffer{context, CL_MEM_READ_WRITE, (numFaces - 1) * sizeof(uint32_t), nullptr, nullptr};
     }

@@ -34,11 +34,29 @@ namespace TRBVH {
                           cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling) {
         LBVH::Builder::perform(queue, buf_vertices, buf_faces, numFaces, numBitsPerDim, bufInternalNodes, bufLeafNodes, events, profiling);
 //        queue.finish();
-//        std::vector<uint32_t> counters;
-//        counters.resize(numFaces - 1);
-//        queue.enqueueReadBuffer(m_bufCounters, CL_TRUE, 0, counters.size() * sizeof(uint32_t), counters.data());
-//        for (uint32_t i = 0; i < counters.size(); ++i) {
-//            printf("%u: %u\n", i, counters[i]);
+//        std::vector<InternalNode> internalNodes;
+//        std::vector<LeafNode> leafNodes;
+//        internalNodes.resize(numFaces - 1);
+//        leafNodes.resize(numFaces);
+//        queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
+//        queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
+//        printf("Internal Nodes\n");
+//        for (uint32_t i = 0; i < internalNodes.size(); ++i) {
+//            InternalNode &iNode = internalNodes[i];
+//            cl_float3 edge{iNode.max.s0 - iNode.min.s0, iNode.max.s1 - iNode.min.s1, iNode.max.s2 - iNode.min.s2};
+//            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+//            printf("%5u : %5u%c, %5u%c, %f\n", i,
+//                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
+//                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
+//                   surfaceArea);
+//        }
+//        printf("--------------------------------\n");
+//        printf("Leaf Nodes\n");
+//        for (uint32_t i = 0; i < leafNodes.size(); ++i) {
+//            LeafNode &lNode = leafNodes[i];
+//            cl_float3 edge{lNode.max.s0 - lNode.min.s0, lNode.max.s1 - lNode.min.s1, lNode.max.s2 - lNode.min.s2};
+//            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+//            printf("%5uL: %5u , %f\n", i, lNode.objIdx, surfaceArea);
 //        }
         
         events.emplace_back();

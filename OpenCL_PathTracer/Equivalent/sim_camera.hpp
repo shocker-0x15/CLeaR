@@ -13,19 +13,19 @@
 #include "sim_matrix.hpp"
 
 namespace sim {
-    //8bytes
+    // 8bytes
     typedef struct {
-        //    float uCamera;
+//        float uCamera;
         float uLens[2];
     } CameraSample;
     
-    //8bytes
+    // 8bytes
     typedef struct {
-        //    float uComponent;
+//        float uComponent;
         float uDir[2];
     } IDFSample;
     
-    //256bytes
+    // 256bytes
     typedef struct {
         CameraHead head;
         uchar id; uchar dum0[3];
@@ -35,13 +35,13 @@ namespace sim {
         mat4x4 rasterToCamera;
     } PerspectiveInfo;
     
-    //32bytes
+    // 32bytes
     typedef struct {
         point3 localOrigin;
         const PerspectiveInfo* info; uchar dum[8];
     } PerspectiveIDF;
     
-    //32bytes
+    // 32bytes
     typedef struct {
         DDFHead ddfHead; uchar dum0[15];
         vector3 dir;
@@ -115,9 +115,9 @@ namespace sim {
         return colorOne;
     }
     
-    //color We(const uchar* IDF, const vector3* vin) {
-    //
-    //}
+//    color We(const uchar* IDF, const vector3* vin) {
+//
+//    }
     
     inline float absCosNsIDF(const uchar* IDF, const vector3* v) {
         return fabsf(dot(((IDFHead*)IDF)->dir, *v));

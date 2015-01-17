@@ -59,18 +59,19 @@ kernel void bvh_visualizer(global float3* vertices, global float3* normals, glob
     uint numAABBHit = 0;
     Ray ray;
     ray.depth = 0;
-    float lensPDF;
-    float dirPDF;
+    float lensPDF, dirPDF;
+    
     uchar* IDF = memPool + 0;
     LensPoint lensPos;
     CameraSample c_sample = {{0.5f, 0.5f}};
     sampleLensPos(&scene, &c_sample, &lensPos, IDF, &lensPDF);
     ray.org = lensPos.p;
+    
     IDFSample pixSample = {{gid0 + 0.5f, gid1 + 0.5f}};
     color alpha = sample_We(IDF, &pixSample, &ray.dir, &dirPDF);
     
     SurfacePoint surfPt;
-    //レイとシーンとの交差判定、交点の情報を取得する。
+    // レイとシーンとの交差判定、交点の情報を取得する。
     if (rayIntersectionVis(&scene, &ray.org, &ray.dir, &surfPt, &numAABBHit)) {
         const global Face* face = &scene.faces[surfPt.faceID];
         

@@ -15,12 +15,12 @@ typedef enum {
     DistributionType_ContinuousConsts2D_H,
 } DistributionType;
 
-//1byte
+// 1byte
 typedef struct __attribute__((aligned(1))) {
     uchar _type;
 } DistributionHead;
 
-//16bytes
+// 16bytes
 typedef struct __attribute__((aligned(4))) {
     DistributionHead head;
     uint numItems __attribute__((aligned(4)));
@@ -28,7 +28,7 @@ typedef struct __attribute__((aligned(4))) {
     int offsetCDF;
 } Discrete1D;
 
-//28bytes
+// 28bytes
 typedef struct __attribute__((aligned(4))) {
     DistributionHead head;
     uint numValues __attribute__((aligned(4)));
@@ -38,7 +38,7 @@ typedef struct __attribute__((aligned(4))) {
     int offsetCDF;
 } ContinuousConsts1D;
 
-//36bytes
+// 36bytes
 typedef struct __attribute__((aligned(4))) {
     DistributionHead head;
     int offsetChildren __attribute__((aligned(4)));
@@ -107,7 +107,7 @@ float sampleContinuousConsts1D(const global ContinuousConsts1D* dist, float u, f
 
 inline float PDFContinuousConsts1D(const global ContinuousConsts1D* dist, float point) {
     return *(convertPtrCG(float, dist, dist->offsetPDF) +
-             (uint)((point - dist->startDomain) / dist->widthStratum));//min(*, dist->numValues - 1)でクランプしたほうが良いかも。
+             (uint)((point - dist->startDomain) / dist->widthStratum));// min(*, dist->numValues - 1)でクランプしたほうが良いかも。
 }
 
 float2 sampleContinuousConsts2D_H(const global ContinuousConsts2D_H* dist, float u0, float u1, float* PDF) {

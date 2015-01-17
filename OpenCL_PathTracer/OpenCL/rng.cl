@@ -34,7 +34,7 @@ inline uint randUInt(float u, uint maxv) {
     return min((uint)(maxv * u), maxv - 1);
 }
 
-//"A Low Distortion Map Between Disk and Square"
+// "A Low Distortion Map Between Disk and Square"
 void concentricSampleDisk(float u1, float u2, float* dx, float* dy) {
     float r, theta;
     float sx = 2 * u1 - 1;

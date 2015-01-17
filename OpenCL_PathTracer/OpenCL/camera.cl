@@ -12,19 +12,19 @@
 #include "rng.cl"
 #include "matrix.cl"
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
 //    float uCamera;
     float uLens[2];
 } CameraSample;
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
 //    float uComponent;
     float uDir[2];
 } IDFSample;
 
-//256bytes
+// 256bytes
 typedef struct __attribute__((aligned(64))) {
     CameraHead head;
     uchar id;
@@ -34,13 +34,13 @@ typedef struct __attribute__((aligned(64))) {
     mat4x4 rasterToCamera __attribute__((aligned(64)));
 } PerspectiveInfo;
 
-//32bytes
+// 32bytes
 typedef struct __attribute__((aligned(16))) {
     point3 localOrigin;
     const global PerspectiveInfo* info;
 } PerspectiveIDF;
 
-//32bytes
+// 32bytes
 typedef struct __attribute__((aligned(16))) {
     DDFHead ddfHead;
     vector3 dir __attribute__((aligned(16)));

@@ -66,7 +66,7 @@ public:
     };
     
     //---------------------------------------------------------------
-    //ベクトルとの演算．
+    // ベクトルとの演算．
     Point3f operator+(const Vector3f &vec) const {
         return Point3f(this->x + vec.x, this->y + vec.y, this->z + vec.z);
     }

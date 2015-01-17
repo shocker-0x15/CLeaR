@@ -19,12 +19,12 @@ namespace DistributionType {
     };
 }
 
-//1byte
+// 1byte
 typedef struct {
     uint8_t _type;
 } DistributionHead;
 
-//16bytes
+// 16bytes
 typedef struct {
     DistributionHead head; uint8_t dum0[3];
     uint32_t numItems;
@@ -32,7 +32,7 @@ typedef struct {
     int32_t offsetCDF;
 } Discrete1D;
 
-//28bytes
+// 28bytes
 typedef struct {
     DistributionHead head; uint8_t dum0[3];
     uint32_t numValues;
@@ -42,7 +42,7 @@ typedef struct {
     int32_t offsetCDF;
 } ContinuousConsts1D;
 
-//36bytes
+// 36bytes
 typedef struct {
     DistributionHead head; uint8_t dum0[3];
     int32_t offsetChildren;

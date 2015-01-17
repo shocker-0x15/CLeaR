@@ -27,28 +27,28 @@ typedef enum {
 } EnvLPElem;
 
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar numBxDFs;
     uchar hasBump;
     uint idx_bump __attribute__((aligned(4)));
 } MaterialInfo;
 
-//12bytes
+// 12bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_R __attribute__((aligned(4)));
     uint idx_sigma;
 } DiffuseRElem;
 
-//12bytes
+// 12bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_R __attribute__((aligned(4)));
     uint idx_Fresnel;
 } SpecularRElem;
 
-//20bytes
+// 20bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_T __attribute__((aligned(4)));
@@ -57,7 +57,7 @@ typedef struct __attribute__((aligned(4))) {
     uint idx_Fresnel;
 } SpecularTElem;
 
-//16bytes
+// 16bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_R __attribute__((aligned(4)));
@@ -65,7 +65,7 @@ typedef struct __attribute__((aligned(4))) {
     uint idx_anisoY;
 } NewWardElem;
 
-//16bytes
+// 16bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_Rs __attribute__((aligned(4)));
@@ -73,7 +73,7 @@ typedef struct __attribute__((aligned(4))) {
     uint idx_nv;
 } AshikhminSElem;
 
-//12bytes
+// 12bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_Rs __attribute__((aligned(4)));
@@ -81,18 +81,18 @@ typedef struct __attribute__((aligned(4))) {
 } AshikhminDElem;
 
 
-//1bytes
+// 1byte
 typedef struct __attribute__((aligned(1))) {
     uchar numEEDFs;
 } LightPropertyInfo;
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_M __attribute__((aligned(4)));
 } DiffuseLElem;
 
-//16bytes
+// 16bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     uint idx_Le __attribute__((aligned(4)));

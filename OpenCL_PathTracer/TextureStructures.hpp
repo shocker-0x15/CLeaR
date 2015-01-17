@@ -47,75 +47,75 @@ namespace FresnelID {
 };
 
 
-//32bytes
+// 32bytes
 typedef struct {
     cl_uchar texType; uint8_t dum0[15];
     cl_float3 value;
 } Float3ConstantTexture;
 
-//8bytes
+// 8bytes
 typedef struct {
     cl_uchar texType; uint8_t dum0[3];
     cl_float value;
 } FloatConstantTexture;
 
-//12bytes
+// 12bytes
 typedef struct {
     cl_uchar texType; uint8_t dum0[3];
     cl_uint width, height;
     cl_int offsetData;
 } ImageTexture;
 
-//12bytes
+// 12bytes
 typedef struct {
     cl_uchar texType; uint8_t dum0[3];
     cl_uint width, height;
     cl_int offsetData;
 } NormalMapTexture;
 
-//2bytes
+// 2bytes
 typedef struct {
     cl_uchar texType;
     cl_uchar procedureType;
 } ProceduralTextureHead;
 
-//48bytes
+// 48bytes
 typedef struct {
     ProceduralTextureHead head; uint8_t dum0[14];
     cl_float3 c[2];
 } Float3CheckerBoardTexture;
 
-//12bytes
+// 12bytes
 typedef struct {
     ProceduralTextureHead head; uint8_t dum0[2];
     cl_float width;
     cl_uchar reverse; uint8_t dum1[3];
 } Float3CheckerBoardBumpTexture;
 
-//12bytes
+// 12bytes
 typedef struct {
     ProceduralTextureHead head; uint8_t dum0[2];
     cl_float v[2];
 } FloatCheckerBoardTexture;
 
 
-//1bytes
+// 1byte
 typedef struct {
     cl_uchar fresnelType;
 } FresnelHead;
 
-//1bytes
+// 1byte
 typedef struct {
     FresnelHead head;
 } FresnelNoOp;
 
-//48bytes
+// 48bytes
 typedef struct {
     FresnelHead head; uint8_t dum0[15];
     cl_float3 eta, k;
 } FresnelConductor;
 
-//12bytes
+// 12bytes
 typedef struct {
     FresnelHead head; uint8_t dum0[3];
     cl_float etaExt, etaInt;

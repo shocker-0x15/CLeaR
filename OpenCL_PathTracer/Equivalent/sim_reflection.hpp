@@ -38,33 +38,33 @@ namespace sim {
         BxDF_All              = BxDF_All_Reflection | BxDF_All_Transmission
     } BxDFType;
     
-    //12bytes
+    // 12bytes
     typedef struct {
         float uComponent;
         float uDir[2];
     } BSDFSample;
     
-    //8bytes
+    // 8bytes
     typedef struct {
         uchar id; uchar dum[3];
         BxDFType fxType;
     } BxDFHead;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         BxDFHead head; uchar dum0[8];
         color R;
         float A, B; uchar dum1[8];
     } Diffuse;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         BxDFHead head; uchar dum0[8];
         color R;
         const uchar* fresnel; uchar dum1[8];
     } SpecularReflection;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         BxDFHead head; uchar dum0[8];
         color T;
@@ -72,27 +72,27 @@ namespace sim {
         const uchar* fresnel;
     } SpecularTransmission;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         BxDFHead head; uchar dum0[8];
         color R;
         float ax, ay; uchar dum1[8];
     } NewWard;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         BxDFHead head; uchar dum0[8];
         color Rs;
         float nu, nv; uchar dum1[8];
     } AshikhminS;
     
-    //48bytes
+    // 48bytes
     typedef struct {
         BxDFHead head; uchar dum0[8];
         color Rd, Rs;
     } AshikhminD;
     
-    //80bytes
+    // 80bytes
     typedef struct {
         DDFHead ddfHead; uchar dum0;
         uchar numBxDFs; uchar dum1;

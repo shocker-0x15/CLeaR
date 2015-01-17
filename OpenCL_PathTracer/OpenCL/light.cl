@@ -30,54 +30,54 @@ typedef enum {
 } EnvEEDFID;
 
 
-//12bytes
+// 12bytes
 typedef struct __attribute__((aligned(4))) {
     float uLight;
     float uPos[2];
 } LightSample;
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
 //    float uComponent;
     float uDir[2];
 } EDFSample;
 
 
-//80bytes
+// 80bytes
 typedef struct __attribute__((aligned(16))) {
     DDFHead ddfHead;
-    uchar numEEDFs __attribute__((aligned(2)));//2バイトアラインしなかったら何故か死ぬ。
+    uchar numEEDFs __attribute__((aligned(2)));// 2バイトアラインしなかったら何故か死ぬ。
     ushort offsetsEEDFs[4] __attribute__((aligned(2)));
     vector3 n __attribute__((aligned(16))), s, t, ng;
 } EDFHead;
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     EEDFType eLeType __attribute__((aligned(4)));
 } EEDFHead;
 
-//32bytes
+// 32bytes
 typedef struct __attribute__((aligned(16))) {
     EEDFHead head;
     color M __attribute__((aligned(16)));
 } DiffuseEmission;
 
 
-//12bytes
+// 12bytes
 typedef struct __attribute__((aligned(2))) {
     DDFHead ddfHead;
     uchar numEnvEEDFs __attribute__((aligned(2)));
     ushort offsetsEnvEEDFs[4] __attribute__((aligned(2)));
 } EnvEDFHead;
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     EEDFType eLeType __attribute__((aligned(4)));
 } EnvEEDFHead;
 
-//32bytes
+// 32bytes
 typedef struct __attribute__((aligned(16))) {
     EnvEEDFHead head;
     color Le __attribute__((aligned(16)));
@@ -145,9 +145,9 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
         const global uchar* lightsData_p = scene->materialsData + scene->environment->idx_envLightProperty;
         const global LightPropertyInfo* lpInfo = (const global LightPropertyInfo*)lightsData_p;
         
-        //IBLの重ね合わせを考える場合は、複合BSDFからのサンプリングのように1sample MISを行った方が良い？
-        //ただ全方位のIBLを重ね合わせたい需要はあんまり無さそうだからMISしなくても良いかも。
-        *areaPDF *= 1.0f;//本当はここで複合IBLから1要素を確率的にサンプリングする。
+        // IBLの重ね合わせを考える場合は、複合BSDFからのサンプリングのように1sample MISを行った方が良い？
+        // ただ全方位のIBLを重ね合わせたい需要はあんまり無さそうだからMISしなくても良いかも。
+        *areaPDF *= 1.0f;// 本当はここで複合IBLから1要素を確率的にサンプリングする。
         uint whichIBL = 0;
         
         float uvPDF;
@@ -180,7 +180,7 @@ void sampleLightPos(const Scene* scene, const LightSample* l_sample, const point
         }
         
 //        for (uint i = 0; i < lpInfo->numEEDFs; ++i) {
-//            //各IBLが選択される確率の加重平均をとる処理。
+//            // 各IBLが選択される確率の加重平均をとる処理。
 //        }
     }
     else {
@@ -260,7 +260,7 @@ float getAreaPDF(const Scene* scene, const LightPoint* lpos) {
                     const global ImageBasedEnvLElem* llIBEnvElem = (const global ImageBasedEnvLElem*)lightsData_p;
                     
                     uvPDF = PDFContinuousConsts2D_H((const global ContinuousConsts2D_H*)(scene->otherResourcesData + llIBEnvElem->idx_Dist2D), &lpos->uv);
-                    areaPDF += uvPDF / (2 * M_PI_F * M_PI_F * sin(lpos->uv.s1 * M_PI_F)) * 1.0f;//本来はこのIBLが選ばれる確率をかける必要がある。
+                    areaPDF += uvPDF / (2 * M_PI_F * M_PI_F * sin(lpos->uv.s1 * M_PI_F)) * 1.0f;// 本来はこのIBLが選ばれる確率をかける必要がある。
                     
                     lightsData_p += sizeof(ImageBasedEnvLElem);
                     break;

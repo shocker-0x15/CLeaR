@@ -32,20 +32,20 @@ namespace sim {
     } EnvEEDFID;
     
     
-    //12bytes
+    // 12bytes
     typedef struct {
         float uLight;
         float uPos[2];
     } LightSample;
     
-    //8bytes
+    // 8bytes
     typedef struct {
-        //    float uComponent;
+//        float uComponent;
         float uDir[2];
     } EDFSample;
     
     
-    //80bytes
+    // 80bytes
     typedef struct {
         DDFHead ddfHead; uchar dum0;
         uchar numEEDFs; uchar dum1;
@@ -53,33 +53,33 @@ namespace sim {
         vector3 n, s, t, ng;
     } EDFHead;
     
-    //8bytes
+    // 8bytes
     typedef struct {
         uchar id; uchar dum[3];
         EEDFType eLeType;
     } EEDFHead;
     
-    //32bytes
+    // 32bytes
     typedef struct {
         EEDFHead head; uchar dum[8];
         color M;
     } DiffuseEmission;
     
     
-    //12bytes
+    // 12bytes
     typedef struct {
         DDFHead ddfHead; uchar dum0;
         uchar numEnvEEDFs; uchar dum1;
         ushort offsetsEnvEEDFs[4];
     } EnvEDFHead;
     
-    //8bytes
+    // 8bytes
     typedef struct {
         uchar id; uchar dum0[3];
         EEDFType eLeType;
     } EnvEEDFHead;
     
-    //32bytes
+    // 32bytes
     typedef struct {
         EnvEEDFHead head; uchar dum0[8];
         color Le;
@@ -147,9 +147,9 @@ namespace sim {
             const uchar* lightsData_p = scene->materialsData + scene->environment->idx_envLightProperty;
             const LightPropertyInfo* lpInfo = (const LightPropertyInfo*)lightsData_p;
             
-            //IBLの重ね合わせを考える場合は、複合BSDFからのサンプリングのように1sample MISを行った方が良い？
-            //ただ全方位のIBLを重ね合わせたい需要はあんまり無さそうだからMISしなくても良いかも。
-            *areaPDF *= 1.0f;//本当はここで複合IBLから1要素を確率的にサンプリングする。
+            // IBLの重ね合わせを考える場合は、複合BSDFからのサンプリングのように1sample MISを行った方が良い？
+            // ただ全方位のIBLを重ね合わせたい需要はあんまり無さそうだからMISしなくても良いかも。
+            *areaPDF *= 1.0f;// 本当はここで複合IBLから1要素を確率的にサンプリングする。
             uint whichIBL = 0;
             
             float uvPDF;
@@ -182,7 +182,7 @@ namespace sim {
             }
             
 //            for (uint i = 0; i < lpInfo->numEEDFs; ++i) {
-//                //各IBLが選択される確率の加重平均をとる処理。
+//                // 各IBLが選択される確率の加重平均をとる処理。
 //            }
         }
         else {
@@ -262,7 +262,7 @@ namespace sim {
                         const ImageBasedEnvLElem* llIBEnvElem = (const ImageBasedEnvLElem*)lightsData_p;
                         
                         uvPDF = PDFContinuousConsts2D_H((const ContinuousConsts2D_H*)(scene->otherResourcesData + llIBEnvElem->idx_Dist2D), &lpos->uv);
-                        areaPDF += uvPDF / (2 * M_PI_F * M_PI_F * sinf(lpos->uv.s1 * M_PI_F)) * 1.0f;//本来はこのIBLが選ばれる確率をかける必要がある。
+                        areaPDF += uvPDF / (2 * M_PI_F * M_PI_F * sinf(lpos->uv.s1 * M_PI_F)) * 1.0f;// 本来はこのIBLが選ばれる確率をかける必要がある。
                         
                         lightsData_p += sizeof(ImageBasedEnvLElem);
                         break;

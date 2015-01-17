@@ -227,7 +227,7 @@ public:
     }
     
     //--------------------------------------------------------------------------
-    //ベクトルとの演算．
+    // ベクトルとの演算．
     Vector3f operator*(const Vector3f &vec) const {
         return Vector3f(Vector3f::dot(Vector3f(this->m00, this->m01, this->m02), vec),
                         Vector3f::dot(Vector3f(this->m10, this->m11, this->m12), vec),
@@ -243,7 +243,7 @@ public:
     //--------------------------------------------------------------------------
     
     //--------------------------------------------------------------------------
-    //点との演算．
+    // 点との演算．
     Point3f operator*(const Point3f &p) const {
         float x = p.x, y = p.y, z = p.z;
         float nx = m00 * x + m01 * y + m02 * z + m03;

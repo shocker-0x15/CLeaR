@@ -35,28 +35,28 @@ namespace EnvLPElem {
 };
 
 
-//8bytes
+// 8bytes
 typedef struct {
     uint8_t numBxDFs;
     uint8_t hasBump; uint8_t dum0[2];
     uint32_t idx_bump;
 } MaterialInfo;
 
-//12bytes
+// 12bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_R;
     uint32_t idx_sigma;
 } DiffuseRElem;
 
-//12bytes
+// 12bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_R;
     uint32_t idx_Fresnel;
 } SpecularRElem;
 
-//20bytes
+// 20bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_T;
@@ -65,7 +65,7 @@ typedef struct {
     uint32_t idx_Fresnel;
 } SpecularTElem;
 
-//16bytes
+// 16bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_R;
@@ -73,7 +73,7 @@ typedef struct {
     uint32_t idx_anisoY;
 } NewWardElem;
 
-//16bytes
+// 16bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_Rs;
@@ -81,7 +81,7 @@ typedef struct {
     uint32_t idx_nv;
 } AshikhminSElem;
 
-//12bytes
+// 12bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_Rs;
@@ -89,18 +89,18 @@ typedef struct {
 } AshikhminDElem;
 
 
-//1bytes
+// 1byte
 typedef struct {
     uint8_t numEEDFs;
 } LightPropertyInfo;
 
-//8bytes
+// 8bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_M;
 } DiffuseLElem;
 
-//16bytes
+// 16bytes
 typedef struct {
     uint8_t id; uint8_t dum0[3];
     uint32_t idx_Le;

@@ -82,7 +82,7 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
         return false;
     }
     
-    //画像データ前のチャンク用の構造体を確保。
+    // 画像データ前のチャンク用の構造体を確保。
     png_infop pngInfo = png_create_info_struct(pngStruct);
     if (!pngInfo) {
         png_destroy_read_struct(&pngStruct, nullptr, nullptr);
@@ -91,7 +91,7 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
         return false;
     }
     
-    //画像データ後のチャンク用の構造体を確保。
+    // 画像データ後のチャンク用の構造体を確保。
     png_infop pngEndInfo = png_create_info_struct(pngStruct);
     if (!pngEndInfo) {
         png_destroy_read_struct(&pngStruct, &pngInfo, nullptr);
@@ -115,8 +115,8 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     png_byte chunkList[0] = {};
     png_set_keep_unknown_chunks(pngStruct, PNG_HANDLE_CHUNK_AS_DEFAULT, chunkList, 0);
 #endif
-    png_set_user_limits(pngStruct, 5120, 5120);//5120x5120より大きい画像は却下する。
-//    png_set_chunk_cache_max(pngStruct, 0x7FFFFFFF);//補助チャンクsPLT, tEXt, iTXt, zTXtの限界数を設定する。
+    png_set_user_limits(pngStruct, 5120, 5120);// 5120x5120より大きい画像は却下する。
+//    png_set_chunk_cache_max(pngStruct, 0x7FFFFFFF);// 補助チャンクsPLT, tEXt, iTXt, zTXtの限界数を設定する。
     
     png_read_info(pngStruct, pngInfo);
     
@@ -133,23 +133,23 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
     size_t rowBytes = png_get_rowbytes(pngStruct, pngInfo);
     
     if (bitDepth == 16)
-        png_set_strip_16(pngStruct);//16ビットの深度を8ビットに変換する。
-//    png_set_invert_alpha(pngStruct);//アルファを透明度とする。
+        png_set_strip_16(pngStruct);// 16ビットの深度を8ビットに変換する。
+//    png_set_invert_alpha(pngStruct);// アルファを透明度とする。
     if (bitDepth < 8)
-        png_set_packing(pngStruct);//1, 2, 4ビットを1バイトに詰めずに読み込みたい場合。関数名とは逆の印象。
+        png_set_packing(pngStruct);// 1, 2, 4ビットを1バイトに詰めずに読み込みたい場合。関数名とは逆の印象。
     png_color_8p significantBit;
     if (png_get_sBIT(pngStruct, pngInfo, &significantBit))
-        png_set_shift(pngStruct, significantBit);//本来のビット深度が2のべき乗ではない場合に、本来の深度へと戻す。
+        png_set_shift(pngStruct, significantBit);// 本来のビット深度が2のべき乗ではない場合に、本来の深度へと戻す。
 //    if (colorType == PNG_COLOR_TYPE_RGB || colorType == PNG_COLOR_TYPE_RGB_ALPHA)
-//        png_set_bgr(pngStruct);//RGBをBGRに変換する。
+//        png_set_bgr(pngStruct);// RGBをBGRに変換する。
     if (colorType == PNG_COLOR_TYPE_RGB)
-        png_set_filler(pngStruct, 0xFFFF, PNG_FILLER_AFTER);//3チャンネルの場合に1バイト0xFFを後ろ側に埋める。カラータイプは変わらない。
+        png_set_filler(pngStruct, 0xFFFF, PNG_FILLER_AFTER);// 3チャンネルの場合に1バイト0xFFを後ろ側に埋める。カラータイプは変わらない。
 //    if (colorType == PNG_COLOR_TYPE_RGB || colorType == PNG_COLOR_TYPE_GRAY)
-//        png_set_add_alpha(pngStruct, 0xFFFF, PNG_FILLER_AFTER);//アルファチャンネルを足す。
+//        png_set_add_alpha(pngStruct, 0xFFFF, PNG_FILLER_AFTER);// アルファチャンネルを足す。
 //    if (colorType == PNG_COLOR_TYPE_RGB_ALPHA)
-//        png_set_swap_alpha(pngStruct);//RGBAのファイルをARGBで読み込みたい場合。
+//        png_set_swap_alpha(pngStruct);// RGBAのファイルをARGBで読み込みたい場合。
 //    if (colorType == PNG_COLOR_TYPE_GRAY || colorType == PNG_COLOR_TYPE_GRAY_ALPHA)
-//        png_set_gray_to_rgb(pngStruct);//グレイスケール画像をRGBで表現させて読み込みたい場合。
+//        png_set_gray_to_rgb(pngStruct);// グレイスケール画像をRGBで表現させて読み込みたい場合。
 //    if (colorType == PNG_COLOR_TYPE_RGB || colorType == PNG_COLOR_TYPE_RGB_ALPHA)
 //        png_set_rgb_to_gray_fixed(pngStruct, 1, 21268, 71510);RGB画像をグレイスケールで読み込みたい場合。RとGのウェイトx100000を指定する。
 //    png_color_16 myBackground;
@@ -170,18 +170,18 @@ bool loadPNG(const char* fileName, std::vector<uint8_t>* storage, uint32_t* widt
         screenGamma = 1.0f;
     }
     if (png_get_gAMA(pngStruct, pngInfo, &gamma))
-        png_set_gamma(pngStruct, screenGamma, gamma);//ファイルにガンマ値がある場合。
+        png_set_gamma(pngStruct, screenGamma, gamma);// ファイルにガンマ値がある場合。
     else
-        png_set_gamma(pngStruct, screenGamma, 0.45455);//ファイルにガンマ値が無い場合。
+        png_set_gamma(pngStruct, screenGamma, 0.45455);// ファイルにガンマ値が無い場合。
 //    if (bitDepth == 1 && colorType == PNG_COLOR_TYPE_GRAY)
-//        png_set_invert_mono(pngStruct);//2値画像の解釈を反転する。
+//        png_set_invert_mono(pngStruct);// 2値画像の解釈を反転する。
 //    if (colorType == PNG_COLOR_TYPE_GRAY || colorType == PNG_COLOR_TYPE_GRAY_ALPHA)
-//        png_set_invert_mono(pngStruct);//グレイスケール全般の解釈を反転する。
+//        png_set_invert_mono(pngStruct);// グレイスケール全般の解釈を反転する。
 //    if (bitDepth == 16)
-//        png_set_swap(pngStruct);//16ビット画像のエンディアンを変更する。
+//        png_set_swap(pngStruct);// 16ビット画像のエンディアンを変更する。
 //    if (bitDepth < 8)
-//        png_set_packswap(pngStruct);//4ビット以下の深度の場合のパッキングの順序を変更する。
-//    png_set_read_user_transform_fn(pngStruct, );//自作変換関数を登録する。
+//        png_set_packswap(pngStruct);// 4ビット以下の深度の場合のパッキングの順序を変更する。
+//    png_set_read_user_transform_fn(pngStruct, );// 自作変換関数を登録する。
 //    int numPasses = png_set_interlace_handling(pngStruct);インターレース処理の登録。
     png_read_update_info(pngStruct, pngInfo);
     

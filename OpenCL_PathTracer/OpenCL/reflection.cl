@@ -37,33 +37,33 @@ typedef enum {
     BxDF_All              = BxDF_All_Reflection | BxDF_All_Transmission
 } BxDFType;
 
-//12bytes
+// 12bytes
 typedef struct __attribute__((aligned(4))) {
     float uComponent;
     float uDir[2];
 } BSDFSample;
 
-//8bytes
+// 8bytes
 typedef struct __attribute__((aligned(4))) {
     uchar id;
     BxDFType fxType __attribute__((aligned(4)));
 } BxDFHead;
 
-//48bytes
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     BxDFHead head;
     color R __attribute__((aligned(16)));
     float A, B;
 } Diffuse;
 
-//48bytes
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     BxDFHead head;
     color R __attribute__((aligned(16)));
     const global uchar* fresnel;
 } SpecularReflection;
 
-//48bytes
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     BxDFHead head;
     color T __attribute__((aligned(16)));
@@ -71,30 +71,30 @@ typedef struct __attribute__((aligned(16))) {
     const global uchar* fresnel;
 } SpecularTransmission;
 
-//48bytes
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     BxDFHead head;
     color R __attribute__((aligned(16)));
     float ax, ay;
 } NewWard;
 
-//48bytes
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     BxDFHead head;
     color Rs __attribute__((aligned(16)));
     float nu, nv;
 } AshikhminS;
 
-//48bytes
+// 48bytes
 typedef struct __attribute__((aligned(16))) {
     BxDFHead head;
     color Rd __attribute__((aligned(16))), Rs;
 } AshikhminD;
 
-//80bytes
+// 80bytes
 typedef struct __attribute__((aligned(16))) {
     DDFHead ddfHead;
-    uchar numBxDFs __attribute__((aligned(2)));//EDFHeadが2バイトアラインにしないと何故か落ちるので一応合わせておく。
+    uchar numBxDFs __attribute__((aligned(2)));// EDFHeadが2バイトアラインにしないと何故か落ちるので一応合わせておく。
     ushort offsetsBxDFs[4] __attribute__((aligned(2)));
     vector3 n __attribute__((aligned(16))), s, t, ng;
 } BSDFHead;

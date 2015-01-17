@@ -20,7 +20,7 @@
 #include "Distribution.hpp"
 #include <cassert>
 
-//8bytes
+// 8bytes
 typedef struct {
     uint8_t atInfinity; uint8_t dum0[3];
     uint32_t reference;
@@ -55,7 +55,7 @@ public:
     
     Scene() {
         immediateMode = false;
-        //idx of Camera, Environment, LightPowerCDF
+        // idx of Camera, Environment, LightPowerCDF
         otherResouces.insert(otherResouces.end(), sizeof(uint32_t) * 3, 0);
     }
     

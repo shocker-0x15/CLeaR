@@ -16,12 +16,12 @@ namespace sim {
         DistributionType_ContinuousConsts2D_H,
     } DistributionType;
     
-    //1byte
+    // 1byte
     typedef struct {
         uchar _type;
     } DistributionHead;
     
-    //16bytes
+    // 16bytes
     typedef struct {
         DistributionHead head; uchar dum0[3];
         uint numItems;
@@ -29,7 +29,7 @@ namespace sim {
         int offsetCDF;
     } Discrete1D;
     
-    //28bytes
+    // 28bytes
     typedef struct {
         DistributionHead head; uchar dum0[3];
         uint numValues;
@@ -39,7 +39,7 @@ namespace sim {
         int offsetCDF;
     } ContinuousConsts1D;
     
-    //36bytes
+    // 36bytes
     typedef struct {
         DistributionHead head; uchar dum0[3];
         int offsetChildren;
@@ -108,7 +108,7 @@ namespace sim {
     
     inline float PDFContinuousConsts1D(const ContinuousConsts1D* dist, float point) {
         return *(convertPtrCG(float, dist, dist->offsetPDF) +
-                 (uint)((point - dist->startDomain) / dist->widthStratum));//min(*, dist->numValues - 1)でクランプしたほうが良いかも。
+                 (uint)((point - dist->startDomain) / dist->widthStratum));// min(*, dist->numValues - 1)でクランプしたほうが良いかも。
     }
     
     float2 sampleContinuousConsts2D_H(const ContinuousConsts2D_H* dist, float u0, float u1, float* PDF) {

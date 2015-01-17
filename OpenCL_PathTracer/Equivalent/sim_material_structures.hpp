@@ -28,28 +28,28 @@ namespace sim {
     } EnvLPElem;
     
     
-    //8bytes
+    // 8bytes
     typedef struct {
         uchar numBxDFs;
         uchar hasBump; uchar dum0[2];
         uint idx_bump;
     } MaterialInfo;
     
-    //12bytes
+    // 12bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_R;
         uint idx_sigma;
     } DiffuseRElem;
     
-    //12bytes
+    // 12bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_R;
         uint idx_Fresnel;
     } SpecularRElem;
     
-    //20bytes
+    // 20bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_T;
@@ -58,7 +58,7 @@ namespace sim {
         uint idx_Fresnel;
     } SpecularTElem;
     
-    //16bytes
+    // 16bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_R;
@@ -66,7 +66,7 @@ namespace sim {
         uint idx_anisoY;
     } NewWardElem;
     
-    //16bytes
+    // 16bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_Rs;
@@ -74,7 +74,7 @@ namespace sim {
         uint idx_nv;
     } AshikhminSElem;
     
-    //12bytes
+    // 12bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_Rs;
@@ -82,18 +82,18 @@ namespace sim {
     } AshikhminDElem;
     
     
-    //1bytes
+    // 1byte
     typedef struct {
         uchar numEEDFs;
     } LightPropertyInfo;
     
-    //8bytes
+    // 8bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_M;
     } DiffuseLElem;
     
-    //16bytes
+    // 16bytes
     typedef struct {
         uchar id; uchar dum0[3];
         uint idx_Le;

@@ -50,12 +50,12 @@ void buildScene(StopWatch &sw) {
     
     std::vector<uint8_t>* refOthers = &scene.otherResouces;
     
-    //128bytes
+    // 128bytes
     struct CameraHead {
         uint width, height; uint8_t dum0[56];
         cl_float16 localToWorld;
     };
-    //256bytes
+    // 256bytes
     struct PerspectiveInfo {
         CameraHead head;
         uint8_t id; uint8_t dum0[3];
@@ -123,7 +123,7 @@ void buildScene(StopWatch &sw) {
     scene.localToWorld = LA::RotateMatrix(-M_PI * 0.3f, 0, 1, 0);
     scene.localToWorld.push();
     
-    //部屋
+    // 部屋
     scene.beginObject();
     scene.addVertex(-1.0f, -1.0f, -1.0f);
     scene.addVertex( 1.0f, -1.0f, -1.0f);
@@ -176,7 +176,7 @@ void buildScene(StopWatch &sw) {
     scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
-    //光源
+    // 光源
     scene.beginObject();
     scene.addVertex(-0.25f, 0.9999f, -0.25f);
     scene.addVertex(0.25f, 0.9999f, -0.25f);

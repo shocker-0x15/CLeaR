@@ -11,7 +11,7 @@
 
 #include <cstdint>
 
-//56bytes
+// 56bytes
 struct Face {
     uint32_t p0, p1, p2;
     uint32_t vn0, vn1, vn2;

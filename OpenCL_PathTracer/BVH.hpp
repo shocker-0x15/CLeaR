@@ -83,7 +83,7 @@ struct BVH {
         lIdx[right] = temp;
     }
     
-    //インデックスsplitIdxの要素の数値以上と未満の組に分ける。
+    // インデックスsplitIdxの要素の数値以上と未満の組に分ける。
     void divide(uint32_t start, uint32_t end, uint8_t axis, uint32_t splitIdx) {
         if (splitIdx <= start || splitIdx + 1 >= end)
             return;
@@ -115,7 +115,7 @@ struct BVH {
         }
     }
     
-    //座標が基準点以上の組と未満の組に分ける。
+    // 座標が基準点以上の組と未満の組に分ける。
     void divide(uint32_t start, uint32_t end, uint8_t axis, float pivot, uint32_t* splitIdx) {
         if (end - start <= 2) {
             *splitIdx = (start + end) / 2;
@@ -151,10 +151,10 @@ struct BVH {
         }
         
         uint8_t widestAxis = bbox.widestAxis();
-//        //子の数が同じになるように分割する。
+//        // 子の数が同じになるように分割する。
 //        uint32_t splitIdx = (start + end) / 2;
 //        divide(start, end, widestAxis, splitIdx);
-        //中点で分割する。
+        // 中点で分割する。
         uint32_t splitIdx;
         divide(start, end, widestAxis, bbox.centerOfAxis(widestAxis), &splitIdx);
         

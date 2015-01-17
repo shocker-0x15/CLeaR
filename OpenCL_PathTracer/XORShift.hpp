@@ -38,7 +38,7 @@ public:
         return getUInt() * (1.0 / 4294967295.0);
     };
     
-    //このままでは極めて1に近い数字はfloatの精度上1になってしまうため問題？．
+    // このままでは極めて1に近い数字はfloatの精度上1になってしまうため問題？．
     float getFloat0oTo1o() {
         return (float)(((double)getUInt() + 0.5) * (1.0 / 4294967296.0));
     };

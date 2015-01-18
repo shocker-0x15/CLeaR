@@ -50,12 +50,12 @@ uchar maxSurfaceAreaIndex(uint lid0, local uchar* localIndices, local float* sur
         localIndices[lid0] = lid0;
     barrier(CLK_LOCAL_MEM_FENCE);
     for (uchar d = maxDepth; d > 0; --d) {
-        if (validThread && depths[(lid0 - 1) >> 1] == d && (lid0 & 0x01) == 0x01) {
+        if (validThread && depths[((int)lid0 - 1) >> 1] == d && (lid0 & 0x01) == 0x01) {
             uchar idx0 = localIndices[lid0];
             uchar idx1 = localIndices[lid0 + 1];
             float SA0 = isActualLeaf[idx0] ? 0 : surfaceAreas[idx0];
             float SA1 = isActualLeaf[idx1] ? 0 : surfaceAreas[idx1];
-            uchar pIdx = parents[(lid0 - 1) >> 1];
+            uchar pIdx = parents[((int)lid0 - 1) >> 1];
             localIndices[pIdx] = SA0 > SA1 ? idx0 : idx1;
         }
         barrier(CLK_LOCAL_MEM_FENCE);
@@ -70,7 +70,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, g
     const uint lid0 = get_local_id(0);
     global InternalNode* iNodes = (global InternalNode*)_iNodes;
     const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
-    local uchar localMemPool[640];
+    local uchar localMemPool[640] __attribute__((aligned(4)));
     
     local uint numRoots;
     local uint treeletRoots[8];
@@ -107,15 +107,15 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, g
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-    // END: Bottom-up Traversal
-    //----------------------------------------------------------------
 //    if (lid0 == 0) {
 //        for (uint i = 0; i < numRoots; ++i) {
 //            uint idx = treeletRoots[i];
-//            printf("%5u: %5u(%3u)\n", get_group_id(0), idx, numTotalLeavesUC[idx]);
+//            printf("%5u(%u/%u): %5u(%3u)\n", get_group_id(0), i + 1, numRoots, idx, numTotalLeaves[idx]);
 //        }
 //    }
 //    return;
+    // END: Bottom-up Traversal
+    //----------------------------------------------------------------
     
     local uint* leafIndices = (local uint*)localMemPool;
     local float* surfaceAreas = (local float*)(leafIndices + 2 * n - 1);
@@ -140,11 +140,13 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, g
             parents[0] = 0;
             depths[0] = 1;
             *maxDepth = 1;
+            
+            leafIndices[0] = UINT_MAX;
         }
         barrier(CLK_LOCAL_MEM_FENCE);
         
-        for (uint j = 0; j < 5; ++j) {
-            if ((lid0 - 1) >> 1 == j) {
+        for (int j = 0; j < 5; ++j) {
+            if (((int)lid0 - 1) >> 1 == j) {
                 AABB bbox;
                 if (isActualLeaf[lid0])
                     bbox = (lNodes + leafIndices[lid0])->bbox;
@@ -155,25 +157,30 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, g
             }
             barrier(CLK_LOCAL_MEM_FENCE);
             
-            uchar maxIndex = maxSurfaceAreaIndex(lid0, localIndices, surfaceAreas, depths, *maxDepth, parents, isActualLeaf, 3 + 2 * j);
+            uint numElems = 3 + 2 * j;
+            uchar maxIndex = maxSurfaceAreaIndex(lid0, localIndices, surfaceAreas, depths, *maxDepth, parents, isActualLeaf, numElems);
             
             if (lid0 == 0) {
-                uint idxBase = 3 + 2 * j;
                 const global InternalNode* iNode = iNodes + leafIndices[maxIndex];
-                leafIndices[idxBase + 0] = iNode->c[0];
-                leafIndices[idxBase + 1] = iNode->c[1];
-                isActualLeaf[idxBase + 0] = iNode->isLeaf[0];
-                isActualLeaf[idxBase + 1] = iNode->isLeaf[1];
+                leafIndices[numElems + 0] = iNode->c[0];
+                leafIndices[numElems + 1] = iNode->c[1];
+                isActualLeaf[numElems + 0] = iNode->isLeaf[0];
+                isActualLeaf[numElems + 1] = iNode->isLeaf[1];
                 parents[j + 1] = maxIndex;
-                depths[j + 1] = depths[(maxIndex - 1) >> 1] + 1;
+                depths[j + 1] = depths[((char)maxIndex - 1) >> 1] + 1;
                 *maxDepth = max(depths[j + 1], *maxDepth);
                 
-                if (treeletRoots[i] == 3998) {
-                    printf("%5u, %u, %u\n", leafIndices[maxIndex], maxIndex, *maxDepth);
-                }
+                leafIndices[maxIndex] = UINT_MAX;
             }
             barrier(CLK_LOCAL_MEM_FENCE);
         }
+//        if (lid0 == 0 && get_group_id(0) == 1026) {
+//            uint idx = 0;
+//            for (uint j = 0; j < 13; ++j) {
+//                if (leafIndices[j] != UINT_MAX)
+//                    printf("G: %5u (%5u, %u) | %5u%c\n", get_group_id(0), treeletRoots[i], idx++, leafIndices[j], isActualLeaf[j] ? 'L' : ' ');
+//            }
+//        }
         // END: Treelet Formation
         //----------------------------------------------------------------
     }

@@ -13,18 +13,22 @@
 #include "CLGenericKernels.h"
 
 namespace LBVH {
-    // 48bytes
-    struct InternalNode {
+    // 32bytes
+    struct AABB {
         cl_float3 min;
         cl_float3 max;
+    };
+    
+    // 48bytes
+    struct InternalNode {
+        AABB bbox;
         cl_uchar isLeaf[2]; uint8_t dum0[2];
         cl_uint c[2]; uint8_t dum1[4];
     };
     
     // 48bytes
     struct LeafNode {
-        cl_float3 min;
-        cl_float3 max;
+        AABB bbox;
         cl_uint objIdx; uint8_t dum0[12];
     };
 
@@ -66,6 +70,19 @@ namespace LBVH {
         CLGeneric::GlobalScan m_techGlobalScan;
         
         void setupWorkingBuffers();
+        
+        void calcAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                       const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces);
+        void unifyAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                        cl::Buffer &buf_unifiedAABBs, uint32_t numFaces);
+        void calcMortonCodes(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                             uint32_t numFaces, const AABB &entireAABB, uint32_t numBitsPerDim);
+        void radixSort(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                       uint32_t numFaces, uint32_t numBitsPerDim);
+        void constructBinaryRadixTree(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                      cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces, uint32_t numBitsPerDim);
+        void calcNodeAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                           cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces);
     public:
         Builder(cl::Context &context, cl::Device &device, uint32_t numFaces);
         

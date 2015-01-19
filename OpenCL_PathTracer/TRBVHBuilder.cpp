@@ -7,6 +7,7 @@
 //
 
 #include "TRBVHBuilder.h"
+#include "StopWatch.hpp"
 
 namespace TRBVH {
     Builder::Builder(cl::Context &context, cl::Device &device, uint32_t numFaces) :
@@ -24,7 +25,8 @@ namespace TRBVH {
         printf("TRBVH build program build log: \n");
         printf("%s\n", buildLog.c_str());
         
-        m_kernelBottomUp = cl::Kernel(programTRBVH, "treeletRestructuring");
+        m_kernelCalcAABBs_SAHCosts = cl::Kernel(programTRBVH, "calcNodeAABBs_SAHCosts");
+        m_kernelTreeletRestructuring = cl::Kernel(programTRBVH, "treeletRestructuring");
         
         m_bufNumTotalLeaves = cl::Buffer{context, CL_MEM_READ_WRITE, (numFaces - 1) * sizeof(uint32_t), nullptr, nullptr};
     }
@@ -32,7 +34,99 @@ namespace TRBVH {
     void Builder::perform(cl::CommandQueue &queue,
                           const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
                           cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling) {
-        LBVH::Builder::perform(queue, buf_vertices, buf_faces, numFaces, numBitsPerDim, bufInternalNodes, bufLeafNodes, events, profiling);
+        using LBVH::AABB;
+        using LBVH::InternalNode;
+        using LBVH::LeafNode;
+        
+        StopWatchHiRes stopwatchHiRes;
+        uint32_t evStart;
+        cl_ulong tpCmdStart, tpCmdEnd, tpCmdSubmit;
+        
+        if (numFaces > m_currentCapacity) {
+            m_currentCapacity = numFaces;
+            setupWorkingBuffers();
+        }
+        
+        // 各三角形のAABBを並列に求める。
+        if (profiling)
+            stopwatchHiRes.start();
+        calcAABBs(queue, events, buf_vertices, buf_faces, numFaces);
+        if (profiling) {
+            queue.finish();
+            events.back().wait();
+            CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("calculating each AABB done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
+        }
+        
+        // 全体を囲むAABBを求める。
+        evStart = (uint32_t)events.size();
+        if (profiling)
+            stopwatchHiRes.start();
+        cl::Buffer buf_unifiedAABBs;
+        unifyAABBs(queue, events, buf_unifiedAABBs, numFaces);
+        if (profiling) {
+            queue.finish();
+            cl_ulong sumTimeUnion = 0, sumTimeUnionFromSubmit = 0;
+            for (uint32_t i = evStart; i < events.size(); ++i) {
+                events[i].wait();
+                CLUtil::getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+                sumTimeUnion += tpCmdEnd - tpCmdStart;
+                sumTimeUnionFromSubmit += tpCmdEnd - tpCmdSubmit;
+            }
+            printf("unifying AABBs done! ... time: %fusec (%fusec)\n", sumTimeUnion * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
+        }
+        AABB entireAABB;
+        queue.enqueueReadBuffer(buf_unifiedAABBs, CL_TRUE, 0, sizeof(AABB), &entireAABB);
+        
+        // モートンコードを求める。
+        if (profiling)
+            stopwatchHiRes.start();
+        calcMortonCodes(queue, events, numFaces, entireAABB, numBitsPerDim);
+        if (profiling) {
+            queue.finish();
+            events.back().wait();
+            CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("calculating each Morton code done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
+        }
+        
+        // モートンコードにしたがってradixソート。
+        evStart = (uint32_t)events.size();
+        if (profiling)
+            stopwatchHiRes.start();
+        radixSort(queue, events, numFaces, numBitsPerDim);
+        if (profiling) {
+            queue.finish();
+            cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
+            for (uint32_t i = evStart; i < events.size(); ++i) {
+                events[i].wait();
+                CLUtil::getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+                sumTimeRadixSort += tpCmdEnd - tpCmdStart;
+                sumTimeRadixSortFromSubmit += tpCmdEnd - tpCmdSubmit;
+            }
+            printf("radix sorting done! ... time: %fusec (%fusec)\n", sumTimeRadixSort * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
+        }
+        
+        // BVHの木構造を計算する。
+        if (profiling)
+            stopwatchHiRes.start();
+        constructBinaryRadixTree(queue, events, bufInternalNodes, bufLeafNodes, numFaces, numBitsPerDim);
+        if (profiling) {
+            queue.finish();
+            events.back().wait();
+            CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("constructing BVH tree done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
+        }
+        
+        // 各ノードのAABBを計算する。
+        if (profiling)
+            stopwatchHiRes.start();
+        calcNodeAABBs(queue, events, bufInternalNodes, bufLeafNodes, numFaces);
+        if (profiling) {
+            queue.finish();
+            events.back().wait();
+            CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+            printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
+        }
 //        queue.finish();
 //        std::vector<InternalNode> internalNodes;
 //        std::vector<LeafNode> leafNodes;
@@ -60,8 +154,8 @@ namespace TRBVH {
 //        }
         
         events.emplace_back();
-        const uint32_t workSizeBottomUp = CLUtil::largerMultiple(numFaces, localSizeBottomUp);
-        cl::enqueueNDRangeKernel(queue, m_kernelBottomUp, cl::NullRange, cl::NDRange(workSizeBottomUp), cl::NDRange(localSizeBottomUp), nullptr, &events.back(),
+        const uint32_t workSizeRestructuring = CLUtil::largerMultiple(numFaces, localSizeBottomUp);
+        cl::enqueueNDRangeKernel(queue, m_kernelTreeletRestructuring, cl::NullRange, cl::NDRange(workSizeRestructuring), cl::NDRange(localSizeBottomUp), nullptr, &events.back(),
                                  bufInternalNodes, m_bufCounters, m_bufNumTotalLeaves, bufLeafNodes, numFaces, m_bufParentIdxs, 7);
         queue.enqueueBarrierWithWaitList();
         

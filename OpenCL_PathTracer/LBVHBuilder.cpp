@@ -9,13 +9,7 @@
 #include "LBVHBuilder.h"
 #include "StopWatch.hpp"
 
-namespace LBVH {
-    // 32bytes
-    struct AABB {
-        cl_float3 min;
-        cl_float3 max;
-    };
-    
+namespace LBVH {    
     Builder::Builder(cl::Context &context, cl::Device &device, uint32_t numFaces) :
     CLUtil::Technique(context, device), m_techGlobalScan{context, device},
     localSizeCalcAABBs(128), localSizeUnifyAABBs(128), localSizeCalcMortonCodes(128),
@@ -64,8 +58,11 @@ namespace LBVH {
         struct Occupancy {
             uint64_t memStart;
             uint64_t memEnd;
-            bool overlaps(uint64_t start, uint64_t end) {
+            bool overlaps(uint64_t start, uint64_t end) const {
                 return !(end < memStart || start > memEnd);
+            }
+            uint64_t size() const {
+                return memEnd - memStart + 1;
             }
         };
         std::vector<Occupancy> occupancies[NumBuildPasses];
@@ -130,32 +127,141 @@ namespace LBVH {
         m_bufferGenericPool = cl::Buffer(m_context, CL_MEM_READ_WRITE, requiredSize, nullptr, nullptr);
         
         m_bufAABBs = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                         regions[0].memStart, 16, regions[0].memEnd - regions[0].memStart + 1);
+                                         regions[0].memStart, 16, regions[0].size());
         m_bufs_unifyAABBs[0] = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                   regions[1].memStart, 16, (regions[1].memEnd - regions[1].memStart + 1) / 2);
+                                                   regions[1].memStart, 16, regions[1].size() / 2);
         m_bufs_unifyAABBs[1] = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                   (regions[1].memEnd + regions[1].memStart + 1) / 2, 16, (regions[1].memEnd - regions[1].memStart + 1) / 2);
+                                                   regions[1].memStart + regions[1].size() / 2, 16, regions[1].size() / 2);
         
         m_bufMortonCodes = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                               regions[2].memStart, 16, regions[2].memEnd - regions[2].memStart + 1);
+                                               regions[2].memStart, 16, regions[2].size());
         m_bufIndices = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                           regions[3].memStart, 4, regions[3].memEnd - regions[3].memStart + 1);
+                                           regions[3].memStart, 4, regions[3].size());
         m_bufIndicesShadow = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                 regions[4].memStart, 4, regions[4].memEnd - regions[4].memStart + 1);
+                                                 regions[4].memStart, 4, regions[4].size());
         m_bufRadixDigits = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                               regions[5].memStart, 1, regions[5].memEnd - regions[5].memStart + 1);
+                                               regions[5].memStart, 1, regions[5].size());
         m_bufHistograms = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                              regions[6].memStart, 4, regions[6].memEnd - regions[6].memStart + 1);
+                                              regions[6].memStart, 4, regions[6].size());
         m_bufLocalOffsets = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                regions[7].memStart, 4, regions[7].memEnd - regions[7].memStart + 1);
+                                                regions[7].memStart, 4, regions[7].size());
         uint64_t temp;
         m_techGlobalScan.createWorkingBuffers(numElementsHistograms, m_bufferGenericPool, regions[8].memStart, &m_bufs_globalScan, &temp);
         
         m_bufParentIdxs = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                              regions[9].memStart, 4, regions[9].memEnd - regions[9].memStart + 1);
+                                              regions[9].memStart, 4, regions[9].size());
         m_bufCounters = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                            regions[10].memStart, 4, regions[10].memEnd - regions[10].memStart + 1);
+                                            regions[10].memStart, 4, regions[10].size());
     }
+    
+    
+    // 各三角形のAABBを並列に求める。
+    void Builder::calcAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                            const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces) {
+        events.emplace_back();
+        const uint32_t workSize = ((numFaces + (localSizeCalcAABBs - 1)) / localSizeCalcAABBs) * localSizeCalcAABBs;
+        cl::enqueueNDRangeKernel(queue, m_kernelCalcAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcAABBs), nullptr, &events.back(),
+                                 buf_vertices, buf_faces, numFaces, m_bufAABBs);
+        queue.enqueueBarrierWithWaitList();
+    }
+    
+    // 全体を囲むAABBを求める。
+    void Builder::unifyAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                             cl::Buffer &buf_unifiedAABBs, uint32_t numFaces) {
+        cl::Buffer buf_srcAABBs = m_bufAABBs;
+        uint32_t numAABBs = numFaces;
+        uint32_t numMerged = (numAABBs + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs;
+        
+        uint32_t swapIdx = 0;
+        while (true) {
+            events.emplace_back();
+            buf_unifiedAABBs = m_bufs_unifyAABBs[swapIdx++ % 2];
+            
+            uint32_t workSize = numMerged * localSizeUnifyAABBs;
+            cl::enqueueNDRangeKernel(queue, m_kernelUnifyAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeUnifyAABBs), nullptr, &events.back(),
+                                     buf_srcAABBs, numAABBs, buf_unifiedAABBs);
+            queue.enqueueBarrierWithWaitList();
+            
+            if (numMerged == 1)
+                break;
+            
+            buf_srcAABBs = buf_unifiedAABBs;
+            numAABBs = numMerged;
+            numMerged = (numAABBs + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs;
+        }
+    }
+    
+    // モートンコードを求める。
+    void Builder::calcMortonCodes(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                  uint32_t numFaces, const AABB &entireAABB, uint32_t numBitsPerDim) {
+        events.emplace_back();
+        cl_float3 sizeEntireAABB = {
+            entireAABB.max.s0 - entireAABB.min.s0,
+            entireAABB.max.s1 - entireAABB.min.s1,
+            entireAABB.max.s2 - entireAABB.min.s2
+        };
+        
+        const uint32_t workSize = ((numFaces + (localSizeCalcMortonCodes - 1)) / localSizeCalcMortonCodes) * localSizeCalcMortonCodes;
+        cl::enqueueNDRangeKernel(queue, m_kernelCalcMortonCodes, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcMortonCodes), nullptr, &events.back(),
+                                 m_bufAABBs, numFaces, entireAABB.min, sizeEntireAABB, 1 << numBitsPerDim, m_bufMortonCodes, m_bufIndices);
+        queue.enqueueBarrierWithWaitList();
+    }
+    
+    // モートンコードにしたがってradixソート。
+    void Builder::radixSort(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                            uint32_t numFaces, uint32_t numBitsPerDim) {
+        const uint32_t numPrimGroups = ((m_currentCapacity + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort);
+        const uint32_t workSizeBlockwiseSort = numPrimGroups * localSizeBlockwiseSort;
+        const uint32_t workSizeHistograms = ((numPrimGroups + (localSizeCalcBlockHistograms - 1)) / localSizeCalcBlockHistograms) * localSizeCalcBlockHistograms;
+        const uint32_t numElementsHistograms = numPrimGroups * (1 << 3);
+        for (uint32_t i = 0; i < numBitsPerDim; ++i) {
+            events.emplace_back();
+            cl::enqueueNDRangeKernel(queue, m_kernelBlockwiseSort, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
+                                     nullptr, &events.back(),
+                                     m_bufMortonCodes, numFaces, i, m_bufIndices, m_bufRadixDigits);
+            queue.enqueueBarrierWithWaitList();
+            
+            events.emplace_back();
+            cl::enqueueNDRangeKernel(queue, m_kernelCalcBlockHistograms, cl::NullRange, cl::NDRange(workSizeHistograms), cl::NDRange(localSizeCalcBlockHistograms),
+                                     nullptr, &events.back(),
+                                     m_bufRadixDigits, numFaces, numPrimGroups, m_bufHistograms, m_bufLocalOffsets);
+            queue.enqueueBarrierWithWaitList();
+            
+            m_techGlobalScan.perform(queue, m_bufHistograms, numElementsHistograms, m_bufs_globalScan, events);
+            
+            events.emplace_back();
+            cl::enqueueNDRangeKernel(queue, m_kernelGlobalScatter, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
+                                     nullptr, &events.back(),
+                                     m_bufRadixDigits, numFaces, m_bufHistograms, m_bufLocalOffsets, m_bufIndices, m_bufIndicesShadow);
+            queue.enqueueBarrierWithWaitList();
+            
+            cl::Buffer tempIndices = m_bufIndices;
+            m_bufIndices = m_bufIndicesShadow;
+            m_bufIndicesShadow = tempIndices;
+        }
+    }
+    
+    // BVHの木構造を計算する。
+    void Builder::constructBinaryRadixTree(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                           cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces, uint32_t numBitsPerDim) {
+        events.emplace_back();
+        const uint32_t workSize = ((numFaces + (localSizeConstructBinaryRadixTree - 1)) / localSizeConstructBinaryRadixTree) * localSizeConstructBinaryRadixTree;
+        cl::enqueueNDRangeKernel(queue, m_kernelConstructBinaryRadixTree, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeConstructBinaryRadixTree), nullptr, &events.back(),
+                                 m_bufMortonCodes, numBitsPerDim, m_bufAABBs, m_bufIndices, numFaces,
+                                 bufInternalNodes, bufLeafNodes, m_bufParentIdxs, m_bufCounters);
+        queue.enqueueBarrierWithWaitList();
+    }
+    
+    // 各ノードのAABBを計算する。
+    void Builder::calcNodeAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces) {
+        events.emplace_back();
+        const uint32_t workSize = ((numFaces + (localSizeCalcNodeAABBs - 1)) / localSizeCalcNodeAABBs) * localSizeCalcNodeAABBs;
+        cl::enqueueNDRangeKernel(queue, m_kernelCalcNodeAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcNodeAABBs), nullptr, &events.back(),
+                                 bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs);
+        queue.enqueueBarrierWithWaitList();
+    }
+    
     
     void Builder::perform(cl::CommandQueue &queue,
                           const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
@@ -172,13 +278,7 @@ namespace LBVH {
         // 各三角形のAABBを並列に求める。
         if (profiling)
             stopwatchHiRes.start();
-        {
-            events.emplace_back();
-            const uint32_t workSize = ((numFaces + (localSizeCalcAABBs - 1)) / localSizeCalcAABBs) * localSizeCalcAABBs;
-            cl::enqueueNDRangeKernel(queue, m_kernelCalcAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcAABBs), nullptr, &events.back(),
-                                     buf_vertices, buf_faces, numFaces, m_bufAABBs);
-            queue.enqueueBarrierWithWaitList();
-        }
+        calcAABBs(queue, events, buf_vertices, buf_faces, numFaces);
         if (profiling) {
             queue.finish();
             events.back().wait();
@@ -191,29 +291,7 @@ namespace LBVH {
         if (profiling)
             stopwatchHiRes.start();
         cl::Buffer buf_unifiedAABBs;
-        {
-            cl::Buffer buf_srcAABBs = m_bufAABBs;
-            uint32_t numAABBs = numFaces;
-            uint32_t numMerged = (numAABBs + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs;
-            
-            uint32_t swapIdx = 0;
-            while (true) {
-                events.emplace_back();
-                buf_unifiedAABBs = m_bufs_unifyAABBs[swapIdx++ % 2];
-                
-                uint32_t workSize = numMerged * localSizeUnifyAABBs;
-                cl::enqueueNDRangeKernel(queue, m_kernelUnifyAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeUnifyAABBs), nullptr, &events.back(),
-                                         buf_srcAABBs, numAABBs, buf_unifiedAABBs);
-                queue.enqueueBarrierWithWaitList();
-                
-                if (numMerged == 1)
-                    break;
-                
-                buf_srcAABBs = buf_unifiedAABBs;
-                numAABBs = numMerged;
-                numMerged = (numAABBs + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs;
-            }
-        }
+        unifyAABBs(queue, events, buf_unifiedAABBs, numFaces);
         if (profiling) {
             queue.finish();
             cl_ulong sumTimeUnion = 0, sumTimeUnionFromSubmit = 0;
@@ -231,19 +309,7 @@ namespace LBVH {
         // モートンコードを求める。
         if (profiling)
             stopwatchHiRes.start();
-        {
-            events.emplace_back();
-            cl_float3 sizeEntireAABB = {
-                entireAABB.max.s0 - entireAABB.min.s0,
-                entireAABB.max.s1 - entireAABB.min.s1,
-                entireAABB.max.s2 - entireAABB.min.s2
-            };
-            
-            const uint32_t workSize = ((numFaces + (localSizeCalcMortonCodes - 1)) / localSizeCalcMortonCodes) * localSizeCalcMortonCodes;
-            cl::enqueueNDRangeKernel(queue, m_kernelCalcMortonCodes, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcMortonCodes), nullptr, &events.back(),
-                                     m_bufAABBs, numFaces, entireAABB.min, sizeEntireAABB, 1 << numBitsPerDim, m_bufMortonCodes, m_bufIndices);
-            queue.enqueueBarrierWithWaitList();
-        }
+        calcMortonCodes(queue, events, numFaces, entireAABB, numBitsPerDim);
         if (profiling) {
             queue.finish();
             events.back().wait();
@@ -255,37 +321,7 @@ namespace LBVH {
         evStart = (uint32_t)events.size();
         if (profiling)
             stopwatchHiRes.start();
-        {
-            const uint32_t numPrimGroups = ((m_currentCapacity + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort);
-            const uint32_t workSizeBlockwiseSort = numPrimGroups * localSizeBlockwiseSort;
-            const uint32_t workSizeHistograms = ((numPrimGroups + (localSizeCalcBlockHistograms - 1)) / localSizeCalcBlockHistograms) * localSizeCalcBlockHistograms;
-            const uint32_t numElementsHistograms = numPrimGroups * (1 << 3);
-            for (uint32_t i = 0; i < numBitsPerDim; ++i) {
-                events.emplace_back();
-                cl::enqueueNDRangeKernel(queue, m_kernelBlockwiseSort, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
-                                         nullptr, &events.back(),
-                                         m_bufMortonCodes, numFaces, i, m_bufIndices, m_bufRadixDigits);
-                queue.enqueueBarrierWithWaitList();
-                
-                events.emplace_back();
-                cl::enqueueNDRangeKernel(queue, m_kernelCalcBlockHistograms, cl::NullRange, cl::NDRange(workSizeHistograms), cl::NDRange(localSizeCalcBlockHistograms),
-                                         nullptr, &events.back(),
-                                         m_bufRadixDigits, numFaces, numPrimGroups, m_bufHistograms, m_bufLocalOffsets);
-                queue.enqueueBarrierWithWaitList();
-                
-                m_techGlobalScan.perform(queue, m_bufHistograms, numElementsHistograms, m_bufs_globalScan, events);
-                
-                events.emplace_back();
-                cl::enqueueNDRangeKernel(queue, m_kernelGlobalScatter, cl::NullRange, cl::NDRange(workSizeBlockwiseSort), cl::NDRange(localSizeBlockwiseSort),
-                                         nullptr, &events.back(),
-                                         m_bufRadixDigits, numFaces, m_bufHistograms, m_bufLocalOffsets, m_bufIndices, m_bufIndicesShadow);
-                queue.enqueueBarrierWithWaitList();
-                
-                cl::Buffer tempIndices = m_bufIndices;
-                m_bufIndices = m_bufIndicesShadow;
-                m_bufIndicesShadow = tempIndices;
-            }
-        }
+        radixSort(queue, events, numFaces, numBitsPerDim);
         if (profiling) {
             queue.finish();
             cl_ulong sumTimeRadixSort = 0, sumTimeRadixSortFromSubmit = 0;
@@ -316,14 +352,7 @@ namespace LBVH {
         // BVHの木構造を計算する。
         if (profiling)
             stopwatchHiRes.start();
-        {
-            events.emplace_back();
-            const uint32_t workSize = ((numFaces + (localSizeConstructBinaryRadixTree - 1)) / localSizeConstructBinaryRadixTree) * localSizeConstructBinaryRadixTree;
-            cl::enqueueNDRangeKernel(queue, m_kernelConstructBinaryRadixTree, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeConstructBinaryRadixTree), nullptr, &events.back(),
-                                     m_bufMortonCodes, numBitsPerDim, m_bufAABBs, m_bufIndices, numFaces,
-                                     bufInternalNodes, bufLeafNodes, m_bufParentIdxs, m_bufCounters);
-            queue.enqueueBarrierWithWaitList();
-        }
+        constructBinaryRadixTree(queue, events, bufInternalNodes, bufLeafNodes, numFaces, numBitsPerDim);
         if (profiling) {
             queue.finish();
             events.back().wait();
@@ -334,13 +363,7 @@ namespace LBVH {
         // 各ノードのAABBを計算する。
         if (profiling)
             stopwatchHiRes.start();
-        {
-            events.emplace_back();
-            const uint32_t workSize = ((numFaces + (localSizeCalcNodeAABBs - 1)) / localSizeCalcNodeAABBs) * localSizeCalcNodeAABBs;
-            cl::enqueueNDRangeKernel(queue, m_kernelCalcNodeAABBs, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcNodeAABBs), nullptr, &events.back(),
-                                     bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs);
-            queue.enqueueBarrierWithWaitList();
-        }
+        calcNodeAABBs(queue, events, bufInternalNodes, bufLeafNodes, numFaces);
         if (profiling) {
             queue.finish();
             events.back().wait();

@@ -13,15 +13,40 @@
 #include "LBVHBuilder.h"
 
 namespace TRBVH {
+    typedef LBVH::AABB AABB;
+    typedef LBVH::InternalNode InternalNode;
+    typedef LBVH::LeafNode LeafNode;
+    
     class Builder : public LBVH::Builder {
+        enum class BuildPass : uint32_t {
+            calcAABBs,
+            unifyAABBs,
+            calcMortonCodes,
+            blockwiseSort,
+            calcBlockHistograms,
+            globalScan,
+            globalScatter,
+            constructBinaryRadixTree,
+            calcNodeAABBs,
+            TreeletRestructuring, 
+            Num
+        };
+        
         cl::Kernel m_kernelCalcAABBs_SAHCosts;
         cl::Kernel m_kernelTreeletRestructuring;
         
-        const uint32_t localSizeBottomUp;
+        const uint32_t localSizeRestructuring;
         
         cl::Buffer m_bufNumTotalLeaves;
+        cl::Buffer m_bufSAHCosts;
+        void setupWorkingBuffers() override;
+        
+        void calcNodeAABBs_SAHCosts(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                    cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces);
+        void treeletRestructuring(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                  cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces);
     public:
-        Builder(cl::Context &context, cl::Device &device, uint32_t numFaces);
+        Builder(cl::Context &context, cl::Device &device);
         
         void perform(cl::CommandQueue &queue,
                      const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,

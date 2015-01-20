@@ -10,9 +10,9 @@
 #include "StopWatch.hpp"
 
 namespace TRBVH {
-    Builder::Builder(cl::Context &context, cl::Device &device, uint32_t numFaces) :
-    LBVH::Builder(context, device, numFaces),
-    localSizeBottomUp(32) {
+    Builder::Builder(cl::Context &context, cl::Device &device) :
+    LBVH::Builder(context, device),
+    localSizeRestructuring(32) {
         std::string rawStrBuildAccel = CLUtil::stringFromFile("OpenCL_src/trbvh_construction.cl");
         cl::Program::Sources srcBuildAccel{1, std::make_pair(rawStrBuildAccel.c_str(), rawStrBuildAccel.length())};
         
@@ -28,16 +28,102 @@ namespace TRBVH {
         m_kernelCalcAABBs_SAHCosts = cl::Kernel(programTRBVH, "calcNodeAABBs_SAHCosts");
         m_kernelTreeletRestructuring = cl::Kernel(programTRBVH, "treeletRestructuring");
         
-        m_bufNumTotalLeaves = cl::Buffer{context, CL_MEM_READ_WRITE, (numFaces - 1) * sizeof(uint32_t), nullptr, nullptr};
+        m_numBuildPass = (uint32_t)BuildPass::Num;
     }
+    
+    void Builder::setupWorkingBuffers() {
+        const uint32_t numElementsHistograms = ((m_currentCapacity + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort) * (1 << 3);
+        const uint32_t sizeUnifyAABBWorkingBuffers = 2 * ((m_currentCapacity + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs) * sizeof(AABB);
+        
+        enum BufferID {
+            Buf_AABBs = 0,
+            Buf_unifyAABBsWBs,
+            Buf_MortonCodes,
+            Buf_indices,
+            Buf_indices_shadow,
+            Buf_radixDigits,
+            Buf_histograms,
+            Buf_offsets,
+            Buf_globalScanWBs,
+            Buf_parentIdxs,
+            Buf_counters,
+            Buf_numTotalLeaves,
+            Buf_SAHCosts, 
+            NumBuffers
+        };
+        
+        // SubBufferの確保できる領域を検索して、確保領域に関する情報を記録する。
+        Occupancy regions[NumBuffers];
+        regions[Buf_AABBs] = reserveAlloc(m_currentCapacity * sizeof(AABB), 16, (uint32_t)BuildPass::calcAABBs, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_unifyAABBsWBs] = reserveAlloc(sizeUnifyAABBWorkingBuffers, 16, (uint32_t)BuildPass::unifyAABBs, (uint32_t)BuildPass::unifyAABBs);
+        regions[Buf_MortonCodes] = reserveAlloc(m_currentCapacity * sizeof(cl_uint3), 16, (uint32_t)BuildPass::calcMortonCodes, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_indices] = reserveAlloc(m_currentCapacity * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcMortonCodes, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_indices_shadow] = reserveAlloc(m_currentCapacity * sizeof(cl_uint), 4, (uint32_t)BuildPass::blockwiseSort, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_radixDigits] = reserveAlloc(m_currentCapacity * sizeof(cl_uchar), 1, (uint32_t)BuildPass::blockwiseSort, (uint32_t)BuildPass::globalScatter);
+        regions[Buf_histograms] = reserveAlloc(numElementsHistograms * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcBlockHistograms, (uint32_t)BuildPass::globalScatter);
+        regions[Buf_offsets] = reserveAlloc(numElementsHistograms * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcBlockHistograms, (uint32_t)BuildPass::globalScatter);
+        uint64_t globalScanBufferSize;
+        uint32_t globalScanBufferAlign;
+        m_techGlobalScan.calcWorkingBuffersRequirement(numElementsHistograms, &globalScanBufferSize, &globalScanBufferAlign);
+        regions[Buf_globalScanWBs] = reserveAlloc(globalScanBufferSize, globalScanBufferAlign, (uint32_t)BuildPass::globalScan, (uint32_t)BuildPass::globalScan);
+        regions[Buf_parentIdxs] = reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::constructBinaryRadixTree, (uint32_t)BuildPass::calcNodeAABBs);
+        regions[Buf_counters] = reserveAlloc((m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::constructBinaryRadixTree, (uint32_t)BuildPass::calcNodeAABBs);
+        regions[Buf_numTotalLeaves] = reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcNodeAABBs, (uint32_t)BuildPass::TreeletRestructuring);
+        regions[Buf_SAHCosts] = reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_float), 4, (uint32_t)BuildPass::calcNodeAABBs, (uint32_t)BuildPass::TreeletRestructuring);
+        
+        uint64_t requiredSize = 0;
+        for (uint32_t i = 0; i < NumBuffers; ++i) {
+            requiredSize = std::max(requiredSize, regions[i].memEnd);
+        }
+        requiredSize += 1;
+        
+        m_bufferGenericPool = cl::Buffer(m_context, CL_MEM_READ_WRITE, requiredSize, nullptr, nullptr);
+        auto createSubBuffer = [this, &regions](BufferID buf, uint32_t align) {
+            return cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, regions[buf].memStart, align, regions[buf].size());
+        };
+        
+        m_bufAABBs = createSubBuffer(Buf_AABBs, 16);
+        m_bufs_unifyAABBs[0] = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                   regions[Buf_unifyAABBsWBs].memStart, 16, regions[Buf_unifyAABBsWBs].size() / 2);
+        m_bufs_unifyAABBs[1] = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
+                                                   regions[Buf_unifyAABBsWBs].memStart + regions[Buf_unifyAABBsWBs].size() / 2, 16,
+                                                   regions[Buf_unifyAABBsWBs].size() / 2);
+        
+        m_bufMortonCodes = createSubBuffer(Buf_MortonCodes, 16);
+        m_bufIndices = createSubBuffer(Buf_indices, 4);
+        m_bufIndicesShadow = createSubBuffer(Buf_indices_shadow, 4);
+        m_bufRadixDigits = createSubBuffer(Buf_radixDigits, 1);
+        m_bufHistograms = createSubBuffer(Buf_histograms, 4);
+        m_bufLocalOffsets = createSubBuffer(Buf_offsets, 4);
+        uint64_t temp;
+        m_techGlobalScan.createWorkingBuffers(numElementsHistograms, m_bufferGenericPool, regions[Buf_globalScanWBs].memStart, &m_bufs_globalScan, &temp);
+        
+        m_bufParentIdxs = createSubBuffer(Buf_parentIdxs, 4);
+        m_bufCounters = createSubBuffer(Buf_counters, 4);
+        m_bufNumTotalLeaves = createSubBuffer(Buf_numTotalLeaves, 4);
+        m_bufSAHCosts = createSubBuffer(Buf_SAHCosts, 4);
+    }
+    
+    
+    // 各ノードのAABBを計算する。
+    void Builder::calcNodeAABBs_SAHCosts(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                         cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces) {
+        events.emplace_back();
+        const uint32_t workSize = ((numFaces + (localSizeCalcNodeAABBs - 1)) / localSizeCalcNodeAABBs) * localSizeCalcNodeAABBs;
+        cl::enqueueNDRangeKernel(queue, m_kernelCalcAABBs_SAHCosts, cl::NullRange, cl::NDRange(workSize), cl::NDRange(localSizeCalcNodeAABBs), nullptr, &events.back(),
+                                 bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs, m_bufNumTotalLeaves, m_bufSAHCosts);
+        queue.enqueueBarrierWithWaitList();
+    }
+    
+    void treeletRestructuring(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                              cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces) {
+        
+    }
+    
     
     void Builder::perform(cl::CommandQueue &queue,
                           const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
                           cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling) {
-        using LBVH::AABB;
-        using LBVH::InternalNode;
-        using LBVH::LeafNode;
-        
         StopWatchHiRes stopwatchHiRes;
         uint32_t evStart;
         cl_ulong tpCmdStart, tpCmdEnd, tpCmdSubmit;
@@ -120,42 +206,48 @@ namespace TRBVH {
         // 各ノードのAABBを計算する。
         if (profiling)
             stopwatchHiRes.start();
-        calcNodeAABBs(queue, events, bufInternalNodes, bufLeafNodes, numFaces);
+        calcNodeAABBs_SAHCosts(queue, events, bufInternalNodes, bufLeafNodes, numFaces);
         if (profiling) {
             queue.finish();
             events.back().wait();
             CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
         }
-//        queue.finish();
-//        std::vector<InternalNode> internalNodes;
-//        std::vector<LeafNode> leafNodes;
-//        internalNodes.resize(numFaces - 1);
-//        leafNodes.resize(numFaces);
-//        queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
-//        queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
-//        printf("Internal Nodes\n");
-//        for (uint32_t i = 0; i < internalNodes.size(); ++i) {
-//            InternalNode &iNode = internalNodes[i];
-//            cl_float3 edge{iNode.max.s0 - iNode.min.s0, iNode.max.s1 - iNode.min.s1, iNode.max.s2 - iNode.min.s2};
-//            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-//            printf("%5u : %5u%c, %5u%c, %f\n", i,
-//                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
-//                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
-//                   surfaceArea);
-//        }
-//        printf("--------------------------------\n");
-//        printf("Leaf Nodes\n");
-//        for (uint32_t i = 0; i < leafNodes.size(); ++i) {
-//            LeafNode &lNode = leafNodes[i];
-//            cl_float3 edge{lNode.max.s0 - lNode.min.s0, lNode.max.s1 - lNode.min.s1, lNode.max.s2 - lNode.min.s2};
-//            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-//            printf("%5uL: %5u , %f\n", i, lNode.objIdx, surfaceArea);
-//        }
+        queue.finish();
+        std::vector<InternalNode> internalNodes;
+        std::vector<LeafNode> leafNodes;
+        std::vector<uint32_t> numTotalLeaves;
+        std::vector<float> SAHCosts;
+        internalNodes.resize(numFaces - 1);
+        leafNodes.resize(numFaces);
+        numTotalLeaves.resize(2 * numFaces - 1);
+        SAHCosts.resize(2 * numFaces - 1);
+        queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
+        queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
+        queue.enqueueReadBuffer(m_bufNumTotalLeaves, CL_TRUE, 0, numTotalLeaves.size() * sizeof(uint32_t), numTotalLeaves.data());
+        queue.enqueueReadBuffer(m_bufSAHCosts, CL_TRUE, 0, SAHCosts.size() * sizeof(float), SAHCosts.data());
+        printf("Internal Nodes\n");
+        for (uint32_t i = 0; i < internalNodes.size(); ++i) {
+            InternalNode &iNode = internalNodes[i];
+            cl_float3 edge{iNode.bbox.max.s0 - iNode.bbox.min.s0, iNode.bbox.max.s1 - iNode.bbox.min.s1, iNode.bbox.max.s2 - iNode.bbox.min.s2};
+            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+            printf("%5u | %5u%c, %5u%c|Area: %f, #Leaves: %u, SAHCost: %f\n", i,
+                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
+                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
+                   surfaceArea, numTotalLeaves[numFaces + i], SAHCosts[numFaces + i]);
+        }
+        printf("--------------------------------\n");
+        printf("Leaf Nodes\n");
+        for (uint32_t i = 0; i < leafNodes.size(); ++i) {
+            LeafNode &lNode = leafNodes[i];
+            cl_float3 edge{lNode.bbox.max.s0 - lNode.bbox.min.s0, lNode.bbox.max.s1 - lNode.bbox.min.s1, lNode.bbox.max.s2 - lNode.bbox.min.s2};
+            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+            printf("%5uL|         %5u |Area: %f, #Leaves: %u, SAHCost: %f\n", i, lNode.objIdx, surfaceArea, numTotalLeaves[i], SAHCosts[i]);
+        }
         
         events.emplace_back();
-        const uint32_t workSizeRestructuring = CLUtil::largerMultiple(numFaces, localSizeBottomUp);
-        cl::enqueueNDRangeKernel(queue, m_kernelTreeletRestructuring, cl::NullRange, cl::NDRange(workSizeRestructuring), cl::NDRange(localSizeBottomUp), nullptr, &events.back(),
+        const uint32_t workSizeRestructuring = CLUtil::largerMultiple(numFaces, localSizeRestructuring);
+        cl::enqueueNDRangeKernel(queue, m_kernelTreeletRestructuring, cl::NullRange, cl::NDRange(workSizeRestructuring), cl::NDRange(localSizeRestructuring), nullptr, &events.back(),
                                  bufInternalNodes, m_bufCounters, m_bufNumTotalLeaves, bufLeafNodes, numFaces, m_bufParentIdxs, 7);
         queue.enqueueBarrierWithWaitList();
         

@@ -34,6 +34,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
 
 //----------------------------------------------------------------
 
+// グローバルメモリへの書き込みがキャッシュされてしまうとスレッド全体で一貫性が無くなってしまうのでvolatile属性をつける。
 kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives,
                                    const global uint* parentIdxs, global uint* numTotalLeaves, global float* SAHCosts) {
     const uint gid0 = get_global_id(0);
@@ -43,6 +44,8 @@ kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters,
     
     global InternalNode* iNodes = (global InternalNode*)_iNodes;
     const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
+    volatile global uint* numTotalLeavesUC = (volatile global uint*)numTotalLeaves;
+    volatile global float* SAHCostsUC = (volatile global float*)SAHCosts;
     const float Ci = 1.2f;
     const float Ct = 1.0f;
     
@@ -58,33 +61,32 @@ kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters,
     
     uint selfIdx = gid0;
     uint tgtIdx = parentIdxs[gid0];
-    *(numTotalLeaves + gid0) = numLeaves;
-    *(SAHCosts + gid0) = SAHCost;
+    *(numTotalLeavesUC + gid0) = numLeaves;
+    *(SAHCostsUC + gid0) = SAHCost;
     parentIdxs += numPrimitives;
-    numTotalLeaves += numPrimitives;
-    SAHCosts += numPrimitives;
+    numTotalLeavesUC += numPrimitives;
+    SAHCostsUC += numPrimitives;
     
     // InternalNodeを繰り返しルートに向けて登る。
     // 2回目のアクセスを担当するスレッドがAABBの和をとることによって、そのノードの子全てが計算済みであることを保証する。
-    volatile global uint* numTotalLeavesUC = (volatile global uint*)numTotalLeaves;
-    volatile global float* SAHCostsUC = (volatile global float*)SAHCosts;
     while (atomic_inc(counters + tgtIdx) == 1) {
-        // グローバルメモリへの書き込みがキャッシュされてしまうとスレッド全体で一貫性が無くなってしまうのでvolatile属性をつける。
         volatile global InternalNode* tgtINode = (volatile global InternalNode*)iNodes + tgtIdx;
         
         bool leftIsSelf = tgtINode->c[0] == selfIdx;
         uint otherIdx = tgtINode->c[leftIsSelf];
+        bool otherIsLeaf = tgtINode->isLeaf[leftIsSelf];
         
-        const AABB bbox = tgtINode->isLeaf[leftIsSelf] ? (lNodes + otherIdx)->bbox : (iNodes + otherIdx)->bbox;
+        const AABB bbox = otherIsLeaf ? (lNodes + otherIdx)->bbox : (iNodes + otherIdx)->bbox;
         tgtINode->bbox.min = min = fmin(min, bbox.min);
         tgtINode->bbox.max = max = fmax(max, bbox.max);
         
-        numLeaves += numTotalLeavesUC[otherIdx];
+        otherIdx = otherIsLeaf ? otherIdx : (numPrimitives + otherIdx);
+        numLeaves += numTotalLeaves[otherIdx];
         numTotalLeavesUC[tgtIdx] = numLeaves;
         
         vector3 edge = max - min;
         float area = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
-        SAHCost = fmin(Ci * area + (SAHCost + SAHCostsUC[otherIdx]), Ct * area * numLeaves);
+        SAHCost = fmin(Ci * area + (SAHCost + SAHCosts[otherIdx]), Ct * area * numLeaves);
         SAHCostsUC[tgtIdx] = SAHCost;
         
         if (tgtIdx == 0)
@@ -153,7 +155,6 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         parentIdxs += numPrimitives;
         numTotalLeaves += numPrimitives;
         
-        // グローバルメモリへの書き込み・読み込みがキャッシュされないようにvolatile属性をつける。
         while (atomic_inc(counters + pIdx) == 3) {
             const global InternalNode* iNode = iNodes + pIdx;            
             if (numTotalLeaves[gid0] >= gamma/* || pIdx == 0*/) {
@@ -166,13 +167,13 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         }
     }
     barrier(CLK_LOCAL_MEM_FENCE);
-//    if (lid0 == 0) {
-//        for (uint i = 0; i < numRoots; ++i) {
-//            uint idx = treeletRoots[i];
-//            printf("%5u(%u/%u): %5u(%3u)\n", get_group_id(0), i + 1, numRoots, idx, numTotalLeaves[idx]);
-//        }
-//    }
-//    return;
+    if (lid0 == 0) {
+        for (uint i = 0; i < numRoots; ++i) {
+            uint idx = treeletRoots[i];
+            printf("%5u(%u/%u): %5u(%3u)\n", get_group_id(0), i + 1, numRoots, idx, numTotalLeaves[idx]);
+        }
+    }
+    return;
     // END: Bottom-up Traversal
     //----------------------------------------------------------------
     

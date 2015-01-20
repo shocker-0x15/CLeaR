@@ -33,7 +33,31 @@ namespace LBVH {
     };
 
     class Builder : public CLUtil::Technique {
+    private:
+        enum class BuildPass : uint32_t {
+            calcAABBs,
+            unifyAABBs,
+            calcMortonCodes,
+            blockwiseSort,
+            calcBlockHistograms,
+            globalScan,
+            globalScatter,
+            constructBinaryRadixTree,
+            calcNodeAABBs,
+            Num
+        };
     protected:
+        struct Occupancy {
+            uint64_t memStart;
+            uint64_t memEnd;
+            bool overlaps(uint64_t start, uint64_t end) const {
+                return !(end < memStart || start > memEnd);
+            }
+            uint64_t size() const {
+                return memEnd - memStart + 1;
+            }
+        };
+        
         cl::Kernel m_kernelCalcAABBs;
         cl::Kernel m_kernelUnifyAABBs;
         cl::Kernel m_kernelCalcMortonCodes;
@@ -65,11 +89,13 @@ namespace LBVH {
         
         uint32_t m_currentCapacity;
         cl::Buffer m_bufferGenericPool;
-        bool m_createdBuffers;
         
         CLGeneric::GlobalScan m_techGlobalScan;
         
-        void setupWorkingBuffers();
+        uint32_t m_numBuildPass;
+        std::vector<Occupancy>* m_occupancies;
+        Occupancy reserveAlloc(uint64_t size, uint32_t align, uint32_t lifeStart, uint32_t lifeEnd);
+        virtual void setupWorkingBuffers();
         
         void calcAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
                        const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces);
@@ -84,7 +110,11 @@ namespace LBVH {
         void calcNodeAABBs(cl::CommandQueue &queue, std::vector<cl::Event> &events,
                            cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces);
     public:
-        Builder(cl::Context &context, cl::Device &device, uint32_t numFaces);
+        Builder(cl::Context &context, cl::Device &device);
+        virtual ~Builder() {
+            delete[] m_occupancies;
+        };
+        virtual void init(uint32_t maxNumFaces);
         
         virtual void perform(cl::CommandQueue &queue,
                              const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,

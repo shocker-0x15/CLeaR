@@ -10,7 +10,7 @@
 #include "StopWatch.hpp"
 
 namespace LBVH {    
-    Builder::Builder(cl::Context &context, cl::Device &device, uint32_t numFaces) :
+    Builder::Builder(cl::Context &context, cl::Device &device) :
     CLUtil::Technique(context, device), m_techGlobalScan{context, device},
     localSizeCalcAABBs(128), localSizeUnifyAABBs(128), localSizeCalcMortonCodes(128),
     localSizeBlockwiseSort(64), localSizeCalcBlockHistograms(128),
@@ -36,122 +36,113 @@ namespace LBVH {
         m_kernelConstructBinaryRadixTree = cl::Kernel(programBuildAccel, "constructBinaryRadixTree");
         m_kernelCalcNodeAABBs = cl::Kernel(programBuildAccel, "calcNodeAABBs");
         
-        m_currentCapacity = numFaces;
-        setupWorkingBuffers();
-        m_createdBuffers = true;
+        m_currentCapacity = 0;
+        m_numBuildPass = (uint32_t)BuildPass::Num;
+    }
+    
+    void Builder::init(uint32_t maxNumFaces) {
+        if (m_occupancies)
+            delete[] m_occupancies;
+        m_occupancies = new std::vector<Occupancy>[static_cast<uint32_t>(m_numBuildPass)];
+        if (maxNumFaces > m_currentCapacity) {
+            m_currentCapacity = maxNumFaces;
+            setupWorkingBuffers();
+        }
+    }
+    
+    Builder::Occupancy Builder::reserveAlloc(uint64_t size, uint32_t align, uint32_t lifeStart, uint32_t lifeEnd) {
+        uint64_t offset = 0;
+        while (true) {
+            Occupancy overlapRange{UINT64_MAX, 0};
+            for (uint32_t pass = lifeStart; pass <= lifeEnd; ++pass) {
+                auto &occupanciesForPass = m_occupancies[pass];
+                for (uint32_t i = 0; i < occupanciesForPass.size(); ++i) {
+                    if (occupanciesForPass[i].overlaps(offset, offset + size - 1)) {
+                        overlapRange.memStart = std::min(overlapRange.memStart, occupanciesForPass[i].memStart);
+                        overlapRange.memEnd = std::max(overlapRange.memEnd, occupanciesForPass[i].memEnd);
+                    }
+                }
+            }
+            
+            if (overlapRange.memStart == UINT64_MAX)
+                break;
+            
+            offset = (overlapRange.memEnd + 1 + (align - 1)) & ~(align - 1);
+        }
+        
+        Occupancy region{offset, offset + size - 1};
+        for (uint32_t pass = lifeStart; pass <= lifeEnd; ++pass) {
+            m_occupancies[pass].push_back(region);
+        }
+        
+        return region;
     }
     
     void Builder::setupWorkingBuffers() {
-        enum {
-            BuildPass_calcAABBs,
-            BuildPass_unifyAABBs,
-            BuildPass_calcMortonCodes,
-            BuildPass_blockwiseSort,
-            BuildPass_calcBlockHistograms,
-            BuildPass_globalScan,
-            BuildPass_globalScatter,
-            BuildPass_constructBinaryRadixTree,
-            BuildPass_calcNodeAABBs,
-            NumBuildPasses
-        };
-        
-        struct Occupancy {
-            uint64_t memStart;
-            uint64_t memEnd;
-            bool overlaps(uint64_t start, uint64_t end) const {
-                return !(end < memStart || start > memEnd);
-            }
-            uint64_t size() const {
-                return memEnd - memStart + 1;
-            }
-        };
-        std::vector<Occupancy> occupancies[NumBuildPasses];
-        
-        // SubBufferの確保できる領域を検索して、確保領域に関する情報を記録する。
-        auto reserveAlloc = [&occupancies](uint64_t size, uint32_t align, uint32_t lifeStart, uint32_t lifeEnd) {
-            uint64_t offset = 0;
-            while (true) {
-                Occupancy overlapRange{UINT64_MAX, 0};
-                for (uint32_t pass = lifeStart; pass <= lifeEnd; ++pass) {
-                    auto &occupanciesForPass = occupancies[pass];
-                    for (uint32_t i = 0; i < occupanciesForPass.size(); ++i) {
-                        if (occupanciesForPass[i].overlaps(offset, offset + size - 1)) {
-                            overlapRange.memStart = std::min(overlapRange.memStart, occupanciesForPass[i].memStart);
-                            overlapRange.memEnd = std::max(overlapRange.memEnd, occupanciesForPass[i].memEnd);
-                        }
-                    }
-                }
-                
-                if (overlapRange.memStart == UINT64_MAX)
-                    break;
-                
-                offset = (overlapRange.memEnd + 1 + (align - 1)) & ~(align - 1);
-            }
-            
-            Occupancy region{offset, offset + size - 1};
-            for (uint32_t pass = lifeStart; pass <= lifeEnd; ++pass) {
-                occupancies[pass].push_back(region);
-            }
-            
-            return region;
-        };
-        
         const uint32_t numElementsHistograms = ((m_currentCapacity + (localSizeBlockwiseSort - 1)) / localSizeBlockwiseSort) * (1 << 3);
         const uint32_t sizeUnifyAABBWorkingBuffers = 2 * ((m_currentCapacity + (localSizeUnifyAABBs - 1)) / localSizeUnifyAABBs) * sizeof(AABB);
         
-        // AABBs, unifyAABBsWorkingBuffers, MortonCodes,
-        // indices, indices_shadow, radixDigits, histograms, offsets, globalScanWorkingBuffers
-        // parentIdxs, counters
-        std::vector<Occupancy> regions;
-        regions.push_back(reserveAlloc(m_currentCapacity * sizeof(AABB), 16, BuildPass_calcAABBs, BuildPass_constructBinaryRadixTree));
-        regions.push_back(reserveAlloc(sizeUnifyAABBWorkingBuffers, 16, BuildPass_unifyAABBs, BuildPass_unifyAABBs));
-        regions.push_back(reserveAlloc(m_currentCapacity * sizeof(cl_uint3), 16, BuildPass_calcMortonCodes, BuildPass_constructBinaryRadixTree));
-        regions.push_back(reserveAlloc(m_currentCapacity * sizeof(cl_uint), 4, BuildPass_calcMortonCodes, BuildPass_constructBinaryRadixTree));
-        regions.push_back(reserveAlloc(m_currentCapacity * sizeof(cl_uint), 4, BuildPass_blockwiseSort, BuildPass_constructBinaryRadixTree));
-        regions.push_back(reserveAlloc(m_currentCapacity * sizeof(cl_uchar), 1, BuildPass_blockwiseSort, BuildPass_globalScatter));
-        regions.push_back(reserveAlloc(numElementsHistograms * sizeof(cl_uint), 4, BuildPass_calcBlockHistograms, BuildPass_globalScatter));
-        regions.push_back(reserveAlloc(numElementsHistograms * sizeof(cl_uint), 4, BuildPass_calcBlockHistograms, BuildPass_globalScatter));
+        enum BufferID {
+            Buf_AABBs = 0,
+            Buf_unifyAABBsWBs,
+            Buf_MortonCodes,
+            Buf_indices,
+            Buf_indices_shadow,
+            Buf_radixDigits,
+            Buf_histograms,
+            Buf_offsets,
+            Buf_globalScanWBs,
+            Buf_parentIdxs,
+            Buf_counters,
+            NumBuffers
+        };
+        
+        // SubBufferの確保できる領域を検索して、確保領域に関する情報を記録する。
+        Occupancy regions[NumBuffers];
+        regions[Buf_AABBs] = reserveAlloc(m_currentCapacity * sizeof(AABB), 16, (uint32_t)BuildPass::calcAABBs, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_unifyAABBsWBs] = reserveAlloc(sizeUnifyAABBWorkingBuffers, 16, (uint32_t)BuildPass::unifyAABBs, (uint32_t)BuildPass::unifyAABBs);
+        regions[Buf_MortonCodes] = reserveAlloc(m_currentCapacity * sizeof(cl_uint3), 16, (uint32_t)BuildPass::calcMortonCodes, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_indices] = reserveAlloc(m_currentCapacity * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcMortonCodes, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_indices_shadow] = reserveAlloc(m_currentCapacity * sizeof(cl_uint), 4, (uint32_t)BuildPass::blockwiseSort, (uint32_t)BuildPass::constructBinaryRadixTree);
+        regions[Buf_radixDigits] = reserveAlloc(m_currentCapacity * sizeof(cl_uchar), 1, (uint32_t)BuildPass::blockwiseSort, (uint32_t)BuildPass::globalScatter);
+        regions[Buf_histograms] = reserveAlloc(numElementsHistograms * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcBlockHistograms, (uint32_t)BuildPass::globalScatter);
+        regions[Buf_offsets] = reserveAlloc(numElementsHistograms * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcBlockHistograms, (uint32_t)BuildPass::globalScatter);
         uint64_t globalScanBufferSize;
         uint32_t globalScanBufferAlign;
         m_techGlobalScan.calcWorkingBuffersRequirement(numElementsHistograms, &globalScanBufferSize, &globalScanBufferAlign);
-        regions.push_back(reserveAlloc(globalScanBufferSize, globalScanBufferAlign, BuildPass_globalScan, BuildPass_globalScan));
-        regions.push_back(reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_uint), 4, BuildPass_constructBinaryRadixTree, BuildPass_calcNodeAABBs));
-        regions.push_back(reserveAlloc((m_currentCapacity - 1) * sizeof(cl_uint), 4, BuildPass_constructBinaryRadixTree, BuildPass_calcNodeAABBs));
+        regions[Buf_globalScanWBs] = reserveAlloc(globalScanBufferSize, globalScanBufferAlign, (uint32_t)BuildPass::globalScan, (uint32_t)BuildPass::globalScan);
+        regions[Buf_parentIdxs] = reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::constructBinaryRadixTree, (uint32_t)BuildPass::calcNodeAABBs);
+        regions[Buf_counters] = reserveAlloc((m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::constructBinaryRadixTree, (uint32_t)BuildPass::calcNodeAABBs);
         
         uint64_t requiredSize = 0;
-        for (uint32_t i = 0; i < regions.size(); ++i) {
+        for (uint32_t i = 0; i < NumBuffers; ++i) {
             requiredSize = std::max(requiredSize, regions[i].memEnd);
         }
         requiredSize += 1;
         
         m_bufferGenericPool = cl::Buffer(m_context, CL_MEM_READ_WRITE, requiredSize, nullptr, nullptr);
+        auto createSubBuffer = [this, &regions](BufferID buf, uint32_t align) {
+            return cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION, regions[buf].memStart, align, regions[buf].size());
+        };
         
-        m_bufAABBs = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                         regions[0].memStart, 16, regions[0].size());
+        m_bufAABBs = createSubBuffer(Buf_AABBs, 16);
         m_bufs_unifyAABBs[0] = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                   regions[1].memStart, 16, regions[1].size() / 2);
+                                                   regions[Buf_unifyAABBsWBs].memStart, 16, regions[Buf_unifyAABBsWBs].size() / 2);
         m_bufs_unifyAABBs[1] = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                   regions[1].memStart + regions[1].size() / 2, 16, regions[1].size() / 2);
+                                                   regions[Buf_unifyAABBsWBs].memStart + regions[Buf_unifyAABBsWBs].size() / 2, 16,
+                                                   regions[Buf_unifyAABBsWBs].size() / 2);
         
-        m_bufMortonCodes = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                               regions[2].memStart, 16, regions[2].size());
-        m_bufIndices = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                           regions[3].memStart, 4, regions[3].size());
-        m_bufIndicesShadow = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                 regions[4].memStart, 4, regions[4].size());
-        m_bufRadixDigits = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                               regions[5].memStart, 1, regions[5].size());
-        m_bufHistograms = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                              regions[6].memStart, 4, regions[6].size());
-        m_bufLocalOffsets = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                                regions[7].memStart, 4, regions[7].size());
+        m_bufMortonCodes = createSubBuffer(Buf_MortonCodes, 16);
+        m_bufIndices = createSubBuffer(Buf_indices, 4);
+        m_bufIndicesShadow = createSubBuffer(Buf_indices_shadow, 4);
+        m_bufRadixDigits = createSubBuffer(Buf_radixDigits, 1);
+        m_bufHistograms = createSubBuffer(Buf_histograms, 4);
+        m_bufLocalOffsets = createSubBuffer(Buf_offsets, 4);
         uint64_t temp;
-        m_techGlobalScan.createWorkingBuffers(numElementsHistograms, m_bufferGenericPool, regions[8].memStart, &m_bufs_globalScan, &temp);
+        m_techGlobalScan.createWorkingBuffers(numElementsHistograms, m_bufferGenericPool, regions[Buf_globalScanWBs].memStart, &m_bufs_globalScan, &temp);
         
-        m_bufParentIdxs = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                              regions[9].memStart, 4, regions[9].size());
-        m_bufCounters = cl::createSubBuffer(m_bufferGenericPool, CL_MEM_READ_WRITE, CL_BUFFER_CREATE_TYPE_REGION,
-                                            regions[10].memStart, 4, regions[10].size());
+        m_bufParentIdxs = createSubBuffer(Buf_parentIdxs, 4);
+        m_bufCounters = createSubBuffer(Buf_counters, 4);
     }
     
     

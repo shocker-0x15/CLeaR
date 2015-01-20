@@ -298,7 +298,8 @@ int main(int argc, const char * argv[]) {
 #elif defined(__USE_TRBVH)
         stopwatch.start();
         
-        TRBVH::Builder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
+        TRBVH::Builder BVHBuilder{context, device};
+        BVHBuilder.init((uint32_t)scene.numFaces());
         
         printf("TRBVH build program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");

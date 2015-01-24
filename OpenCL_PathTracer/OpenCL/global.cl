@@ -91,6 +91,7 @@ typedef struct __attribute__((aligned(16))) {
 
 inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes);
 inline void AlignPtr(uchar** ptr, uintptr_t bytes);
+inline void AlignPtrL(const local uchar** ptr, uintptr_t bytes);
 inline void AlignPtrG(const global uchar** ptr, uintptr_t bytes);
 const uchar* AlignPtrAdd(const uchar** ptr, uintptr_t bytes);
 const global uchar* AlignPtrAddG(const global uchar** ptr, uintptr_t bytes);
@@ -113,6 +114,10 @@ inline void memcpyG2P(uchar* dst, const global uchar* src, uint numBytes) {
 
 inline void AlignPtr(uchar** ptr, uintptr_t bytes) {
     *ptr = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
+}
+
+inline void AlignPtrL(const local uchar** ptr, uintptr_t bytes) {
+    *ptr = (const local uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
 }
 
 inline void AlignPtrG(const global uchar** ptr, uintptr_t bytes) {

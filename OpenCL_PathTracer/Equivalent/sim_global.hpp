@@ -95,6 +95,7 @@ namespace sim {
     
     inline void memcpyG2P(uchar* dst, const uchar* src, uint numBytes);
     inline void AlignPtr(uchar** ptr, uintptr_t bytes);
+    inline void AlignPtrL(const uchar** ptr, uintptr_t bytes);
     inline void AlignPtrG(const uchar** ptr, uintptr_t bytes);
     const uchar* AlignPtrAdd(const uchar** ptr, uintptr_t bytes);
     const uchar* AlignPtrAddG(const uchar** ptr, uintptr_t bytes);
@@ -117,6 +118,10 @@ namespace sim {
     
     inline void AlignPtr(uchar** ptr, uintptr_t bytes) {
         *ptr = (uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
+    }
+    
+    inline void AlignPtrL(const uchar** ptr, uintptr_t bytes) {
+        *ptr = (const uchar*)(((uintptr_t)*ptr + (bytes - 1)) & ~(bytes - 1));
     }
     
     inline void AlignPtrG(const uchar** ptr, uintptr_t bytes) {

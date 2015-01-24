@@ -279,7 +279,7 @@ int main(int argc, const char * argv[]) {
         
         cl_context_properties ctx_props[] = {CL_CONTEXT_PLATFORM, (cl_context_properties)platform(), 0};
         cl::Context context{device, ctx_props};
-        const bool profiling = false;
+        const bool profiling = true;
         cl::CommandQueue queue{context, device, static_cast<cl_command_queue_properties>(profiling ? CL_QUEUE_PROFILING_ENABLE : 0)};
         std::vector<cl::Event> events;
         

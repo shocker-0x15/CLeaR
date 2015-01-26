@@ -416,16 +416,40 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
                 // ある部分集合に対する最終的なSAHコストと分割を記録する。
                 uint numLeaves_s = 0;
                 for (int j = 0; j < 7; ++j) {// この処理もローカルメモリやOpenCL 2.0のwork_group_broadcast()によって最適化できるかもしれない。
-                    if ((subset > j) & 0x01)
+                    if ((subset >> j) & 0x01)
                         numLeaves_s += isActualLeaf[j] ? 1 : numTotalLeaves[leafIndices[j] + numPrimitives];
                 }
                 float surfaceArea = surfaceAreas[(uchar)subset];
-                SAHCosts[(uchar)subset] = fmin(Ci * surfaceArea + c_s, Ct * surfaceArea * numLeaves_s);
+                treeletSAHCosts[(uchar)subset] = fmin(Ci * surfaceArea + c_s, Ct * surfaceArea * numLeaves_s);
                 partitions[(uchar)subset] = p_s;
             }
             
             barrier(CLK_LOCAL_MEM_FENCE);
         }
+        
+        // size: 6, subset: 7, active: 28
+        // 4 threads collaboratively process one subset.
+        if (lid0 < 28) {
+            char bit = lid0 >> 2;// 0 ~ 6
+            char lowMask = (1 << bit) - 1;// 000000, 000001, 000011, ... 111111
+            char subset = 0b1111111 ^ (1 << bit);// 1111110, 1111101, 1111011, ... 0111111
+            float c_s = INFINITY;
+            char p_s = 0;
+            for (char j = 0; j < 8; ++j) {
+                // ex) bit: 2 => 1111011
+                char p = 8 * (lid0 & 0b11) + j + 1;// 1 ~ 32
+                p = ((p & ~lowMask) << 1) | (p & lowMask);
+                float c = treeletSAHCosts[(uchar)p] + treeletSAHCosts[(uchar)(subset ^ p)];
+                if (c < c_s) {
+                    c_s = c;
+                    p_s = p;
+                }
+            }
+        }
+        
+        // Subset size: 7
+        barrier(CLK_LOCAL_MEM_FENCE);
+        
         // END: Optimize every subset of leaves
         //----------------------------------------------------------------
     }

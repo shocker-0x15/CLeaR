@@ -50,4 +50,4 @@ There are code for loading a obj file and textures, but those assets are NOT inc
 It assumes for a obj file to be created using Blender 2.70 with export settings: default settings + "Write Normals" + "Triangulate Faces" + "Material Groups".
 
 ----
-2014 [@Shocker_0x15](https://twitter.com/Shocker_0x15)
+2015 [@Shocker_0x15](https://twitter.com/Shocker_0x15)

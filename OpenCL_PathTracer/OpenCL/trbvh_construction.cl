@@ -26,11 +26,13 @@ typedef enum {
     TreeletLeaf = 1 << 1,
 } TreeletNodeType;
 
-const constant uint n = 7;
-const constant float Ci = 1.2f;
-const constant float Ct = 1.0f;
+#define TL_n 7
+#define C_i 1.2f
+#define C_t 1.0f
 
 // SIMD幅32のためのスケジュール。
+#define SCHEDULE schedule2to5
+#define NUM_OptRounds 5
 const constant char schedule2to5[] = {
     // size: 2, active: 10(10)
     0b0000011, 0b0000101, 0b0000110, 0b0001001, 0b0001010, 0b0001100, 0b0010001, 0b0010010,
@@ -106,7 +108,7 @@ kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters,
     point3 max = lNode->bbox.max;
     uint numLeaves = 1;
     vector3 edge = max - min;
-    float SAHCost = Ct * (edge.x * edge.y + edge.y * edge.z + edge.z * edge.x);
+    float SAHCost = C_t * (edge.x * edge.y + edge.y * edge.z + edge.z * edge.x);
     
     uint selfIdx = gid0;
     uint tgtIdx = parentIdxs[gid0];
@@ -135,7 +137,7 @@ kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters,
         
         vector3 edge = max - min;
         float area = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
-        SAHCost = fmin(Ci * area + (SAHCost + SAHCosts[otherIdx]), Ct * area * numLeaves);
+        SAHCost = fmin(C_i * area + (SAHCost + SAHCosts[otherIdx]), C_t * area * numLeaves);
         SAHCostsUC[tgtIdx] = SAHCost;
         
         if (tgtIdx == 0)
@@ -176,10 +178,17 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
     const uint lid0 = get_local_id(0);
     global InternalNode* iNodes = (global InternalNode*)_iNodes;
     const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
-    local uchar localMemPool[676] __attribute__((aligned(4)));
+    
+     // Keplerアーキテクチャーだとローカルメモリ使用量は768B以下が望ましい。
+    local float SA_SAHCosts[128];
+    local float* subsetSurfaceAreas = SA_SAHCosts;
+    local float* subsetSAHCosts = SA_SAHCosts;
+    local char partitions[128];
     
     local uint numRoots;
     local uint treeletRoots[8];
+    local uchar extraLMemPool[164] __attribute__((aligned(4)));
+    
     if (lid0 == 0)
         numRoots = 0;
     barrier(CLK_LOCAL_MEM_FENCE);
@@ -195,6 +204,8 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         
         while (atomic_inc(counters + pIdx) == 3) {
             if (numTotalLeaves[pIdx] >= gamma/* || pIdx == 0*/) {
+                // この部分もCUDAのballot()のようなものがあればローカルメモリやatomicを使わず効率化可能。SIMD幅はハード依存性が高いためか、OpenCL 2.0にもballot()に相当するものは無い。
+                // work_group_broadcast(rootIdx, work_group_reduce_max(lid0 * !done))でループすれば比較的シンプルに書くことは可能？
                 treeletRoots[atomic_inc(&numRoots)] = pIdx;
                 break;
             }
@@ -214,11 +225,12 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
     // END: Bottom-up Traversal
     //----------------------------------------------------------------
     
-    local uint* leafIndices = (local uint*)localMemPool;
-    local float* surfaceAreas = (local float*)alignPtrL(leafIndices + 2 * n - 1, sizeof(float));
-    local uchar* localIndices = (local uchar*)alignPtrL(surfaceAreas + 2 * n - 1, sizeof(uchar));
-    local uchar* depths = (local uchar*)alignPtrL(localIndices + 2 * n - 1, sizeof(uchar));
-    local uchar* maxDepth = (local uchar*)alignPtrL(depths + 2 * n - 1, sizeof(uchar));
+    // extraLMem: 0 - 131bytes
+    local uint* leafIndices = (local uint*)alignPtrL(extraLMemPool, sizeof(uint));
+    local float* surfaceAreas = (local float*)alignPtrL(leafIndices + 2 * TL_n - 1, sizeof(float));
+    local uchar* localIndices = (local uchar*)alignPtrL(surfaceAreas + 2 * TL_n - 1, sizeof(uchar));
+    local uchar* depths = (local uchar*)alignPtrL(localIndices + 2 * TL_n - 1, sizeof(uchar));
+    local uchar* maxDepth = (local uchar*)alignPtrL(depths + 2 * TL_n - 1, sizeof(uchar));
     uint parent;
     TreeletNodeType nodeType;
     AABB bbox;
@@ -255,7 +267,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         }
         barrier(CLK_LOCAL_MEM_FENCE);
         
-        for (int j = 0; j < (int)n - 2; ++j) {
+        for (int j = 0; j < TL_n - 2; ++j) {
             uint maxIndex = maxSurfaceAreaIndex(lid0, depths[lid0], parent, localIndices, surfaceAreas, *maxDepth, 3 + 2 * j);
             
             if ((int)lid0 - 2 * j ==  3 || (int)lid0 - 2 * j == 4) {
@@ -291,24 +303,15 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         //----------------------------------------------------------------
         // Local Memory Compaction
         // 後の処理で扱いやすくなるように、treelet leafのインデックスなどをローカルメモリ中で詰めておく。
-        local bool* isActualLeaf = (local bool*)alignPtrL(leafIndices + n, sizeof(bool));
-        surfaceAreas = (local float*)alignPtrL(isActualLeaf + n, sizeof(float));
+        // extraLMem: 28 - 80
+        local bool* isActualLeaf = (local bool*)alignPtrL(leafIndices + TL_n, sizeof(bool));
+        local uchar* leafRefs = (local uchar*)alignPtrL(isActualLeaf + TL_n, sizeof(uchar));
+        local uint* idxCounter = (local uint*)alignPtrL(leafRefs + TL_n, sizeof(uint));
         // CUDAにおけるshuffle()がOpenCL 1.2では使えないのでこの後のAABBの組み合わせ計算ステップではこのローカルメモリ領域を経由させる。
-        local AABB* leafAABB = (local AABB*)alignPtrL(surfaceAreas + 128, sizeof(point3));
-        local uchar* leafRefs = (local uchar*)alignPtrL(leafAABB + 1, sizeof(uchar));
-        local uint* idxCounter = (local uint*)alignPtrL(leafRefs + n, sizeof(uint));
-//        if (lid0 == 0 && get_group_id(0) == 0)
-//            printf("numRoots: %#08x\n"
-//                   "treeletRoots: %#08x\n"
-//                   "leafIndices: %#08x\n"
-//                   "isActualLeaf: %#08x\n"
-//                   "surfaceAreas: %#08x\n"
-//                   "leafAABB: %#08x\n"
-//                   "leafRefs: %#08x\n"
-//                   "idxCounter: %#08x\n", &numRoots, treeletRoots, leafIndices, isActualLeaf, surfaceAreas, leafAABB, leafRefs, idxCounter);
-//        return;
+        local AABB* leafAABB = (local AABB*)alignPtrL(idxCounter + 1, sizeof(point3));
+        
         uint leafIndex = UINT_MAX;
-        if (lid0 < 2 * n - 1 && (nodeType & TreeletLeaf) == TreeletLeaf)
+        if (lid0 < 2 * TL_n - 1 && (nodeType & TreeletLeaf) == TreeletLeaf)
             leafIndex = leafIndices[lid0];
         if (lid0 == 0)
             *idxCounter = 0;
@@ -335,7 +338,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         commonAABBMin = (point3)(INFINITY, INFINITY, INFINITY);
         commonAABBMax = (point3)(-INFINITY, -INFINITY, -INFINITY);
         uchar commonFlags = 4 * (lid0 + 1) - 1;
-        for (int j = 6; j > 1; --j) {
+        for (int j = TL_n - 1; j > 1; --j) {
             if (leafRefs[j] == lid0)// OpenCL 2.0なら *** = work_group_broadcast(bbox.min, leafRefs[j])と言った感じで書ける？
                 *leafAABB = bbox;
             barrier(CLK_LOCAL_MEM_FENCE);
@@ -347,7 +350,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         AABB unifiedAABB;
         // 共通AABBのみ。
         vector3 edge = commonAABBMax - commonAABBMin;
-        surfaceAreas[4 * lid0 + 0] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        subsetSurfaceAreas[4 * lid0 + 0] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
         // インデックス0のAABBと共通AABBの和。
         if (leafRefs[0] == lid0)
             *leafAABB = bbox;
@@ -355,7 +358,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         unifiedAABB.min = fmin(commonAABBMin, leafAABB->min);
         unifiedAABB.max = fmax(commonAABBMax, leafAABB->max);
         edge = unifiedAABB.max - unifiedAABB.min;
-        surfaceAreas[4 * lid0 + 1] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        subsetSurfaceAreas[4 * lid0 + 1] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
         // インデックス1のAABBと共通AABBの和。
         if (leafRefs[1] == lid0)
             *leafAABB = bbox;
@@ -363,7 +366,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         unifiedAABB.min = fmin(commonAABBMin, leafAABB->min);
         unifiedAABB.max = fmax(commonAABBMax, leafAABB->max);
         edge = unifiedAABB.max - unifiedAABB.min;
-        surfaceAreas[4 * lid0 + 2] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        subsetSurfaceAreas[4 * lid0 + 2] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
         // インデックス0, 1のAABBと共通AABBの和。
         if (leafRefs[0] == lid0)
             *leafAABB = bbox;
@@ -371,27 +374,25 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         unifiedAABB.min = fmin(unifiedAABB.min, leafAABB->min);
         unifiedAABB.max = fmax(unifiedAABB.max, leafAABB->max);
         edge = unifiedAABB.max - unifiedAABB.min;
-        surfaceAreas[4 * lid0 + 3] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        subsetSurfaceAreas[4 * lid0 + 3] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
 //        if (lid0 == 0)
-//            printf("%5u: %f\n", treeletRoots[i], surfaceAreas[127]);
+//            printf("%5u: %f\n", treeletRoots[i], subsetSurfaceAreas[127]);
+//        return;
         // END: AABB Calculation
         //----------------------------------------------------------------
         
-        local float* treeletSAHCosts = surfaceAreas;
-        local uchar* partitions = (local uchar*)alignPtrL(treeletSAHCosts + 128, sizeof(uchar));
-        
         // Initialize costs of individual leaves
         // 単独のノードだけが分割される場合のSAHコストを初期化しておく。
-        if (lid0 < n)
-            treeletSAHCosts[1 << lid0] = SAHCosts[leafIndices[lid0] + (isActualLeaf[lid0] ? 0 : numPrimitives)];
+        if (lid0 < TL_n)
+            subsetSAHCosts[1 << lid0] = SAHCosts[leafIndices[lid0] + (isActualLeaf[lid0] ? 0 : numPrimitives)];
         barrier(CLK_LOCAL_MEM_FENCE);
         
         //----------------------------------------------------------------
         // Optimize every subset of leaves
         // 7つのtreelet leafの部分集合それぞれに対してSAHコストが最小となる分割を求める。
         // 基本的に部分集合のサイズの小さいものから順番に求めるが、SIMD利用率を向上させるため、サイズ2~5は予め作成済みのスケジュールに従って異なるサイズも一部並列に処理する。
-        for (int round = 0; round < 5; ++round) {
-            char subset = schedule2to5[32 * round + lid0];
+        for (int round = 0; round < NUM_OptRounds; ++round) {
+            char subset = SCHEDULE[32 * round + lid0];
             if (subset != 0) {
                 float c_s = INFINITY;
                 char p_s = 0;
@@ -402,7 +403,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
                 char p = (-delta) & subset;
 //                uchar pCount = 0;
                 do {
-                    float c = treeletSAHCosts[(uchar)p] + treeletSAHCosts[(uchar)(subset ^ p)];
+                    float c = subsetSAHCosts[(uchar)p] + subsetSAHCosts[(uchar)(subset ^ p)];
                     if (c < c_s) {
                         c_s = c;
                         p_s = p;
@@ -415,42 +416,131 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
                 
                 // ある部分集合に対する最終的なSAHコストと分割を記録する。
                 uint numLeaves_s = 0;
-                for (int j = 0; j < 7; ++j) {// この処理もローカルメモリやOpenCL 2.0のwork_group_broadcast()によって最適化できるかもしれない。
+                for (int j = 0; j < TL_n; ++j) {// この処理もローカルメモリやOpenCL 2.0のwork_group_broadcast()によって最適化できるかもしれない。
                     if ((subset >> j) & 0x01)
                         numLeaves_s += isActualLeaf[j] ? 1 : numTotalLeaves[leafIndices[j] + numPrimitives];
                 }
-                float surfaceArea = surfaceAreas[(uchar)subset];
-                treeletSAHCosts[(uchar)subset] = fmin(Ci * surfaceArea + c_s, Ct * surfaceArea * numLeaves_s);
+                float surfaceArea = subsetSurfaceAreas[(uchar)subset];
+                subsetSAHCosts[(uchar)subset] = fmin(C_i * surfaceArea + c_s, C_t * surfaceArea * numLeaves_s);
                 partitions[(uchar)subset] = p_s;
             }
             
             barrier(CLK_LOCAL_MEM_FENCE);
         }
         
+        // extraLMem: 35 - 164
+        local uint* lNumLeaves_s = (local uint*)alignPtrL(isActualLeaf + TL_n, sizeof(uint));
+        local float* reductionBuffer = (local float*)alignPtrL(isActualLeaf + TL_n, sizeof(float));
+        
         // size: 6, subset: 7, active: 28
-        // 4 threads collaboratively process one subset.
+        // 1つの部分集合(31通りの分割)を4つのスレッドで処理する。1スレッドあたり8種類の分割コストを計算する。
+        // 4番目のスレッドの最後1つは余分な(重複した)計算となるが、そのためだけにif文を追加するのも微妙？
+        float c_s = INFINITY;
+        char p_s = 0;
+        char bit = lid0 >> 2;// 0 ~ 6
+        char subset = 0b1111111 ^ (1 << bit);// 1111110, 1111101, 1111011, ... 0111111
+        // 部分集合毎のLeafノードの数を求めて、同じ部分集合を処理するスレッド間で共有しておく。
+        uint numLeaves_s = 0;
+        if (lid0 < 28 && (lid0 & 0b11) == 0) {
+            for (int j = 0; j < TL_n; ++j) {// この処理もローカルメモリやOpenCL 2.0のwork_group_broadcast()によって最適化できるかもしれない。
+                if ((subset >> j) & 0x01)
+                    numLeaves_s += isActualLeaf[j] ? 1 : numTotalLeaves[leafIndices[j] + numPrimitives];
+            }
+            lNumLeaves_s[(uchar)bit] = numLeaves_s;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+        numLeaves_s = lNumLeaves_s[(uchar)bit];
         if (lid0 < 28) {
-            char bit = lid0 >> 2;// 0 ~ 6
             char lowMask = (1 << bit) - 1;// 000000, 000001, 000011, ... 111111
-            char subset = 0b1111111 ^ (1 << bit);// 1111110, 1111101, 1111011, ... 0111111
-            float c_s = INFINITY;
-            char p_s = 0;
             for (char j = 0; j < 8; ++j) {
                 // ex) bit: 2 => 1111011
                 char p = 8 * (lid0 & 0b11) + j + 1;// 1 ~ 32
                 p = ((p & ~lowMask) << 1) | (p & lowMask);
-                float c = treeletSAHCosts[(uchar)p] + treeletSAHCosts[(uchar)(subset ^ p)];
+                float c = subsetSAHCosts[(uchar)p] + subsetSAHCosts[(uchar)(subset ^ p)];
                 if (c < c_s) {
                     c_s = c;
                     p_s = p;
                 }
             }
+            reductionBuffer[lid0] = c_s;
         }
+        else {
+            reductionBuffer[lid0] = INFINITY;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+        // 4スレッド間でreductionを行い、最小コストを求める。最小のコストに一致するスレッドが保持する分割を記録する。
+        if ((lid0 & 0b01) == 0)
+            reductionBuffer[lid0] = fmin(reductionBuffer[lid0], reductionBuffer[lid0 + 1]);
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if ((lid0 & 0b11) == 0)
+            reductionBuffer[lid0] = fmin(reductionBuffer[lid0], reductionBuffer[lid0 + 2]);
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (lid0 < 28 && c_s == reductionBuffer[lid0 & ~0b11]) {
+            float surfaceArea = subsetSurfaceAreas[(uchar)subset];
+            subsetSAHCosts[(uchar)subset] = fmin(C_i * surfaceArea + c_s, C_t * surfaceArea * numLeaves_s);
+            partitions[(uchar)subset] = p_s;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
         
-        // Subset size: 7
+        
+        // size: 7, subset: 1, active: 32
+        // 部分集合はそもそも1つしか存在しない。63通り(0000001 ~ 0111111)の分割が考えられるため、各スレッドが2つの分割コストを計算する。
+        if (lid0 == 0) {
+            for (int j = 0; j < 7; ++j) {
+                numLeaves_s += isActualLeaf[j] ? 1 : numTotalLeaves[leafIndices[j] + numPrimitives];
+            }
+            lNumLeaves_s[0] = numLeaves_s;
+            subsetSAHCosts[0] = subsetSAHCosts[0b1111111] = INFINITY;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+        numLeaves_s = lNumLeaves_s[0];
+        char p = 2 * lid0 + 0;
+        float c_s0 = subsetSAHCosts[(uchar)p] + subsetSAHCosts[(uchar)(0b1111111 ^ p)];
+        p += 1;
+        float c_s1 = subsetSAHCosts[(uchar)p] + subsetSAHCosts[(uchar)(0b1111111 ^ p)];
+        c_s = c_s0 < c_s1 ? c_s0 : c_s1;
+        p_s = c_s0 < c_s1 ? (p - 1) : p;
+        reductionBuffer[lid0] = c_s;
+        barrier(CLK_LOCAL_MEM_FENCE);
+        // 2スレッド毎の最小コストを求めた段階でreductionを実行、全ての分割中で最小のコストを求める。最小のコストに一致するスレッドが保持する分割を記録する。
+        for (uint j = 16; j > 0; j >>= 1) {
+            if (lid0 < j)
+                reductionBuffer[lid0] = fmin(reductionBuffer[lid0], reductionBuffer[lid0 + j]);
+            barrier(CLK_LOCAL_MEM_FENCE);
+        }
+        if (lid0 < 32 && c_s == reductionBuffer[0]) {
+            float surfaceArea = subsetSurfaceAreas[(uchar)0b1111111];
+            subsetSAHCosts[(uchar)0b1111111] = fmin(C_i * surfaceArea + c_s, C_t * surfaceArea * numLeaves_s);
+            partitions[(uchar)0b1111111] = p_s;
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
         
         // END: Optimize every subset of leaves
         //----------------------------------------------------------------
+        
+//        if (lid0 == 0 && get_group_id(0) == 0)
+//            printf("subsetSurfaceAreas: %#08x\n"
+//                   "subsetSAHCosts: %#08x\n"
+//                   "partitions: %#08x\n"
+//                   "extraLMemPool: %#08x\n"
+//                   "numRoots: %#08x\n"
+//                   "treeletRoots: %#08x\n"
+//                   "leafIndices: %#08x\n"
+//                   "surfaceAreas: %#08x\n"
+//                   "localIndices: %#08x\n"
+//                   "depths: %#08x\n"
+//                   "maxDepth: %#08x\n"
+//                   "isActualLeaf: %#08x\n"
+//                   "leafRefs: %#08x\n"
+//                   "idxCounter: %#08x\n"
+//                   "leafAABB: %#08x\n"
+//                   "lNumLeaves_s: %#08x\n"
+//                   "reductionBuffer: %#08x\n",
+//                   subsetSurfaceAreas, subsetSAHCosts, partitions, extraLMemPool,
+//                   &numRoots, treeletRoots, leafIndices, surfaceAreas,
+//                   localIndices, depths, maxDepth, isActualLeaf,
+//                   leafRefs, idxCounter, leafAABB, lNumLeaves_s,
+//                   reductionBuffer);
+//        return;
     }
 }

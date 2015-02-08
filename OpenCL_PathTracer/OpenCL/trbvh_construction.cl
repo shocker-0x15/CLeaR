@@ -28,13 +28,14 @@ typedef enum {
 } TLNodeType;
 
 #define TL_n 7
+#define FullSet 0b1111111
 #define C_i 1.2f
 #define C_t 1.0f
 
 // SIMD幅32のためのスケジュール。
-#define SCHEDULE schedule2to5
+#define SIMD_Width 32
 #define NUM_OptRounds 5
-const constant char schedule2to5[] = {
+const constant char schedule[] = {
     // size: 2, active: 10(10)
     0b0000011, 0b0000101, 0b0000110, 0b0001001, 0b0001010, 0b0001100, 0b0010001, 0b0010010,
     0b0010100, 0b0011000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000, 0b0000000,
@@ -78,6 +79,8 @@ kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters,
 inline uint __ballot(local uint* mem, uint localID, bool pred);
 inline uint largestOneBit32(uint value);
 inline void setZeroAt32(uint* value, uint index);
+inline float calcSurfaceAreaAABB(const AABB bb);
+inline AABB unionAABB(const AABB bb0, const local AABB* bb1);
 uint maxSurfaceAreaIndex(uint lid, local float* TLSurfaceAreas, local uint* TLIndices, uint numElems);
 kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives,
                                  const global uint* parentIdxs, global uint* numTotalLeaves, global float* SAHCosts,
@@ -94,7 +97,6 @@ inline local uchar* alignPtrL(const local void* ptr, uintptr_t bytes) {
 kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters, const global uchar* _lNodes, uint numPrimitives,
                                    const global uint* parentIdxs, global uint* numTotalLeaves, global float* SAHCosts) {
     const uint gid0 = get_global_id(0);
-    //    const uint lid0 = get_local_id(0);
     if (gid0 >= numPrimitives)
         return;
     
@@ -102,9 +104,6 @@ kernel void calcNodeAABBs_SAHCosts(global uchar* _iNodes, global uint* counters,
     const global LeafNode* lNodes = (const global LeafNode*)_lNodes;
     volatile global uint* numTotalLeavesUC = (volatile global uint*)numTotalLeaves;
     volatile global float* SAHCostsUC = (volatile global float*)SAHCosts;
-    
-    //    uint localCounters[CALC_NODE_AABB_GROUP_SIZE];
-    //    localCounters[lid0] = 0;
     
     const global LeafNode* lNode = lNodes + gid0;
     point3 min = lNode->bbox.min;
@@ -176,6 +175,20 @@ inline uint largestOneBit32(uint value) {
 // indexで指定したビットをゼロにセットする。
 inline void setZeroAt32(uint* value, uint index) {
     *value &= ~(1 << index);
+}
+
+// AABBの表面積(の半分)を計算する。
+inline float calcSurfaceAreaAABB(const AABB bb) {
+    vector3 edge = bb.max - bb.min;
+    return edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+}
+
+// AABBの和を計算する。
+inline AABB unionAABB(const AABB bb0, const local AABB* bb1) {
+    AABB ret;
+    ret.min = fmin(bb0.min, bb1->min);
+    ret.max = fmax(bb0.max, bb1->max);
+    return ret;
 }
 
 // 最も大きな表面積を持つノード(leaf nodeは除外)のインデックスを返す。
@@ -251,9 +264,8 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         
         //----------------------------------------------------------------
         // Treelet Formation
-        // サブツリーのルートとその子2つから始めて、AABBの表面積の大きいtreelet leafをその子2つで置き換えるという処理を繰り返す。
-        // 5回繰り返すことによって7個のtreelet leafを持ったtreeletを形成する。
-        // extraLMem:
+        // サブツリーのルートから始めて、AABBの表面積の大きいtreelet leafをその子2つで置き換えるという処理を繰り返す。
+        // 6回繰り返すことによって7個のtreelet leafを持ったtreeletを形成する。
         local float* TLSurfaceAreas = (local float*)alignPtrL(extraLMemPool, sizeof(float));
         local uint* TLIndices = (local uint*)alignPtrL(TLSurfaceAreas + 2 * TL_n - 1, sizeof(uint));
         
@@ -287,77 +299,66 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
                 bool isActualLeaf = iNode->isLeaf[lr];
                 nodeType = TLNodeType_Leaf | (isActualLeaf ? TLNodeType_ActualLeaf : 0);
                 bbox = isActualLeaf ? (lNodes + nodeIdx)->bbox : (iNodes + nodeIdx)->bbox;
+                surfaceArea = calcSurfaceAreaAABB(bbox);
                 numLeaves = isActualLeaf ? 1 : numTotalLeaves[numPrimitives + nodeIdx];
-                vector3 edge = bbox.max - bbox.min;
-                surfaceArea = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
             }
         }
         // END: Treelet Formation
         //----------------------------------------------------------------
     
-        uint TLLeafFlags = ballot((nodeType & TLNodeType_Leaf) == TLNodeType_Leaf);
-        uchar TLLeafIdx = UCHAR_MAX;
-        uchar i = TL_n - 1;
-        while (popcount(TLLeafFlags) > 0) {
-            uint TLLeafBitIdx = largestOneBit32(TLLeafFlags);
-            if (TLLeafBitIdx == lid0)
-                TLLeafIdx = i;
-            setZeroAt32(&TLLeafFlags, TLLeafBitIdx);
-            --i;
-        }
+        // 各スレッドが自身が何番目のTreelet Leafなのかを計算する。Treelet Leafじゃない場合はUCHAR_MAX。
+        // ex) TLLeafFlags: 0001 1110 1010 0010, localID: 5
+        //              AND 0000 0000 0001 1111
+        //                  0000 0000 0000 0010 => popcount => 1
+        bool TLLeafThread = (nodeType & TLNodeType_Leaf) == TLNodeType_Leaf;
+        uint TLLeafFlags = ballot(TLLeafThread);
+        uchar TLLeafIdx = TLLeafThread ? popcount(TLLeafFlags & ((1 << lid0) - 1)) : UCHAR_MAX;
         
         //----------------------------------------------------------------
         // AABB Calculation
         // 各スレッドが4パターンの組み合わせ、32のグループサイズで計128パターンのAABBの和の表面積を計算する。
         // スレッド内の4パターンでは、7つのAABBのうち5つ(インデックス2-6)の有無は共通となるので先に計算を済ませる。
-        local AABB* TLLeafAABB = (local AABB*)alignPtrL(extraLMemPool, sizeof(AABB));
-        point3 commonAABBMin, commonAABBMax;
-        commonAABBMin = (point3)(INFINITY, INFINITY, INFINITY);
-        commonAABBMax = (point3)(-INFINITY, -INFINITY, -INFINITY);
+        local AABB* TLLeafAABB = (local AABB*)alignPtrL(extraLMemPool, sizeof(point3));
+        AABB commonAABB;
+        commonAABB.min = (point3)(INFINITY, INFINITY, INFINITY);
+        commonAABB.max = (point3)(-INFINITY, -INFINITY, -INFINITY);
         for (int j = TL_n - 1; j > 1; --j) {
             if (TLLeafIdx == j)
                 *TLLeafAABB = bbox;
             barrier(CLK_LOCAL_MEM_FENCE);
-            if ((lid0 >> (j - 2)) & 0x01) {
-                commonAABBMin = fmin(commonAABBMin, TLLeafAABB->min);
-                commonAABBMax = fmax(commonAABBMax, TLLeafAABB->max);
-            }
+            if ((lid0 >> (j - 2)) & 0x01)
+                commonAABB = unionAABB(commonAABB, TLLeafAABB);
         }
         AABB unifiedAABB;
         // 共通AABBのみ。
-        vector3 edge = commonAABBMax - commonAABBMin;
-        subsetSurfaceAreas[4 * lid0 + 0] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        subsetSurfaceAreas[4 * lid0 + 0] = calcSurfaceAreaAABB(commonAABB);
         // インデックス0のAABBと共通AABBの和。
         if (TLLeafIdx == 0)
             *TLLeafAABB = bbox;
         barrier(CLK_LOCAL_MEM_FENCE);
-        unifiedAABB.min = fmin(commonAABBMin, TLLeafAABB->min);
-        unifiedAABB.max = fmax(commonAABBMax, TLLeafAABB->max);
-        edge = unifiedAABB.max - unifiedAABB.min;
-        subsetSurfaceAreas[4 * lid0 + 1] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        unifiedAABB = unionAABB(commonAABB, TLLeafAABB);
+        subsetSurfaceAreas[4 * lid0 + 1] = calcSurfaceAreaAABB(unifiedAABB);
         // インデックス1のAABBと共通AABBの和。
         if (TLLeafIdx == 1)
             *TLLeafAABB = bbox;
         barrier(CLK_LOCAL_MEM_FENCE);
-        unifiedAABB.min = fmin(commonAABBMin, TLLeafAABB->min);
-        unifiedAABB.max = fmax(commonAABBMax, TLLeafAABB->max);
-        edge = unifiedAABB.max - unifiedAABB.min;
-        subsetSurfaceAreas[4 * lid0 + 2] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        unifiedAABB = unionAABB(commonAABB, TLLeafAABB);
+        subsetSurfaceAreas[4 * lid0 + 2] = calcSurfaceAreaAABB(unifiedAABB);
         // インデックス0, 1のAABBと共通AABBの和。
         if (TLLeafIdx == 0)
             *TLLeafAABB = bbox;
         barrier(CLK_LOCAL_MEM_FENCE);
-        unifiedAABB.min = fmin(unifiedAABB.min, TLLeafAABB->min);
-        unifiedAABB.max = fmax(unifiedAABB.max, TLLeafAABB->max);
-        edge = unifiedAABB.max - unifiedAABB.min;
-        subsetSurfaceAreas[4 * lid0 + 3] = edge.x * edge.y + edge.y * edge.z + edge.z * edge.x;
+        unifiedAABB = unionAABB(unifiedAABB, TLLeafAABB);
+        subsetSurfaceAreas[4 * lid0 + 3] = calcSurfaceAreaAABB(unifiedAABB);
         // END: AABB Calculation
         //----------------------------------------------------------------
         
         // Initialize costs of individual leaves
         // 単独のノードだけが分割される場合のSAHコストを初期化しておく。
-        if (TLLeafIdx != UCHAR_MAX)
+        if (TLLeafIdx != UCHAR_MAX) {
             subsetSAHCosts[1 << TLLeafIdx] = SAHCosts[nodeIdx + ((nodeType & TLNodeType_ActualLeaf) == TLNodeType_ActualLeaf ? 0 : numPrimitives)];
+            partitions[1 << TLLeafIdx] = 0;
+        }
         barrier(CLK_LOCAL_MEM_FENCE);
         
         //----------------------------------------------------------------
@@ -369,7 +370,7 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
             TLLeafNumLeaves[TLLeafIdx] = numLeaves;
         barrier(CLK_LOCAL_MEM_FENCE);
         for (int round = 0; round < NUM_OptRounds; ++round) {
-            char subset = SCHEDULE[32 * round + lid0];
+            char subset = schedule[SIMD_Width * round + lid0];
             if (subset != 0) {
                 float c_s = INFINITY;
                 char p_s = 0;
@@ -407,18 +408,17 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         float c_s = INFINITY;
         char p_s = 0;
         char bit = lid0 >> 2;// 0 ~ 6
-        char subset = 0b1111111 ^ (1 << bit);// 1111110, 1111101, 1111011, ... 0111111
-        // 部分集合毎のLeafノードの数を求めて、同じ部分集合を処理するスレッド間で共有しておく。
+        char subset = FullSet ^ (1 << bit);// 1111110, 1111101, 1111011, ... 0111111
         uint numLeaves_s = 0;
         if (lid0 < 28) {
+            // 部分集合毎のLeafノードの数を求めて、同じ部分集合を処理するスレッド間で共有しておく。
             for (int j = 0; j < TL_n; ++j)
                 numLeaves_s += (subset >> j) & 0x01 ? TLLeafNumLeaves[j] : 0;
-        }
-        if (lid0 < 28) {
+            
             char lowMask = (1 << bit) - 1;// 000000, 000001, 000011, ... 111111
             for (char j = 0; j < 8; ++j) {
                 // ex) bit: 2 => 1111011
-                char p = 8 * (lid0 & 0b11) + j + 1;// 1 ~ 32
+                char p = 8 * (lid0 & 0x03) + j + 1;// 1 ~ 32
                 p = ((p & ~lowMask) << 1) | (p & lowMask);
                 float c = subsetSAHCosts[(uchar)p] + subsetSAHCosts[(uchar)(subset ^ p)];
                 if (c < c_s) {
@@ -426,20 +426,17 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
                     p_s = p;
                 }
             }
-            reductionBuffer[lid0] = c_s;
         }
-        else {
-            reductionBuffer[lid0] = INFINITY;
-        }
+        reductionBuffer[lid0] = c_s;
         barrier(CLK_LOCAL_MEM_FENCE);
         // 4スレッド間でreductionを行い、最小コストを求める。最小のコストに一致するスレッドが保持する分割を記録する。
-        if ((lid0 & 0b01) == 0)
+        if ((lid0 & 0x01) == 0)
             reductionBuffer[lid0] = fmin(reductionBuffer[lid0], reductionBuffer[lid0 + 1]);
         barrier(CLK_LOCAL_MEM_FENCE);
-        if ((lid0 & 0b11) == 0)
+        if ((lid0 & 0x03) == 0)
             reductionBuffer[lid0] = fmin(reductionBuffer[lid0], reductionBuffer[lid0 + 2]);
         barrier(CLK_LOCAL_MEM_FENCE);
-        if (lid0 < 28 && c_s == reductionBuffer[lid0 & ~0b11]) {
+        if (lid0 < 28 && c_s == reductionBuffer[lid0 & ~0x03]) {
             float surfaceArea = subsetSurfaceAreas[(uchar)subset];
             subsetSAHCosts[(uchar)subset] = fmin(C_i * surfaceArea + c_s, C_t * surfaceArea * numLeaves_s);
             partitions[(uchar)subset] = p_s;
@@ -456,9 +453,9 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
         barrier(CLK_LOCAL_MEM_FENCE);
         numLeaves_s = *numLeavesTreelet;
         char p = 2 * lid0 + 0;
-        float c_s0 = subsetSAHCosts[(uchar)p] + subsetSAHCosts[(uchar)(0b1111111 ^ p)];
+        float c_s0 = subsetSAHCosts[p] + subsetSAHCosts[FullSet ^ p];
         p += 1;
-        float c_s1 = subsetSAHCosts[(uchar)p] + subsetSAHCosts[(uchar)(0b1111111 ^ p)];
+        float c_s1 = subsetSAHCosts[p] + subsetSAHCosts[FullSet ^ p];
         c_s = c_s0 < c_s1 ? c_s0 : c_s1;
         p_s = c_s0 < c_s1 ? (p - 1) : p;
         reductionBuffer[lid0] = c_s;
@@ -470,17 +467,76 @@ kernel void treeletRestructuring(global uchar* _iNodes, global uint* counters, c
             barrier(CLK_LOCAL_MEM_FENCE);
         }
         if (lid0 < 32 && c_s == reductionBuffer[0]) {
-            float surfaceArea = subsetSurfaceAreas[(uchar)0b1111111];
-            subsetSAHCosts[(uchar)0b1111111] = fmin(C_i * surfaceArea + c_s, C_t * surfaceArea * numLeaves_s);
-            partitions[(uchar)0b1111111] = p_s;
+            float surfaceArea = subsetSurfaceAreas[FullSet];
+            subsetSAHCosts[FullSet] = fmin(C_i * surfaceArea + c_s, C_t * surfaceArea * numLeaves_s);
+            partitions[FullSet] = p_s;
         }
         barrier(CLK_LOCAL_MEM_FENCE);
         // END: Optimize every subset of leaves
         //----------------------------------------------------------------
         
+        // 各スレッドが自身が何番目のTreelet Internalなのかを計算する。Treelet Internalじゃない場合はUCHAR_MAX。
+        bool TLIntThread = (nodeType & TLNodeType_Internal) == TLNodeType_Internal;
+        uint TLIntFlags = ballot(TLIntThread);
+        uchar TLIntIdx = TLIntThread ? popcount(TLIntFlags & ((1 << lid0) - 1)) : UCHAR_MAX;
+        
         //----------------------------------------------------------------
         // Reconstruction
-
+        // Optimizationステップで記録された分割方法を基に木構造を再構築する。
+        // Treelet Leaf Nodeには一切触れず、Treelet Internal Nodeも接続情報を変えるだけ。
+        local char* partitionPair = (local char*)alignPtrL(extraLMemPool, sizeof(char));
+        local bool* childIsLeaf = (local bool*)alignPtrL(partitionPair + 2, sizeof(bool));
+        local uint* childIdx = (local uint*)alignPtrL(childIsLeaf, sizeof(uint));
+        subset = FullSet;
+        uint c[2] = {0, 0};
+        bool isLeaf[2] = {false, false};
+        uchar nextIntIdx = 1;
+        for (int i = 0; i < TL_n - 1; ++i) {
+            if (TLIntIdx == i) {
+                partitionPair[0] = partitions[subset];
+                partitionPair[1] = subset ^ partitionPair[0];
+            }
+            barrier(CLK_LOCAL_MEM_FENCE);
+            
+            for (int j = 0; j < 2; ++j) {
+                // 分割後の要素数に応じてTreelet Internal/Leaf Nodeのインデックスを取得する。
+                if (popcount(partitionPair[j]) > 1) {
+                    // 分割後の部分集合を担当するスレッドに部分集合の内容を伝えておく。
+                    if (TLIntIdx == nextIntIdx) {
+                        *childIdx = nodeIdx;
+                        subset = partitionPair[j];
+                    }
+                    *childIsLeaf = false;
+                    ++nextIntIdx;
+                }
+                else {
+                    if (TLLeafIdx == popcount(partitionPair[j] - 1)) {
+                        *childIdx = nodeIdx;
+                        *childIsLeaf = (nodeType & TLNodeType_ActualLeaf) == TLNodeType_ActualLeaf;
+                    }
+                }
+                barrier(CLK_LOCAL_MEM_FENCE);
+                
+                if (TLIntIdx == i) {
+                    c[j] = *childIdx;
+                    isLeaf[j] = *childIsLeaf;
+                }
+            }
+        }
+        
+        local bool* temp = (local bool*)alignPtrL(extraLMemPool, sizeof(bool));
+        if (rootThread)
+            *temp = false;
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (rootThread && treeletRoot == 3998)
+            *temp = true;
+        barrier(CLK_LOCAL_MEM_FENCE);
+        if (*temp) {
+            printf("Node: %5u%c, c0: %5u%c, c1: %5u%c\n",
+                   nodeIdx, (nodeType & TLNodeType_ActualLeaf) == TLNodeType_ActualLeaf ? 'L' : ' ',
+                   c[0], isLeaf[0] ? 'L' : ' ',
+                   c[1], isLeaf[1] ? 'L' : ' ');
+        }
         // END: Reconstruction
         //----------------------------------------------------------------
         

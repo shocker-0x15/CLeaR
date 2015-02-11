@@ -68,7 +68,7 @@ namespace TRBVH {
         regions[Buf_globalScanWBs] = reserveAlloc(globalScanBufferSize, globalScanBufferAlign, (uint32_t)BuildPass::globalScan, (uint32_t)BuildPass::globalScan);
         regions[Buf_parentIdxs] = reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::constructBinaryRadixTree, (uint32_t)BuildPass::calcNodeAABBs);
         regions[Buf_counters] = reserveAlloc((m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::constructBinaryRadixTree, (uint32_t)BuildPass::calcNodeAABBs);
-        regions[Buf_numTotalLeaves] = reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcNodeAABBs, (uint32_t)BuildPass::TreeletRestructuring);
+        regions[Buf_numTotalLeaves] = reserveAlloc((m_currentCapacity - 1) * sizeof(cl_uint), 4, (uint32_t)BuildPass::calcNodeAABBs, (uint32_t)BuildPass::TreeletRestructuring);
         regions[Buf_SAHCosts] = reserveAlloc((2 * m_currentCapacity - 1) * sizeof(cl_float), 4, (uint32_t)BuildPass::calcNodeAABBs, (uint32_t)BuildPass::TreeletRestructuring);
         
         uint64_t requiredSize = 0;
@@ -220,7 +220,7 @@ namespace TRBVH {
 //        std::vector<float> SAHCosts;
 //        internalNodes.resize(numFaces - 1);
 //        leafNodes.resize(numFaces);
-//        numTotalLeaves.resize(2 * numFaces - 1);
+//        numTotalLeaves.resize(numFaces - 1);
 //        SAHCosts.resize(2 * numFaces - 1);
 //        queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
 //        queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
@@ -234,7 +234,7 @@ namespace TRBVH {
 //            printf("%5u | %5u%c, %5u%c|Area: %10.6f, #Leaves: %5u, SAHCost: %10.6f\n", i,
 //                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
 //                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
-//                   surfaceArea, numTotalLeaves[numFaces + i], SAHCosts[numFaces + i]);
+//                   surfaceArea, numTotalLeaves[i], SAHCosts[numFaces + i]);
 //        }
 //        printf("--------------------------------\n");
 //        printf("Leaf Nodes\n");
@@ -242,7 +242,7 @@ namespace TRBVH {
 //            LeafNode &lNode = leafNodes[i];
 //            cl_float3 edge{lNode.bbox.max.s0 - lNode.bbox.min.s0, lNode.bbox.max.s1 - lNode.bbox.min.s1, lNode.bbox.max.s2 - lNode.bbox.min.s2};
 //            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-//            printf("%5uL|         %5u |Area: %10.6f, #Leaves: %5u, SAHCost: %10.6f\n", i, lNode.objIdx, surfaceArea, numTotalLeaves[i], SAHCosts[i]);
+//            printf("%5uL|         %5u |Area: %10.6f, SAHCost: %10.6f\n", i, lNode.objIdx, surfaceArea, SAHCosts[i]);
 //        }
         
         if (profiling)

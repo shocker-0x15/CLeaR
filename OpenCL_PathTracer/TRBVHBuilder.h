@@ -41,6 +41,9 @@ namespace TRBVH {
         cl::Buffer m_bufSAHCosts;
         void setupWorkingBuffers() override;
         
+        void printNodes(cl::CommandQueue &queue, uint32_t numFaces,
+                        cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes) const;
+        
         void calcNodeAABBs_SAHCosts(cl::CommandQueue &queue, std::vector<cl::Event> &events,
                                     cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces);
         void treeletRestructuring(cl::CommandQueue &queue, std::vector<cl::Event> &events,

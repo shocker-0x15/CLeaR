@@ -105,6 +105,42 @@ namespace TRBVH {
     }
     
     
+    void Builder::printNodes(cl::CommandQueue &queue, uint32_t numFaces,
+                             cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes) const {
+        queue.finish();
+        std::vector<InternalNode> internalNodes;
+        std::vector<LeafNode> leafNodes;
+        std::vector<uint32_t> numTotalLeaves;
+        std::vector<float> SAHCosts;
+        internalNodes.resize(numFaces - 1);
+        leafNodes.resize(numFaces);
+        numTotalLeaves.resize(numFaces - 1);
+        SAHCosts.resize(2 * numFaces - 1);
+        queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
+        queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
+        queue.enqueueReadBuffer(m_bufNumTotalLeaves, CL_TRUE, 0, numTotalLeaves.size() * sizeof(uint32_t), numTotalLeaves.data());
+        queue.enqueueReadBuffer(m_bufSAHCosts, CL_TRUE, 0, SAHCosts.size() * sizeof(float), SAHCosts.data());
+        printf("Internal Nodes\n");
+        for (uint32_t i = 0; i < internalNodes.size(); ++i) {
+            InternalNode &iNode = internalNodes[i];
+            cl_float3 edge{iNode.bbox.max.s0 - iNode.bbox.min.s0, iNode.bbox.max.s1 - iNode.bbox.min.s1, iNode.bbox.max.s2 - iNode.bbox.min.s2};
+            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+            printf("%5u | %5u%c, %5u%c|Area: %10.6f, #Leaves: %5u, SAHCost: %10.6f\n", i,
+                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
+                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
+                   surfaceArea, numTotalLeaves[i], SAHCosts[numFaces + i]);
+        }
+        printf("--------------------------------\n");
+        printf("Leaf Nodes\n");
+        for (uint32_t i = 0; i < leafNodes.size(); ++i) {
+            LeafNode &lNode = leafNodes[i];
+            cl_float3 edge{lNode.bbox.max.s0 - lNode.bbox.min.s0, lNode.bbox.max.s1 - lNode.bbox.min.s1, lNode.bbox.max.s2 - lNode.bbox.min.s2};
+            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+            printf("%5uL|         %5u |Area: %10.6f, SAHCost: %10.6f\n", i, lNode.objIdx, surfaceArea, SAHCosts[i]);
+        }
+    }
+    
+    
     // 各ノードのAABBを計算する。
     void Builder::calcNodeAABBs_SAHCosts(cl::CommandQueue &queue, std::vector<cl::Event> &events,
                                          cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces) {
@@ -213,44 +249,13 @@ namespace TRBVH {
             CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
         }
-//        queue.finish();
-//        std::vector<InternalNode> internalNodes;
-//        std::vector<LeafNode> leafNodes;
-//        std::vector<uint32_t> numTotalLeaves;
-//        std::vector<float> SAHCosts;
-//        internalNodes.resize(numFaces - 1);
-//        leafNodes.resize(numFaces);
-//        numTotalLeaves.resize(numFaces - 1);
-//        SAHCosts.resize(2 * numFaces - 1);
-//        queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
-//        queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
-//        queue.enqueueReadBuffer(m_bufNumTotalLeaves, CL_TRUE, 0, numTotalLeaves.size() * sizeof(uint32_t), numTotalLeaves.data());
-//        queue.enqueueReadBuffer(m_bufSAHCosts, CL_TRUE, 0, SAHCosts.size() * sizeof(float), SAHCosts.data());
-//        printf("Internal Nodes\n");
-//        for (uint32_t i = 0; i < internalNodes.size(); ++i) {
-//            InternalNode &iNode = internalNodes[i];
-//            cl_float3 edge{iNode.bbox.max.s0 - iNode.bbox.min.s0, iNode.bbox.max.s1 - iNode.bbox.min.s1, iNode.bbox.max.s2 - iNode.bbox.min.s2};
-//            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-//            printf("%5u | %5u%c, %5u%c|Area: %10.6f, #Leaves: %5u, SAHCost: %10.6f\n", i,
-//                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
-//                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
-//                   surfaceArea, numTotalLeaves[i], SAHCosts[numFaces + i]);
-//        }
-//        printf("--------------------------------\n");
-//        printf("Leaf Nodes\n");
-//        for (uint32_t i = 0; i < leafNodes.size(); ++i) {
-//            LeafNode &lNode = leafNodes[i];
-//            cl_float3 edge{lNode.bbox.max.s0 - lNode.bbox.min.s0, lNode.bbox.max.s1 - lNode.bbox.min.s1, lNode.bbox.max.s2 - lNode.bbox.min.s2};
-//            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-//            printf("%5uL|         %5u |Area: %10.6f, SAHCost: %10.6f\n", i, lNode.objIdx, surfaceArea, SAHCosts[i]);
-//        }
         
         if (profiling)
             stopwatchHiRes.start();
         events.emplace_back();
         const uint32_t workSizeRestructuring = CLUtil::largerMultiple(numFaces, localSizeRestructuring);
         cl::enqueueNDRangeKernel(queue, m_kernelTreeletRestructuring, cl::NullRange, cl::NDRange(workSizeRestructuring), cl::NDRange(localSizeRestructuring), nullptr, &events.back(),
-                                 bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs, m_bufNumTotalLeaves, m_bufSAHCosts, 7);
+                                 bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs, m_bufNumTotalLeaves, m_bufSAHCosts, 0);
         queue.enqueueBarrierWithWaitList();
         if (profiling) {
             queue.finish();
@@ -258,6 +263,7 @@ namespace TRBVH {
             CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("treelet restructuring done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
         }
+        printNodes(queue, numFaces, bufInternalNodes, bufLeafNodes);
         printf("");
     };
 }

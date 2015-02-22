@@ -72,14 +72,16 @@ kernel void bvh_visualizer(global float3* vertices, global float3* normals, glob
     
     SurfacePoint surfPt;
     // レイとシーンとの交差判定、交点の情報を取得する。
+//    if (gid0 >= 504 && gid0 < 505 && gid1 >= 504 && gid1 < 505) {
     if (rayIntersectionVis(&scene, &ray.org, &ray.dir, &surfPt, &numAABBHit)) {
         const global Face* face = &scene.faces[surfPt.faceID];
         
         uchar* BSDF = memPool + 0;
         BSDFAlloc(&scene, face->matPtr, &surfPt, BSDF);
         
-        *pix += alpha * getBaseColor_fs(BSDF);
+        *pix += alpha * (distance(ray.org, surfPt.p) - 4.5f) * 0.6f;//getBaseColor_fs(BSDF);
     }
     
-    *pix += numAABBHit * 0.025f;
+//    *pix += numAABBHit * 0.025f;
+//    }
 }

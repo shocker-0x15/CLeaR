@@ -21,7 +21,7 @@ namespace LBVH {
         cl::Program programBuildAccel{context, srcBuildAccel};
         std::string buildLog;
         char extraArgs[256];
-        sprintf(extraArgs, "-I\"OpenCL_src\" -DLOCAL_SIZE_UNIFY_AABBS=%u -DLOCAL_SORT_SIZE=%u", localSizeUnifyAABBs, localSizeBlockwiseSort);
+        sprintf(extraArgs, "-I \"OpenCL_src\" -DLOCAL_SIZE_UNIFY_AABBS=%u -DLOCAL_SORT_SIZE=%u", localSizeUnifyAABBs, localSizeBlockwiseSort);
         programBuildAccel.build(extraArgs);
         programBuildAccel.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
         printf("LBVH build program build log: \n");
@@ -38,6 +38,7 @@ namespace LBVH {
         
         m_currentCapacity = 0;
         m_numBuildPass = (uint32_t)BuildPass::Num;
+        m_occupancies = nullptr;
     }
     
     void Builder::init(uint32_t maxNumFaces) {

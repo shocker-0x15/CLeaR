@@ -19,7 +19,7 @@ namespace TRBVH {
         cl::Program programTRBVH{context, srcBuildAccel};
         std::string buildLog;
         char extraArgs[256];
-        sprintf(extraArgs, "-I\"OpenCL_src\"");
+        sprintf(extraArgs, "-I \"OpenCL_src\"");
         programTRBVH.build(extraArgs);
         programTRBVH.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
         printf("TRBVH build program build log: \n");
@@ -106,29 +106,72 @@ namespace TRBVH {
     
     
     void Builder::printNodes(cl::CommandQueue &queue, uint32_t numFaces,
-                             cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes) const {
+                             cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, bool quickValidation) const {
         queue.finish();
+        
         std::vector<InternalNode> internalNodes;
         std::vector<LeafNode> leafNodes;
         std::vector<uint32_t> numTotalLeaves;
         std::vector<float> SAHCosts;
+        std::vector<uint32_t> parentIdxs;
+        std::vector<uint32_t> counters;
+        std::vector<uint8_t> refCounts;
+        
         internalNodes.resize(numFaces - 1);
         leafNodes.resize(numFaces);
         numTotalLeaves.resize(numFaces - 1);
         SAHCosts.resize(2 * numFaces - 1);
+        parentIdxs.resize(2 * numFaces - 1);
+        counters.resize(numFaces - 1);
+        refCounts.resize(2 * numFaces - 1, 0);
+        
         queue.enqueueReadBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
         queue.enqueueReadBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
         queue.enqueueReadBuffer(m_bufNumTotalLeaves, CL_TRUE, 0, numTotalLeaves.size() * sizeof(uint32_t), numTotalLeaves.data());
         queue.enqueueReadBuffer(m_bufSAHCosts, CL_TRUE, 0, SAHCosts.size() * sizeof(float), SAHCosts.data());
+        queue.enqueueReadBuffer(m_bufParentIdxs, CL_TRUE, 0, parentIdxs.size() * sizeof(uint32_t), parentIdxs.data());
+        queue.enqueueReadBuffer(m_bufCounters, CL_TRUE, 0, counters.size() * sizeof(uint32_t), counters.data());
+        
+        if (quickValidation) {
+            InternalNode &iNode = internalNodes[0];
+            cl_float3 edge{iNode.bbox.max.s0 - iNode.bbox.min.s0, iNode.bbox.max.s1 - iNode.bbox.min.s1, iNode.bbox.max.s2 - iNode.bbox.min.s2};
+            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+            
+            uint32_t cIdx0 = iNode.c[0] + (iNode.isLeaf[0] ? 0 : numFaces);
+            uint32_t cIdx1 = iNode.c[1] + (iNode.isLeaf[1] ? 0 : numFaces);
+            bool valid = (0 == parentIdxs[cIdx0]) && (0 == parentIdxs[cIdx1]);
+            
+            printf("%5u |%5u%c, %5u%c|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)|A: %10.6f, #P: %5u, $: %10.6f, #V: %u, #R: %u%s\n", 0,
+                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
+                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
+                   iNode.bbox.min.x, iNode.bbox.min.y, iNode.bbox.min.z, iNode.bbox.max.x, iNode.bbox.max.y, iNode.bbox.max.z,
+                   surfaceArea, numTotalLeaves[0], SAHCosts[numFaces + 0], counters[0], refCounts[numFaces + 0], valid ? "" : "error");
+            return;
+        }
+        
+        for (uint32_t i = 0; i < internalNodes.size(); ++i) {
+            InternalNode &iNode = internalNodes[i];
+            uint32_t cIdx0 = iNode.c[0] + (iNode.isLeaf[0] ? 0 : numFaces);
+            uint32_t cIdx1 = iNode.c[1] + (iNode.isLeaf[1] ? 0 : numFaces);
+            ++refCounts[cIdx0];
+            ++refCounts[cIdx1];
+        }
+        
         printf("Internal Nodes\n");
         for (uint32_t i = 0; i < internalNodes.size(); ++i) {
             InternalNode &iNode = internalNodes[i];
             cl_float3 edge{iNode.bbox.max.s0 - iNode.bbox.min.s0, iNode.bbox.max.s1 - iNode.bbox.min.s1, iNode.bbox.max.s2 - iNode.bbox.min.s2};
             float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-            printf("%5u | %5u%c, %5u%c|Area: %10.6f, #Leaves: %5u, SAHCost: %10.6f\n", i,
+            
+            uint32_t cIdx0 = iNode.c[0] + (iNode.isLeaf[0] ? 0 : numFaces);
+            uint32_t cIdx1 = iNode.c[1] + (iNode.isLeaf[1] ? 0 : numFaces);
+            bool valid = (i == parentIdxs[cIdx0]) && (i == parentIdxs[cIdx1]);
+            
+            printf("%5u |%5u%c, %5u%c, %5u|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)|A: %10.6f, #P: %5u, $: %10.6f, #V: %u, #R: %u%s\n", i,
                    iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
-                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
-                   surfaceArea, numTotalLeaves[i], SAHCosts[numFaces + i]);
+                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ', parentIdxs[numFaces + i],
+                   iNode.bbox.min.x, iNode.bbox.min.y, iNode.bbox.min.z, iNode.bbox.max.x, iNode.bbox.max.y, iNode.bbox.max.z,
+                   surfaceArea, numTotalLeaves[i], SAHCosts[numFaces + i], counters[i], refCounts[numFaces + i], valid ? "" : "error");
         }
         printf("--------------------------------\n");
         printf("Leaf Nodes\n");
@@ -136,7 +179,7 @@ namespace TRBVH {
             LeafNode &lNode = leafNodes[i];
             cl_float3 edge{lNode.bbox.max.s0 - lNode.bbox.min.s0, lNode.bbox.max.s1 - lNode.bbox.min.s1, lNode.bbox.max.s2 - lNode.bbox.min.s2};
             float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-            printf("%5uL|         %5u |Area: %10.6f, SAHCost: %10.6f\n", i, lNode.objIdx, surfaceArea, SAHCosts[i]);
+            printf("%5uL|%5u, %5u|A: %10.6f, $: %10.6f, #R: %u\n", i, lNode.objIdx, parentIdxs[i], surfaceArea, SAHCosts[i], refCounts[i]);
         }
     }
     
@@ -151,9 +194,16 @@ namespace TRBVH {
         queue.enqueueBarrierWithWaitList();
     }
     
-    void treeletRestructuring(cl::CommandQueue &queue, std::vector<cl::Event> &events,
-                              cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces) {
-        
+    // BVHの最適化を行う。
+    void Builder::treeletRestructuring(cl::CommandQueue &queue, std::vector<cl::Event> &events,
+                                       cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces) {
+        const uint32_t workSizeRestructuring = CLUtil::largerMultiple(numFaces, localSizeRestructuring);
+        for (int i = 0; i < 3; ++i) {
+            events.emplace_back();
+            cl::enqueueNDRangeKernel(queue, m_kernelTreeletRestructuring, cl::NullRange, cl::NDRange(workSizeRestructuring), cl::NDRange(localSizeRestructuring), nullptr, &events.back(),
+                                     bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs, m_bufNumTotalLeaves, m_bufSAHCosts, i);
+            queue.enqueueBarrierWithWaitList();// 途中には不要？
+        }
     }
     
     
@@ -249,21 +299,25 @@ namespace TRBVH {
             CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
         }
+        printNodes(queue, numFaces, bufInternalNodes, bufLeafNodes, true);
         
+        // Treelet単位で木構造の最適化を行う。
+        evStart = (uint32_t)events.size();
         if (profiling)
             stopwatchHiRes.start();
-        events.emplace_back();
-        const uint32_t workSizeRestructuring = CLUtil::largerMultiple(numFaces, localSizeRestructuring);
-        cl::enqueueNDRangeKernel(queue, m_kernelTreeletRestructuring, cl::NullRange, cl::NDRange(workSizeRestructuring), cl::NDRange(localSizeRestructuring), nullptr, &events.back(),
-                                 bufInternalNodes, m_bufCounters, bufLeafNodes, numFaces, m_bufParentIdxs, m_bufNumTotalLeaves, m_bufSAHCosts, 0);
-        queue.enqueueBarrierWithWaitList();
+        treeletRestructuring(queue, events, bufInternalNodes, bufLeafNodes, numFaces);
         if (profiling) {
             queue.finish();
-            events.back().wait();
-            CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
-            printf("treelet restructuring done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
+            cl_ulong sumTimeRestructuring = 0, sumTimeRestructuringFromSubmit = 0;
+            for (uint32_t i = evStart; i < events.size(); ++i) {
+                events[i].wait();
+                CLUtil::getProfilingInfo(events[i], &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
+                sumTimeRestructuring += tpCmdEnd - tpCmdStart;
+                sumTimeRestructuringFromSubmit += tpCmdEnd - tpCmdSubmit;
+            }
+            printf("treelet restructuring done! ... time: %fusec (%fusec)\n", sumTimeRestructuring * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
         }
-        printNodes(queue, numFaces, bufInternalNodes, bufLeafNodes);
+        printNodes(queue, numFaces, bufInternalNodes, bufLeafNodes, true);
         printf("");
     };
 }

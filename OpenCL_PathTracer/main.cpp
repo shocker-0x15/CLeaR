@@ -14,7 +14,7 @@
 #include "XORShift.hpp"
 #include "StopWatch.hpp"
 
-#define __CL_ENABLE_EXCEPTIONS
+//#define __CL_ENABLE_EXCEPTIONS
 #include "cl12.hpp"
 #include "clUtility.hpp"
 #include "LBVHBuilder.h"
@@ -22,7 +22,7 @@
 
 //#define __USE_LBVH
 #define __USE_TRBVH
-#define __SIMULATION
+//#define __SIMULATION
 #include "sim_pathtracer.hpp"
 #include "sim_bvh_visualizer.hpp"
 
@@ -164,16 +164,16 @@ void buildScene(StopWatch &sw) {
     mc.createMatteMaterial("mat_floor", "bump_floor", "R_floor", "sigma_lambert");
     mc.createMatteMaterial("mat_backWall", "bump_backWall", "R_backWall", "sigma_lambert");
     
-    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
-    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
-    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
-    scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
-    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
-    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P_UV(1, 0, 3, 5, 4, 7, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P_UV(1, 3, 2, 5, 7, 6, scene.idxOfMat("mat_backWall"), UINT16_MAX, (uint32_t)scene.idxOfTex("R_backWall")));
+//    scene.addFace(Face::make_P(0, 4, 7, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(0, 7, 3, scene.idxOfMat("mat_leftWall")));
+//    scene.addFace(Face::make_P(5, 1, 2, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P(5, 2, 6, scene.idxOfMat("mat_rightWall")));
+//    scene.addFace(Face::make_P_UV(4, 5, 1, 0, 1, 2, scene.idxOfMat("mat_floor")));
+//    scene.addFace(Face::make_P_UV(4, 1, 0, 0, 2, 3, scene.idxOfMat("mat_floor")));
+//    scene.addFace(Face::make_P(2, 3, 7, scene.idxOfMat("mat_otherWalls")));
+//    scene.addFace(Face::make_P(2, 7, 6, scene.idxOfMat("mat_otherWalls")));
     scene.endObject();
     
     // 光源
@@ -195,25 +195,25 @@ void buildScene(StopWatch &sw) {
     
     scene.localToWorld.push();
     {
-        scene.localToWorld *= LA::TranslateMatrix(0, -0.999f, 0) * LA::RotateMatrix(M_PI / 6, 0, 1, 0) * LA::ScaleMatrix(0.25f, 0.25f, 0.25f);
+        scene.localToWorld *= LA::TranslateMatrix(0, -0.999f, 0) * LA::RotateMatrix(7 * M_PI / 6, 0, 1, 0) * LA::ScaleMatrix(0.45f, 0.45f, 0.45f);
         loadModel("models/Pikachu.obj", &scene);
     }
     scene.localToWorld.pop();
     
-    scene.localToWorld.push();
-    {
-        scene.localToWorld *= LA::TranslateMatrix(-0.6f, -0.999f, 0.4f) * LA::RotateMatrix(-M_PI / 8, 0, 1, 0) * LA::ScaleMatrix(0.15f, 0.25f, 0.15f) * LA::TranslateMatrix(0, 1, 0);
-        
-        mc.createFloat3ConstantTexture("box_light_R", 0.95f, 0.95f, 0.95f);
-        mc.createFloatConstantTexture("box_light_sigma", 0.0f);
-        mc.createMatteMaterial("box_light", nullptr, "box_light_R", "box_light_sigma");
-        
-        mc.createFloat3ConstantTexture("box_light_M", 300.0f, 300.0f, 270.0f);
-        mc.createDiffuseLightProperty("box_light", "box_light_M");
-        
-        loadModel("models/box.obj", &scene, scene.idxOfMat("box_light"), scene.idxOfLight("box_light"));
-    }
-    scene.localToWorld.pop();
+//    scene.localToWorld.push();
+//    {
+//        scene.localToWorld *= LA::TranslateMatrix(-0.6f, -0.999f, 0.4f) * LA::RotateMatrix(-M_PI / 8, 0, 1, 0) * LA::ScaleMatrix(0.15f, 0.25f, 0.15f) * LA::TranslateMatrix(0, 1, 0);
+//        
+//        mc.createFloat3ConstantTexture("box_light_R", 0.95f, 0.95f, 0.95f);
+//        mc.createFloatConstantTexture("box_light_sigma", 0.0f);
+//        mc.createMatteMaterial("box_light", nullptr, "box_light_R", "box_light_sigma");
+//        
+//        mc.createFloat3ConstantTexture("box_light_M", 300.0f, 300.0f, 270.0f);
+//        mc.createDiffuseLightProperty("box_light", "box_light_M");
+//        
+//        loadModel("models/box.obj", &scene, scene.idxOfMat("box_light"), scene.idxOfLight("box_light"));
+//    }
+//    scene.localToWorld.pop();
     
 //    for (int i = 0; i < 20; ++i) {
 //        float scale = 0.25f * (0.5f + rng.getFloat0cTo1o());
@@ -252,7 +252,7 @@ int main(int argc, const char * argv[]) {
     
     CLUtil::init();
     
-    const uint32_t iterations = 16;
+    const uint32_t iterations = 1;
     
     stopwatch.start();
     buildScene(stopwatch);
@@ -291,7 +291,8 @@ int main(int argc, const char * argv[]) {
 #if defined(__USE_LBVH)
         stopwatch.start();
         
-        LBVH::Builder BVHBuilder{context, device, (uint32_t)scene.numFaces()};
+        LBVH::Builder BVHBuilder{context, device};
+        BVHBuilder.init((uint32_t)scene.numFaces());
         
         printf("LBVH build program setup time: %lldmsec\n", stopwatch.stop());
         printf("\n");
@@ -311,7 +312,7 @@ int main(int argc, const char * argv[]) {
 #ifndef __SIMULATION
         stopwatch.start();
         
-        std::string rawStrRendering = CLUtil::stringFromFile("OpenCL_src/pathtracer.cl");
+        std::string rawStrRendering = CLUtil::stringFromFile("OpenCL_src/bvh_visualizer.cl");
         cl::Program::Sources srcRendering{1, std::make_pair(rawStrRendering.c_str(), rawStrRendering.length())};
         
         cl::Program programRendering{context, srcRendering};
@@ -319,7 +320,7 @@ int main(int argc, const char * argv[]) {
         extraArgs += " -I\"OpenCL_src\"";
 #if defined(__USE_LBVH)
         extraArgs += " -D__USE_LBVH";
-#elif defined(__USE_LBVH)
+#elif defined(__USE_TRBVH)
         extraArgs += " -D__USE_TRBVH";
 #endif
         programRendering.build(extraArgs.c_str());
@@ -341,7 +342,7 @@ int main(int argc, const char * argv[]) {
         
         cl::Program programPostProcessing{context, srcPostProcessing};
         extraArgs = "";
-        extraArgs += " -I\"OpenCL_src\"";
+        extraArgs += " -I \"OpenCL_src\"";
         programPostProcessing.build(extraArgs.c_str());
         programPostProcessing.getBuildInfo(device, CL_PROGRAM_BUILD_LOG, &buildLog);
         printf("post-process program build log: \n");
@@ -494,7 +495,7 @@ int main(int argc, const char * argv[]) {
         cl::Buffer buf_randStates{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_randStates.size() * sizeof(uint32_t), (void*)g_randStates.data(), nullptr};
         cl::Buffer buf_pixels{context, CL_MEM_COPY_HOST_PTR | CL_MEM_READ_WRITE | CL_MEM_HOST_READ_ONLY, g_pixels.size() * sizeof(cl_float3), (void*)g_pixels.data(), nullptr};
         
-        cl::Kernel kernelRendering{programRendering, "pathtracing"};
+        cl::Kernel kernelRendering{programRendering, "bvh_visualizer"};
         
         for (int i = 0; i < iterations; ++i) {
             printf("[ %d ]", i);

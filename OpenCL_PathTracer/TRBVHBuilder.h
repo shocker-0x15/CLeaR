@@ -41,8 +41,9 @@ namespace TRBVH {
         cl::Buffer m_bufSAHCosts;
         void setupWorkingBuffers() override;
         
-        void printNodes(cl::CommandQueue &queue, uint32_t numFaces,
-                        cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, bool quickValidation) const;
+        // for debugging
+        bool validate(cl::CommandQueue &queue, uint32_t numFaces,
+                      cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, bool quiet, bool dump = false) const;
         
         void calcNodeAABBs_SAHCosts(cl::CommandQueue &queue, std::vector<cl::Event> &events,
                                     cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, uint32_t numFaces);
@@ -54,6 +55,9 @@ namespace TRBVH {
         void perform(cl::CommandQueue &queue,
                      const cl::Buffer &buf_vertices, const cl::Buffer &buf_faces, uint32_t numFaces, uint32_t numBitsPerDim,
                      cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, std::vector<cl::Event> &events, bool profiling) override;
+        
+        // for debugging
+        void loadFromBinary(cl::CommandQueue &queue, const std::string &filepath, cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes);
     };
 }
 

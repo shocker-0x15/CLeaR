@@ -72,7 +72,7 @@ kernel void bvh_visualizer(global float3* vertices, global float3* normals, glob
     
     SurfacePoint surfPt;
     // レイとシーンとの交差判定、交点の情報を取得する。
-//    if (gid0 >= 504 && gid0 < 505 && gid1 >= 504 && gid1 < 505) {
+//    if (gid0 >= 381 && gid0 < 382 && gid1 >= 185 && gid1 < 186) {
     if (rayIntersectionVis(&scene, &ray.org, &ray.dir, &surfPt, &numAABBHit)) {
         const global Face* face = &scene.faces[surfPt.faceID];
         

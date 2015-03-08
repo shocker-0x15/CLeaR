@@ -196,7 +196,7 @@ void buildScene(StopWatch &sw) {
     scene.localToWorld.push();
     {
         scene.localToWorld *= LA::TranslateMatrix(0, -0.999f, 0) * LA::RotateMatrix(7 * M_PI / 6, 0, 1, 0) * LA::ScaleMatrix(0.45f, 0.45f, 0.45f);
-        loadModel("models/Pikachu.obj", &scene);
+        loadModel("models/Pikachu_corrected.obj", &scene);
     }
     scene.localToWorld.pop();
     
@@ -386,6 +386,7 @@ int main(int argc, const char * argv[]) {
         stopwatchHiRes.start();
         
         BVHBuilder.perform(queue, buf_vertices, buf_faces, (uint32_t)scene.numFaces(), 20, buf_internalNodes, buf_leafNodes, events, profiling);
+//        BVHBuilder.loadFromBinary(queue, "node_data_ref", buf_internalNodes, buf_leafNodes);
         
         queue.finish();
         printf("spatial splitting done! ... time: %llumsec\n", stopwatchHiRes.stop());

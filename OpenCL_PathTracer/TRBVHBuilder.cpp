@@ -9,6 +9,9 @@
 #include "TRBVHBuilder.h"
 #include "StopWatch.hpp"
 
+#include <iostream>
+#include <fstream>
+
 namespace TRBVH {
     Builder::Builder(cl::Context &context, cl::Device &device) :
     LBVH::Builder(context, device),
@@ -105,8 +108,8 @@ namespace TRBVH {
     }
     
     
-    void Builder::printNodes(cl::CommandQueue &queue, uint32_t numFaces,
-                             cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, bool quickValidation) const {
+    bool Builder::validate(cl::CommandQueue &queue, uint32_t numFaces,
+                           cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes, bool quiet, bool dump) const {
         queue.finish();
         
         std::vector<InternalNode> internalNodes;
@@ -132,21 +135,31 @@ namespace TRBVH {
         queue.enqueueReadBuffer(m_bufParentIdxs, CL_TRUE, 0, parentIdxs.size() * sizeof(uint32_t), parentIdxs.data());
         queue.enqueueReadBuffer(m_bufCounters, CL_TRUE, 0, counters.size() * sizeof(uint32_t), counters.data());
         
-        if (quickValidation) {
+        auto calcSurfaceArea = [](const AABB &bbox) {
+            cl_float3 edge{bbox.max.s0 - bbox.min.s0, bbox.max.s1 - bbox.min.s1, bbox.max.s2 - bbox.min.s2};
+            return 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+        };
+        
+        if (quiet) {
             InternalNode &iNode = internalNodes[0];
-            cl_float3 edge{iNode.bbox.max.s0 - iNode.bbox.min.s0, iNode.bbox.max.s1 - iNode.bbox.min.s1, iNode.bbox.max.s2 - iNode.bbox.min.s2};
-            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+            bool lIsL = iNode.isLeaf[0];
+            bool rIsL = iNode.isLeaf[1];
+            uint32_t c0 = iNode.c[0];
+            uint32_t c1 = iNode.c[1];
+            float surfaceArea = calcSurfaceArea(iNode.bbox);
             
-            uint32_t cIdx0 = iNode.c[0] + (iNode.isLeaf[0] ? 0 : numFaces);
-            uint32_t cIdx1 = iNode.c[1] + (iNode.isLeaf[1] ? 0 : numFaces);
-            bool valid = (0 == parentIdxs[cIdx0]) && (0 == parentIdxs[cIdx1]);
+            uint32_t cIdx0 = c0 + (lIsL ? 0 : numFaces);
+            uint32_t cIdx1 = c1 + (rIsL ? 0 : numFaces);
+            uint32_t numCPrims0 = lIsL ? 1 : numTotalLeaves[c0];
+            uint32_t numCPrims1 = rIsL ? 1 : numTotalLeaves[c1];
+            bool error = (0 != parentIdxs[cIdx0] || 0 != parentIdxs[cIdx1] ||
+                          numTotalLeaves[0] != numCPrims0 + numCPrims1);
             
             printf("%5u |%5u%c, %5u%c|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)|A: %10.6f, #P: %5u, $: %10.6f, #V: %u, #R: %u%s\n", 0,
                    iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
                    iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ',
                    iNode.bbox.min.x, iNode.bbox.min.y, iNode.bbox.min.z, iNode.bbox.max.x, iNode.bbox.max.y, iNode.bbox.max.z,
-                   surfaceArea, numTotalLeaves[0], SAHCosts[numFaces + 0], counters[0], refCounts[numFaces + 0], valid ? "" : "error");
-            return;
+                   surfaceArea, numTotalLeaves[0], SAHCosts[numFaces + 0], counters[0], refCounts[numFaces + 0], error ? " error" : "");
         }
         
         for (uint32_t i = 0; i < internalNodes.size(); ++i) {
@@ -157,30 +170,103 @@ namespace TRBVH {
             ++refCounts[cIdx1];
         }
         
-        printf("Internal Nodes\n");
+        bool valid = true;
+        
+        if (!quiet) {
+            printf("Internal Nodes\n");
+        }
         for (uint32_t i = 0; i < internalNodes.size(); ++i) {
             InternalNode &iNode = internalNodes[i];
-            cl_float3 edge{iNode.bbox.max.s0 - iNode.bbox.min.s0, iNode.bbox.max.s1 - iNode.bbox.min.s1, iNode.bbox.max.s2 - iNode.bbox.min.s2};
-            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
+            bool lIsL = iNode.isLeaf[0];
+            bool rIsL = iNode.isLeaf[1];
+            uint32_t c0 = iNode.c[0];
+            uint32_t c1 = iNode.c[1];
+            float surfaceArea = calcSurfaceArea(iNode.bbox);
             
-            uint32_t cIdx0 = iNode.c[0] + (iNode.isLeaf[0] ? 0 : numFaces);
-            uint32_t cIdx1 = iNode.c[1] + (iNode.isLeaf[1] ? 0 : numFaces);
-            bool valid = (i == parentIdxs[cIdx0]) && (i == parentIdxs[cIdx1]);
+            InternalNode &pINode = internalNodes[parentIdxs[numFaces + i]];
+            float pSurfaceArea = calcSurfaceArea(pINode.bbox);
             
-            printf("%5u |%5u%c, %5u%c, %5u|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)|A: %10.6f, #P: %5u, $: %10.6f, #V: %u, #R: %u%s\n", i,
-                   iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
-                   iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ', parentIdxs[numFaces + i],
-                   iNode.bbox.min.x, iNode.bbox.min.y, iNode.bbox.min.z, iNode.bbox.max.x, iNode.bbox.max.y, iNode.bbox.max.z,
-                   surfaceArea, numTotalLeaves[i], SAHCosts[numFaces + i], counters[i], refCounts[numFaces + i], valid ? "" : "error");
+            uint32_t cIdx0 = c0 + (lIsL ? 0 : numFaces);
+            uint32_t cIdx1 = c1 + (rIsL ? 0 : numFaces);
+            uint32_t numCPrims0 = lIsL ? 1 : numTotalLeaves[c0];
+            uint32_t numCPrims1 = rIsL ? 1 : numTotalLeaves[c1];
+            bool error = (i != parentIdxs[cIdx0] || i != parentIdxs[cIdx1] ||
+                          pSurfaceArea < surfaceArea ||
+                          numTotalLeaves[i] != numCPrims0 + numCPrims1);
+            valid &= ~error;
+            
+            if (!quiet) {
+                printf("%5u |%5u%c, %5u%c, %5u|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)|A: %10.6f, #P: %5u, $: %10.6f, #V: %u, #R: %u%s\n", i,
+                       iNode.c[0], iNode.isLeaf[0] ? 'L' : ' ',
+                       iNode.c[1], iNode.isLeaf[1] ? 'L' : ' ', parentIdxs[numFaces + i],
+                       iNode.bbox.min.x, iNode.bbox.min.y, iNode.bbox.min.z, iNode.bbox.max.x, iNode.bbox.max.y, iNode.bbox.max.z,
+                       surfaceArea, numTotalLeaves[i], SAHCosts[numFaces + i], counters[i], refCounts[numFaces + i], error ? " error" : "");
+            }
         }
-        printf("--------------------------------\n");
-        printf("Leaf Nodes\n");
+        if (!quiet) {
+            printf("--------------------------------\n");
+            printf("Leaf Nodes\n");
+        }
         for (uint32_t i = 0; i < leafNodes.size(); ++i) {
             LeafNode &lNode = leafNodes[i];
-            cl_float3 edge{lNode.bbox.max.s0 - lNode.bbox.min.s0, lNode.bbox.max.s1 - lNode.bbox.min.s1, lNode.bbox.max.s2 - lNode.bbox.min.s2};
-            float surfaceArea = 2 * (edge.s0 * edge.s1 + edge.s1 * edge.s2 + edge.s2 * edge.s0);
-            printf("%5uL|%5u, %5u|A: %10.6f, $: %10.6f, #R: %u\n", i, lNode.objIdx, parentIdxs[i], surfaceArea, SAHCosts[i], refCounts[i]);
+            float surfaceArea = calcSurfaceArea(lNode.bbox);
+            
+            InternalNode &pINode = internalNodes[parentIdxs[i]];
+            float pSurfaceArea = calcSurfaceArea(pINode.bbox);
+            
+            bool error = pSurfaceArea < surfaceArea;
+            valid &= ~error;
+            
+            if (!quiet) {
+                printf("%5uL|%5u, %5u|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)|A: %10.6f, $: %10.6f, #R: %u%s\n", i,
+                       lNode.objIdx, parentIdxs[i],
+                       lNode.bbox.min.x, lNode.bbox.min.y, lNode.bbox.min.z, lNode.bbox.max.x, lNode.bbox.max.y, lNode.bbox.max.z,
+                       surfaceArea, SAHCosts[i], refCounts[i], error ? " error" : "");
+            }
         }
+        
+        if (dump) {
+            std::ofstream ofs;
+            ofs.open("node_data", std::ios::out | std::ios::binary | std::ios::trunc);
+            
+            ofs.write("INODES", 7);
+            size_t numINodes = internalNodes.size();
+            ofs.write((const char*)&numINodes, sizeof(size_t));
+            for (uint32_t i = 0; i < internalNodes.size(); ++i)
+                ofs.write((const char*)&internalNodes[i], sizeof(InternalNode));
+            
+            ofs.write("LNODES", 7);
+            size_t numLNodes = leafNodes.size();
+            ofs.write((const char*)&numLNodes, sizeof(size_t));
+            for (uint32_t i = 0; i < leafNodes.size(); ++i)
+                ofs.write((const char*)&leafNodes[i], sizeof(LeafNode));
+        }
+        
+        return valid;
+    }
+    
+    void Builder::loadFromBinary(cl::CommandQueue &queue, const std::string &filepath, cl::Buffer &bufInternalNodes, cl::Buffer &bufLeafNodes) {
+        std::ifstream ifs;
+        ifs.open(filepath, std::ios::in | std::ios::binary);
+        char strBuffer[256];
+        size_t size_t_store;
+        std::vector<InternalNode> internalNodes;
+        std::vector<LeafNode> leafNodes;
+        
+        ifs.read(strBuffer, 7);
+        ifs.read((char*)&size_t_store, sizeof(size_t));
+        internalNodes.resize(size_t_store);
+        for (uint32_t i = 0; i < internalNodes.size(); ++i)
+            ifs.read((char*)&internalNodes[i], sizeof(InternalNode));
+        
+        ifs.read(strBuffer, 7);
+        ifs.read((char*)&size_t_store, sizeof(size_t));
+        leafNodes.resize(size_t_store);
+        for (uint32_t i = 0; i < leafNodes.size(); ++i)
+            ifs.read((char*)&leafNodes[i], sizeof(LeafNode));
+        
+        queue.enqueueWriteBuffer(bufInternalNodes, CL_TRUE, 0, internalNodes.size() * sizeof(InternalNode), internalNodes.data());
+        queue.enqueueWriteBuffer(bufLeafNodes, CL_TRUE, 0, leafNodes.size() * sizeof(LeafNode), leafNodes.data());
     }
     
     
@@ -299,7 +385,7 @@ namespace TRBVH {
             CLUtil::getProfilingInfo(events.back(), &tpCmdStart, &tpCmdEnd, &tpCmdSubmit);
             printf("calculating node-AABBs done! ... time: %fusec (%fusec)\n", (tpCmdEnd - tpCmdStart) * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
         }
-        printNodes(queue, numFaces, bufInternalNodes, bufLeafNodes, true);
+        validate(queue, numFaces, bufInternalNodes, bufLeafNodes, true);
         
         // Treelet単位で木構造の最適化を行う。
         evStart = (uint32_t)events.size();
@@ -317,7 +403,9 @@ namespace TRBVH {
             }
             printf("treelet restructuring done! ... time: %fusec (%fusec)\n", sumTimeRestructuring * 0.001f, stopwatchHiRes.stop(StopWatchHiRes::Nanoseconds) * 0.001f);
         }
-        printNodes(queue, numFaces, bufInternalNodes, bufLeafNodes, true);
+        bool valid = validate(queue, numFaces, bufInternalNodes, bufLeafNodes, false);
+        if (!valid)
+            printf("invalid!!\n");
         printf("");
     };
 }

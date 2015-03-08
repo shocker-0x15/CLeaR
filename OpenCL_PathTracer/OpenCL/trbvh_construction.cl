@@ -76,12 +76,12 @@ const constant char schedule[] = {
 inline local uchar* alignPtrL(const local void* ptr, uintptr_t bytes);
 inline uint __ballot(local void* mem, uint localID, bool pred);
 inline float __shfl_f32(local float* mem, uint localID, float value, uint srcLane, uint width);
-inline void __shfl2_f32(local float* mem, uint localID, float value,
-                        uint srcLane0, uint srcLane1, float* v0, float* v1, uint width);
-inline void __shfl2_ui32(local uint* mem, uint localID, float value,
-                         uint srcLane0, uint srcLane1, uint* v0, uint* v1, uint width);
-inline void __shfl2_bool(local bool* mem, uint localID, float value,
-                         uint srcLane0, uint srcLane1, bool* v0, bool* v1, uint width);
+inline void shfl_2_f32(local float* mem, uint localID, float value,
+                       uint srcLane0, uint srcLane1, float* v0, float* v1, uint width);
+inline void shfl_2_ui32(local uint* mem, uint localID, uint value,
+                        uint srcLane0, uint srcLane1, uint* v0, uint* v1, uint width);
+inline void shfl_2_bool(local bool* mem, uint localID, bool value,
+                        uint srcLane0, uint srcLane1, bool* v0, bool* v1, uint width);
 inline uint work_group_broadcast_ui32(local uint* mem, uint localID, uint value, uint srcLane);
 
 inline float calcSurfaceAreaAABB(const AABB bb);
@@ -129,7 +129,7 @@ inline float __shfl_f32(local float* mem, uint localID, float value, uint srcLan
 }
 
 // スレッドグループ中の2つのfloat値を取得する。
-inline void __shfl2_f32(local float* mem, uint localID, float value,
+inline void shfl_2_f32(local float* mem, uint localID, float value,
                         uint srcLane0, uint srcLane1, float* v0, float* v1, uint width) {
     if (localID < width)
         mem[localID] = value;
@@ -142,26 +142,26 @@ inline void __shfl2_f32(local float* mem, uint localID, float value,
 }
 
 // スレッドグループ中の2つのuint値を取得する。
-inline void __shfl2_ui32(local uint* mem, uint localID, float value,
+inline void shfl_2_ui32(local uint* mem, uint localID, uint value,
                          uint srcLane0, uint srcLane1, uint* v0, uint* v1, uint width) {
     if (localID < width)
         mem[localID] = value;
     barrier(CLK_LOCAL_MEM_FENCE);
-    float _v0 = mem[srcLane0];
-    float _v1 = mem[srcLane1];
+    uint _v0 = mem[srcLane0];
+    uint _v1 = mem[srcLane1];
     barrier(CLK_LOCAL_MEM_FENCE);
     *v0 = _v0;
     *v1 = _v1;
 }
 
 // スレッドグループ中の2つのbool値を取得する。
-inline void __shfl2_bool(local bool* mem, uint localID, float value,
+inline void shfl_2_bool(local bool* mem, uint localID, bool value,
                          uint srcLane0, uint srcLane1, bool* v0, bool* v1, uint width) {
     if (localID < width)
         mem[localID] = value;
     barrier(CLK_LOCAL_MEM_FENCE);
-    float _v0 = mem[srcLane0];
-    float _v1 = mem[srcLane1];
+    bool _v0 = mem[srcLane0];
+    bool _v1 = mem[srcLane1];
     barrier(CLK_LOCAL_MEM_FENCE);
     *v0 = _v0;
     *v1 = _v1;
@@ -293,8 +293,8 @@ kernel void treeletRestructuring(volatile global uchar* _iNodes, global uint* co
     local float* subsetSAHCosts = SA_SAHCosts;
     local char partitions[128];
     
-    // OpenCL 1.2以下では(少なくとも明示的に)ローカルメモリを使わないと、
-    // reductionなどが出来ないので元論文より余分な領域の確保が必要。
+    // OpenCL 1.2以下では(少なくとも明示的に)ローカルメモリを使わないと、reductionなどが出来ないので元論文より余分な領域の確保が必要。
+    // ballotなどを考えると2.0/2.1でも必要かも。
     local uchar extraLMemPool[128] __attribute__((aligned(16)));
     
     
@@ -302,9 +302,9 @@ kernel void treeletRestructuring(volatile global uchar* _iNodes, global uint* co
     uint pIdx = parentIdxs[selfIdx];
     bool survive = selfIdx < numPrimitives;
 
-    uint dStep = UINT_MAX;
+    uint dbgStep = UINT_MAX;
     while (true) {
-        ++dStep;
+        ++dbgStep;
         uint treeletRoot = UINT_MAX;
         
         //----------------------------------------------------------------
@@ -326,13 +326,6 @@ kernel void treeletRestructuring(volatile global uchar* _iNodes, global uint* co
         uint rootFlags = __ballot(extraLMemPool, lid0, treeletRoot != UINT_MAX);
         // END: Bottom-up Traversal
         //----------------------------------------------------------------
-        
-//        if (globalOptRound == 1 && lid0 == 0 && dStep == 0) {
-//            printf("%5u: %#010x\n", get_group_id(0), rootFlags);
-//        }
-//        if (globalOptRound == 1 && treeletRoot != UINT_MAX && dStep == 0) {
-//            printf("%5u(%2u): %5u\n", get_group_id(0), lid0, treeletRoot);
-//        }
         
         // 有効なサブツリーそれぞれに関してtreeletの形成と最適化処理を行う。
         while (popcount(rootFlags) > 0) {
@@ -386,6 +379,12 @@ kernel void treeletRestructuring(volatile global uchar* _iNodes, global uint* co
             }
             // END: Treelet Formation
             //----------------------------------------------------------------
+            
+//            if (__ballot(extraLMemPool, lid0, nodeIdx == 1354) != 0) {
+//                printf("TF %u-%u-%2u-%4u: lid: %2u, node: %5u %u|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)\n", globalOptRound, dbgStep, get_group_id(0), curRoot, lid0,
+//                       nodeIdx, nodeType,
+//                       bbox.min.x, bbox.min.y, bbox.min.z, bbox.max.x, bbox.max.y, bbox.max.z);
+//            }
             
             // 各スレッドが自身が何番目のTreelet Leafなのかを計算する。Treelet Leafじゃない場合はUCHAR_MAX。
             // ex) TLLeafFlags: 0001 1110 1010 0010, localID: 5
@@ -559,7 +558,7 @@ kernel void treeletRestructuring(volatile global uchar* _iNodes, global uint* co
             //----------------------------------------------------------------
             // Reconstruction
             // Optimizationステップで記録された分割方法を基に木構造を再構築する。
-            // Treelet Leaf Nodeには一切触れず、Treelet Internal Nodeも接続情報を変えるだけ。
+            // Treelet Leaf Nodeには一切触れず、Treelet Internal Nodeの接続情報・AABBを変更する。
             // SAHコストに改善が無い場合はスキップする。
             if ((subsetSAHCosts[FullSet] / SAHCosts[curRoot + numPrimitives]) < 1.0f) {
                 local char* partitionPair = (local char*)alignPtrL(extraLMemPool, sizeof(char));
@@ -618,22 +617,22 @@ kernel void treeletRestructuring(volatile global uchar* _iNodes, global uint* co
                     AABB newAABB;
                     float v0, v1;
                     
-                    __shfl2_f32(AABBCoords, lid0, bbox.min.x, cLID[0], cLID[1], &v0, &v1, TL_size);
+                    shfl_2_f32(AABBCoords, lid0, bbox.min.x, cLID[0], cLID[1], &v0, &v1, TL_size);
                     newAABB.min.x = fmin(v0, v1);
-                    __shfl2_f32(AABBCoords, lid0, bbox.min.y, cLID[0], cLID[1], &v0, &v1, TL_size);
+                    shfl_2_f32(AABBCoords, lid0, bbox.min.y, cLID[0], cLID[1], &v0, &v1, TL_size);
                     newAABB.min.y = fmin(v0, v1);
-                    __shfl2_f32(AABBCoords, lid0, bbox.min.z, cLID[0], cLID[1], &v0, &v1, TL_size);
+                    shfl_2_f32(AABBCoords, lid0, bbox.min.z, cLID[0], cLID[1], &v0, &v1, TL_size);
                     newAABB.min.z = fmin(v0, v1);
                     
-                    __shfl2_f32(AABBCoords, lid0, bbox.max.x, cLID[0], cLID[1], &v0, &v1, TL_size);
+                    shfl_2_f32(AABBCoords, lid0, bbox.max.x, cLID[0], cLID[1], &v0, &v1, TL_size);
                     newAABB.max.x = fmax(v0, v1);
-                    __shfl2_f32(AABBCoords, lid0, bbox.max.y, cLID[0], cLID[1], &v0, &v1, TL_size);
+                    shfl_2_f32(AABBCoords, lid0, bbox.max.y, cLID[0], cLID[1], &v0, &v1, TL_size);
                     newAABB.max.y = fmax(v0, v1);
-                    __shfl2_f32(AABBCoords, lid0, bbox.max.z, cLID[0], cLID[1], &v0, &v1, TL_size);
+                    shfl_2_f32(AABBCoords, lid0, bbox.max.z, cLID[0], cLID[1], &v0, &v1, TL_size);
                     newAABB.max.z = fmax(v0, v1);
                     
                     uint n0, n1;
-                    __shfl2_ui32(TLNumLeaves, lid0, numLeaves, cLID[0], cLID[1], &n0, &n1, TL_size);
+                    shfl_2_ui32(TLNumLeaves, lid0, numLeaves, cLID[0], cLID[1], &n0, &n1, TL_size);
                     
                     bool valid = validAABBs[cLID[0]] & validAABBs[cLID[1]];
                     barrier(CLK_LOCAL_MEM_FENCE);
@@ -651,13 +650,24 @@ kernel void treeletRestructuring(volatile global uchar* _iNodes, global uint* co
                 
                 InternalNode newINode;
                 newINode.bbox = bbox;
-                __shfl2_ui32((local uint*)extraLMemPool, lid0, nodeIdx, cLID[0], cLID[1], &newINode.c[0], &newINode.c[1], TL_size);
-                __shfl2_bool((local bool*)extraLMemPool, lid0, (nodeType & TLNodeType_ActualLeaf) == TLNodeType_ActualLeaf,
-                             cLID[0], cLID[1], &newINode.isLeaf[0], &newINode.isLeaf[1], TL_size);
-                if (TLIntIdx != UCHAR_MAX)
+                shfl_2_ui32((local uint*)extraLMemPool, lid0, nodeIdx, cLID[0], cLID[1], &newINode.c[0], &newINode.c[1], TL_size);
+                shfl_2_bool((local bool*)extraLMemPool, lid0, (nodeType & TLNodeType_ActualLeaf) == TLNodeType_ActualLeaf,
+                            cLID[0], cLID[1], &newINode.isLeaf[0], &newINode.isLeaf[1], TL_size);
+                if (TLIntIdx != UCHAR_MAX) {
                     iNodes[nodeIdx] = newINode;
+//                    if (nodeIdx == 1354) {
+//                        printf("R %u-%u-%2u-%4u: lid: %2u, node: %5u %u, %2u, %2u|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)\n", globalOptRound, dbgStep, get_group_id(0), curRoot, lid0,
+//                               nodeIdx, nodeType, cLID[0], cLID[1],
+//                               bbox.min.x, bbox.min.y, bbox.min.z, bbox.max.x, bbox.max.y, bbox.max.z);
+//                    }
+                }
+                
+//                if (__ballot(extraLMemPool, lid0, nodeIdx == 1354) != 0) {
+//                    printf("R %u-%u-%2u-%4u: lid: %2u, node: %5u %u, %2u, %2u|(%10.6f, %10.6f, %10.6f), (%10.6f, %10.6f, %10.6f)\n", globalOptRound, dbgStep, get_group_id(0), curRoot, lid0,
+//                           nodeIdx, nodeType, cLID[0], cLID[1],
+//                           bbox.min.x, bbox.min.y, bbox.min.z, bbox.max.x, bbox.max.y, bbox.max.z);
+//                }
             }
-            barrier(CLK_GLOBAL_MEM_FENCE);
             // END: Reconstruction
             //----------------------------------------------------------------
             

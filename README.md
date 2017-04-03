@@ -1,4 +1,4 @@
-#CLeaR: OpenCL experimental a\*\*\* Raytracer
+# CLeaR: OpenCL experimental a\*\*\* Raytracer
 
 CLeaRはOpenCLでどの程度実用的なレンダラーが書けるかを実験する目的で作ったレンダラーです。
 BSDF周りの処理は[PBRT-v2](https://github.com/mmp/pbrt-v2)をかなり参考にしています。  
@@ -14,7 +14,7 @@ It uses BVH for the spatial partitioning structure. Parallel construction of Lin
 [2] "Fast BVH Construction on GPUs"  
 [3] "Maximizing Parallelism in the Construction of BVHs, Octrees, and k-d Trees"  
 
-##特徴 / Features
+## 特徴 / Features
 * Unidirectional Path Tracing
 * Multiple BSDF Layers
 * Multiple Importance Sampling
@@ -26,7 +26,7 @@ It uses BVH for the spatial partitioning structure. Parallel construction of Lin
 * BVH Visualizer
 * .obj Loader
 
-##動作環境 / Confirmed Environment
+## 動作環境 / Confirmed Environment
 現状以下の環境で動作を確認しています。  
 I've confirmed that the program runs correctly on the following environment.
 
@@ -40,7 +40,7 @@ It requires the following libraries.
 * OpenEXR 2.10
 * libpng 1.6.14
 
-##注意 / Note
+## 注意 / Note
 objファイルやテクスチャーを読み込むコードが書かれていますが、それらアセットはリポジトリには含まれていません。
 objファイルはBlender 2.70で、デフォルト設定 + 「法線を出力」 + 「三角面化」 + 「マテリアルグループ」でエクスポートしたものを前提としています。
 
